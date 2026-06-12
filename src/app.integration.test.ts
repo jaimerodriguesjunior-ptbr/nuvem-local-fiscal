@@ -408,6 +408,20 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(consultation.json().status, "autorizado");
     assert.equal(consultation.json().assinatura_valida, true);
 
+    const invalidCancellation = await app.inject({
+      method: "POST",
+      url: `/nfce/${documentId}/cancelar`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        justificativa: "motivo curto"
+      }
+    });
+    assert.equal(invalidCancellation.statusCode, 400, invalidCancellation.body);
+    assert.equal(invalidCancellation.json().error.code, "invalid_justification");
+
     const xml = await app.inject({
       method: "GET",
       url: `/nfce/${documentId}/xml`,

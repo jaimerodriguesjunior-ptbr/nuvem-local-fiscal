@@ -53,14 +53,17 @@ Configuracoes persistidas:
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
+- cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
 
 Limites atuais:
 - transmissao automatica esta liberada apenas para NFC-e em homologacao
 - producao permanece bloqueada por seguranca
 - NF-e e NFS-e aparecem como areas reservadas, mas ainda nao estao prontas para emissao
-- cancelamento real e filas/retries ainda precisam ser fechados
+- cancelamento real esta habilitado apenas em homologacao para documentos autorizados
+- filas/retries ainda precisam ser fechados
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
+- para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
 1. manter a NFC-e da Otica como base estavel
@@ -240,6 +243,17 @@ Endpoints principais do v1:
 
 ### Cancelamento NFC-e
 `POST /nfce/:id/cancelar`
+
+Payload:
+```json
+{
+  "justificativa": "Erro de preenchimento nos dados da venda"
+}
+```
+
+Em homologacao, o servico gera e assina o evento `110111`, envia ao
+`NFeRecepcaoEvento4` e preserva separadamente os protocolos de autorizacao e
+cancelamento.
 
 ### Inutilizacao NFC-e
 `POST /nfce/inutilizacoes`

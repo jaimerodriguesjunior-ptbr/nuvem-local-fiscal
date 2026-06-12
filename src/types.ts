@@ -100,6 +100,15 @@ export type DocumentRecord = {
   sefazBatchId?: string | null;
   sefazReceipt?: string | null;
   sefazResponseXml?: string | null;
+  cancellationJustification?: string | null;
+  cancellationStatusCode?: string | null;
+  cancellationReason?: string | null;
+  cancellationProtocol?: string | null;
+  cancellationRequestXml?: string | null;
+  cancellationSignedXml?: string | null;
+  cancellationResponseXml?: string | null;
+  cancellationProcessedXml?: string | null;
+  cancelledAt?: string | null;
   pdfUrl: string;
   createdAt: string;
   updatedAt: string;

@@ -23,11 +23,13 @@
 
 ## Fase 3
 
-- homologacao NFC-e ponta a ponta
-- polling/status real
-- XML autorizado e DANFE
+- [x] homologacao NFC-e ponta a ponta
+- [x] polling/status real
+- [x] XML autorizado e DANFE
+- [x] inutilizacao real em homologacao
+- [x] cancelamento real em homologacao
 
 ## Fase 4
 
 - homologacao NF-e
-- cancelamento e inutilizacao reais
+- filas, retries e conciliacao de eventos

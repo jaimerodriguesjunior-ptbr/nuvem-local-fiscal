@@ -10,6 +10,7 @@ import {
   parsePfx
 } from "../lib/certificates.js";
 import { processHomologationNfce } from "../lib/document-processing.js";
+import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment } from "../types.js";
 
@@ -47,6 +48,15 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
           codigo_status: document.motivoStatus,
           motivo_status: document.motivo,
           numero_protocolo: document.protocolo
+        }
+      : null,
+    cancelamento: document.cancellationStatusCode
+      ? {
+          codigo_status: document.cancellationStatusCode,
+          motivo_status: document.cancellationReason,
+          numero_protocolo: document.cancellationProtocol,
+          justificativa: document.cancellationJustification,
+          cancelado_em: document.cancelledAt
         }
       : null,
     xml_autorizado_disponivel: artifactsAvailable && Boolean(document.xml),
@@ -812,16 +822,143 @@ async function handleCancelDocument(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const document = app.store.cancelDocument(params.id, tipoDocumento);
-
+  const document = app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({
       message: "Documento nao encontrado para cancelamento."
     });
   }
-  await app.store.waitForPersistence();
+  if (document.status === "cancelado") {
+    return mapDocumentResponse(document, requestBaseUrl(request));
+  }
+  if (document.status !== "autorizado") {
+    return reply.code(409).send({
+      message: "Somente um documento autorizado pode ser cancelado.",
+      error: {
+        code: "document_not_authorized",
+        message: "Somente um documento autorizado pode ser cancelado."
+      }
+    });
+  }
+  if (document.ambiente !== "homologacao") {
+    return reply.code(403).send({
+      message: "Cancelamento em producao permanece bloqueado nesta etapa.",
+      error: {
+        code: "production_blocked",
+        message: "Cancelamento em producao permanece bloqueado nesta etapa."
+      }
+    });
+  }
 
-  return mapDocumentResponse(document, requestBaseUrl(request));
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const justification = String(
+    body.justificativa ?? body.justification ?? body.motivo ?? ""
+  ).trim();
+  if (justification.length < 15 || justification.length > 255) {
+    return reply.code(400).send({
+      message: "A justificativa deve ter entre 15 e 255 caracteres.",
+      error: {
+        code: "invalid_justification",
+        message: "A justificativa deve ter entre 15 e 255 caracteres."
+      }
+    });
+  }
+  if (!document.chave || document.chave.replace(/\D/g, "").length !== 44) {
+    return reply.code(409).send({
+      message: "A nota autorizada nao possui uma chave de acesso valida.",
+      error: {
+        code: "missing_access_key",
+        message: "A nota autorizada nao possui uma chave de acesso valida."
+      }
+    });
+  }
+  if (!document.protocolo) {
+    return reply.code(409).send({
+      message: "A nota autorizada nao possui protocolo de autorizacao.",
+      error: {
+        code: "missing_authorization_protocol",
+        message: "A nota autorizada nao possui protocolo de autorizacao."
+      }
+    });
+  }
+
+  const issuer = app.store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  if (!issuer) {
+    return reply.code(404).send({
+      message: "Emitente nao encontrado para este documento."
+    });
+  }
+  const certificate = app.store.findActiveCertificate(document.issuerCnpj);
+  if (!certificate?.encryptedBundle) {
+    return reply.code(409).send({
+      message: "Cadastre um certificado A1 ativo antes do cancelamento.",
+      error: {
+        code: "missing_certificate",
+        message: "Cadastre um certificado A1 ativo antes do cancelamento."
+      }
+    });
+  }
+
+  try {
+    const result = await cancelDocumentAtSefaz({
+      uf: issuer.uf,
+      ambiente: document.ambiente,
+      documentType: tipoDocumento,
+      cnpj: document.issuerCnpj,
+      accessKey: document.chave,
+      authorizationProtocol: document.protocolo,
+      justification,
+      encryptedCertificateBundle: certificate.encryptedBundle,
+      encryptionSecret: config.certificateEncryptionKey
+    });
+    const updated = app.store.saveCancellationResult(document.id, {
+      justification,
+      requestXml: result.requestXml,
+      signedXml: result.signedEventXml,
+      responseXml: result.responseXml,
+      processedXml: result.processedEventXml,
+      statusCode: result.statusCode,
+      reason: result.reason,
+      protocol: result.protocol,
+      cancelledAt: result.receivedAt
+    });
+    await app.store.waitForPersistence();
+
+    const success = ["135", "136", "155"].includes(result.statusCode);
+    return reply.code(success ? 200 : 422).send({
+      ...mapDocumentResponse(updated ?? document, requestBaseUrl(request)),
+      message: result.reason,
+      codigo_status: result.statusCode,
+      motivo_status: result.reason,
+      protocolo_cancelamento: result.protocol || null,
+      numero_protocolo: result.protocol || null,
+      cancelamento: {
+        status: success ? "homologado" : "rejeitado",
+        codigo_status: result.statusCode,
+        motivo_status: result.reason,
+        numero_protocolo: result.protocol || null,
+        justificativa: justification,
+        registrado_em: result.receivedAt || null
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    request.log.error(
+      {
+        documentId: document.id,
+        cnpj: document.issuerCnpj,
+        error: message
+      },
+      "Falha ao cancelar documento na SEFAZ"
+    );
+    return reply.code(502).send({
+      message,
+      error: {
+        code: "sefaz_cancellation_failed",
+        message
+      }
+    });
+  }
 }
 
 async function handleXmlDownload(
@@ -1081,7 +1218,7 @@ function danfeContentStream(data: DanfeData) {
   const usableWidth = right - margin;
   const itemRows = data.itens.slice(0, 60).map((item) => ({
     item,
-    descriptionLines: wrapText(item.descricao, 30).slice(0, 4)
+    descriptionLines: wrapPdfTextByWidth(item.descricao, 79, 7).slice(0, 5)
   }));
   const itemBlockHeight = itemRows.reduce(
     (total, row) => total + 10 + row.descriptionLines.length * 8,
@@ -1146,13 +1283,19 @@ function danfeContentStream(data: DanfeData) {
     centered(y, 8, "HOMOLOGACAO - SEM VALOR FISCAL");
     y -= 9;
   }
+  if (data.status === "CANCELADO") {
+    centered(y, 11, "NFC-e CANCELADA", "F2");
+    y -= 11;
+    centered(y, 7, "Documento mantido apenas para consulta", "F2");
+    y -= 9;
+  }
   dashedLine();
 
-  text(margin, y, 8, "CODIGO", "F2");
-  text(48, y, 8, "DESCRICAO", "F2");
-  rightText(156, y, 8, "QTDE", "F2");
-  text(161, y, 8, "UN", "F2");
-  rightText(211, y, 8, "VL UNIT", "F2");
+  text(margin, y, 7, "COD", "F2");
+  text(46, y, 7, "DESCRICAO", "F2");
+  rightText(158, y, 7, "QTDE", "F2", 135);
+  text(162, y, 7, "UN", "F2");
+  rightText(219, y, 7, "VL UNIT", "F2", 180);
   rightText(right - 1, y, 8, "VL TOTAL", "F2", 224);
   y -= 9;
 
@@ -1160,12 +1303,12 @@ function danfeContentStream(data: DanfeData) {
     const rowTop = y;
     text(margin, y, 7, item.codigo.slice(0, 6));
     descriptionLines.forEach((value) => {
-      text(48, y, 7, value);
+      text(46, y, 7, value);
       y -= 8;
     });
-    rightText(156, rowTop, 7, formatQuantity(item.quantidade));
-    text(161, rowTop, 7, (item.unidade || "UN").slice(0, 2));
-    rightText(211, rowTop, 7, formatMoney(item.valorUnitario));
+    rightText(158, rowTop, 7, formatQuantity(item.quantidade), "F1", 135);
+    text(162, rowTop, 7, (item.unidade || "UN").slice(0, 3));
+    rightText(219, rowTop, 7, formatMoney(item.valorUnitario), "F1", 180);
     rightText(right - 1, rowTop, 7, formatMoney(item.valorTotal));
     y -= 2;
   }
@@ -1235,7 +1378,7 @@ function danfeContentStream(data: DanfeData) {
       y -= 8;
     });
   y -= 12;
-  centered(y, 6, "Nuvem Local Fiscal");
+  centered(y, 6, "Mente Binaria - Solucoes Digitais");
 
   return {
     content: commands.join("\n"),
@@ -1311,6 +1454,47 @@ function wrapText(value: string, maxLength: number) {
       current = candidate;
     }
   }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+function wrapPdfTextByWidth(
+  value: string,
+  maxWidth: number,
+  size: number,
+  font = "F1"
+) {
+  const words = pdfText(value).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (estimatePdfTextWidth(candidate, size, font === "F2") <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) {
+      lines.push(current);
+      current = "";
+    }
+
+    let remainder = word;
+    while (remainder && estimatePdfTextWidth(remainder, size, font === "F2") > maxWidth) {
+      let splitAt = remainder.length - 1;
+      while (
+        splitAt > 1 &&
+        estimatePdfTextWidth(remainder.slice(0, splitAt), size, font === "F2") > maxWidth
+      ) {
+        splitAt -= 1;
+      }
+      lines.push(remainder.slice(0, splitAt));
+      remainder = remainder.slice(splitAt);
+    }
+    current = remainder;
+  }
+
   if (current) lines.push(current);
   return lines.length ? lines : [""];
 }

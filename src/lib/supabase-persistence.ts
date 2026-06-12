@@ -79,6 +79,15 @@ type FiscalDocumentRow = {
   sefaz_batch_id: string | null;
   sefaz_receipt: string | null;
   sefaz_response_xml: string | null;
+  cancellation_justification: string | null;
+  cancellation_status_code: string | null;
+  cancellation_reason: string | null;
+  cancellation_protocol: string | null;
+  cancellation_request_xml: string | null;
+  cancellation_signed_xml: string | null;
+  cancellation_response_xml: string | null;
+  cancellation_processed_xml: string | null;
+  cancelled_at: string | null;
   pdf_url: string | null;
   created_at: string;
   updated_at: string;
@@ -264,6 +273,15 @@ export class SupabasePersistence {
         sefazBatchId: document.sefaz_batch_id,
         sefazReceipt: document.sefaz_receipt,
         sefazResponseXml: document.sefaz_response_xml,
+        cancellationJustification: document.cancellation_justification,
+        cancellationStatusCode: document.cancellation_status_code,
+        cancellationReason: document.cancellation_reason,
+        cancellationProtocol: document.cancellation_protocol,
+        cancellationRequestXml: document.cancellation_request_xml,
+        cancellationSignedXml: document.cancellation_signed_xml,
+        cancellationResponseXml: document.cancellation_response_xml,
+        cancellationProcessedXml: document.cancellation_processed_xml,
+        cancelledAt: document.cancelled_at,
         pdfUrl: document.pdf_url ?? "",
         createdAt: document.created_at,
         updatedAt: document.updated_at
@@ -483,6 +501,15 @@ export class SupabasePersistence {
           sefaz_batch_id: document.sefazBatchId ?? null,
           sefaz_receipt: document.sefazReceipt ?? null,
           sefaz_response_xml: document.sefazResponseXml ?? null,
+          cancellation_justification: document.cancellationJustification ?? null,
+          cancellation_status_code: document.cancellationStatusCode ?? null,
+          cancellation_reason: document.cancellationReason ?? null,
+          cancellation_protocol: document.cancellationProtocol ?? null,
+          cancellation_request_xml: document.cancellationRequestXml ?? null,
+          cancellation_signed_xml: document.cancellationSignedXml ?? null,
+          cancellation_response_xml: document.cancellationResponseXml ?? null,
+          cancellation_processed_xml: document.cancellationProcessedXml ?? null,
+          cancelled_at: document.cancelledAt ?? null,
           pdf_url: document.pdfUrl,
           created_at: document.createdAt,
           updated_at: document.updatedAt

@@ -670,15 +670,45 @@ export class InMemoryStore {
     return document;
   }
 
-  cancelDocument(id: string, tipoDocumento?: DocumentType) {
-    const document = this.findDocument(id, tipoDocumento);
+  saveCancellationResult(
+    id: string,
+    input: {
+      justification: string;
+      requestXml: string;
+      signedXml: string;
+      responseXml: string;
+      processedXml: string;
+      statusCode: string;
+      reason: string;
+      protocol: string;
+      cancelledAt: string;
+    }
+  ) {
+    const document = this.findDocument(id);
     if (!document) {
       return null;
     }
 
-    document.status = "cancelado";
-    document.motivo = "Cancelamento homologado no mock";
-    document.motivoStatus = "135";
+    document.cancellationJustification = input.justification;
+    document.cancellationStatusCode = input.statusCode;
+    document.cancellationReason = input.reason;
+    document.cancellationRequestXml = input.requestXml;
+    document.cancellationSignedXml = input.signedXml;
+    document.cancellationResponseXml = input.responseXml;
+    document.cancellationProcessedXml = input.processedXml;
+    document.cancellationProtocol = input.protocol || null;
+    document.cancelledAt = input.cancelledAt || nowIso();
+    if (["135", "136", "155"].includes(input.statusCode)) {
+      document.status = "cancelado";
+      document.motivo = input.reason;
+      document.motivoStatus = input.statusCode;
+    }
+    document.mensagens = [
+      {
+        codigo: input.statusCode,
+        descricao: input.reason
+      }
+    ];
     document.updatedAt = nowIso();
     this.saveState();
     return document;
