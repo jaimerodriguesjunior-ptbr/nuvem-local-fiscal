@@ -15,7 +15,29 @@ export type AutomaticProcessingResult = {
   error: string | null;
 };
 
-export async function processHomologationNfce(
+function resolveQrCodeConfig(document: DocumentRecord) {
+  if (document.tipoDocumento !== "NFCe") {
+    return undefined;
+  }
+
+  const nfceConfig = document.nfceConfigEncrypted
+    ? decryptSecretPayload<{ cscId: string; csc: string }>(
+        document.nfceConfigEncrypted,
+        config.certificateEncryptionKey
+      )
+    : null;
+  if (!nfceConfig) {
+    throw new Error("Configure o CSC e o ID Token da NFC-e.");
+  }
+
+  return {
+    ...nfceConfig,
+    qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
+    consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
+  };
+}
+
+export async function processHomologationDocument(
   store: InMemoryStore,
   documentId: string
 ): Promise<AutomaticProcessingResult> {
@@ -23,7 +45,7 @@ export async function processHomologationNfce(
   if (!document) {
     throw new Error("Documento nao encontrado para processamento.");
   }
-  if (document.tipoDocumento !== "NFCe" || document.ambiente !== "homologacao") {
+  if (document.ambiente !== "homologacao") {
     return { document, transmitted: false, error: null };
   }
 
@@ -43,25 +65,12 @@ export async function processHomologationNfce(
         certificate.encryptedBundle,
         config.certificateEncryptionKey
       );
-      const nfceConfig = document.nfceConfigEncrypted
-        ? decryptSecretPayload<{ cscId: string; csc: string }>(
-            document.nfceConfigEncrypted,
-            config.certificateEncryptionKey
-          )
-        : null;
-      if (!nfceConfig) {
-        throw new Error("Configure o CSC e o ID Token da NFC-e.");
-      }
 
       const signed = generateAndSignNfeXml(
         document.payloadOriginal as Record<string, unknown>,
         opened.privateKeyPem,
         opened.certificatePem,
-        {
-          ...nfceConfig,
-          qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
-          consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
-        }
+        resolveQrCodeConfig(document)
       );
       const xsd = validateNfeXml(signed.signedXml);
       const updated = store.saveSignedXml(document.id, {
@@ -114,4 +123,18 @@ export async function processHomologationNfce(
     await store.waitForPersistence();
     return { document: failed ?? document, transmitted: false, error: message };
   }
+}
+
+export async function processHomologationNfce(
+  store: InMemoryStore,
+  documentId: string
+): Promise<AutomaticProcessingResult> {
+  const document = store.findDocument(documentId);
+  if (!document) {
+    throw new Error("Documento nao encontrado para processamento.");
+  }
+  if (document.tipoDocumento !== "NFCe") {
+    return { document, transmitted: false, error: null };
+  }
+  return processHomologationDocument(store, documentId);
 }

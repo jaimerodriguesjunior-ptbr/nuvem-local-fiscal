@@ -29,11 +29,14 @@ Estado operacional atual:
 - o DANFE NFC-e ja e gerado localmente com layout de cupom termico, QR Code real e altura dinamica de bobina
 - a UI admin possui cadastro unico por empresa, abas Dados/Certificado/Servicos e separacao por ambiente homologacao/producao
 - a inutilizacao de numeracao para NFC-e/NF-e em homologacao ja possui endpoint, assinatura XML, transmissao SEFAZ e formulario simples na UI
+- o cancelamento de NFC-e em homologacao ja usa evento real `110111`, com protocolo proprio e persistencia separada do protocolo de autorizacao
+- o projeto ja esta versionado em Git e publicado no GitHub em `main`
 
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
 - `POST /nfce`
 - `GET /nfce/:id`
+- `POST /nfce/:id/cancelar`
 - `GET /nfce/:id/xml`
 - `GET /nfce/:id/pdf`
 - `POST /empresas`
@@ -60,16 +63,17 @@ Limites atuais:
 - producao permanece bloqueada por seguranca
 - NF-e e NFS-e aparecem como areas reservadas, mas ainda nao estao prontas para emissao
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
+- o deploy em servidor/VPS ainda nao foi feito; os testes atuais foram locais apontando a Otica para `127.0.0.1:3001`
 - filas/retries ainda precisam ser fechados
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. manter a NFC-e da Otica como base estavel
-2. usar a checagem de saude fiscal antes de novos testes
-3. depois abrir NF-e homologacao
-4. testar outros sistemas clientes somente quando a base estiver consolidada
+1. decidir entre abrir NF-e homologacao ou preparar a NFC-e para producao
+2. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
+3. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+4. testar outros sistemas clientes somente depois do ambiente central estar estavel
 
 ---
 
@@ -517,7 +521,10 @@ Criar a estrutura base:
 - cadastro de clients
 - cadastro de emitentes
 - upload de certificado
-- emissao fake com resposta mockada
+- emissao inicial e compatibilidade basica
+
+Status em 2026-06-11:
+- concluida
 
 ### Fase 2
 Implementar NFC-e homologacao:
@@ -529,10 +536,20 @@ Implementar NFC-e homologacao:
 - XML/PDF
 - cancelamento
 
+Status em 2026-06-11:
+- concluida
+- inclui inutilizacao real
+- inclui cancelamento real
+- inclui DANFE termico local com QR Code
+
 ### Fase 3
 Integrar um sistema cliente real:
 - trocar apenas URL e credenciais
 - validar se o payload atual entra sem retrabalho grande
+
+Status em 2026-06-11:
+- concluida com a Otica Prisma em homologacao
+- ainda falta repetir com outros sistemas clientes
 
 ### Fase 4
 Implementar NF-e homologacao:
@@ -585,7 +602,27 @@ Vou considerar o projeto pronto para uso inicial quando:
 
 ---
 
-## 16. Primeiros arquivos recomendados na pasta do projeto
+## 16. Estado de versionamento e deploy
+
+Versionamento atual:
+- repositorio Git inicializado localmente
+- branch principal: `main`
+- remoto GitHub configurado
+- commits-base ja publicados
+
+Deploy esperado:
+- servidor central proprio, preferencialmente VPS
+- endpoint HTTPS publico, por exemplo `https://fiscal.seu-dominio.com.br`
+- processos separados para Nuvem Local Fiscal e outras integracoes, como WhatsApp
+- Supabase continua como banco central
+
+Observacao:
+- hoje a Otica esta validada chamando a Nuvem Local Fiscal localmente
+- o proximo salto operacional real e colocar esse mesmo fluxo num servidor sempre ligado
+
+---
+
+## 17. Primeiros arquivos recomendados na pasta do projeto
 
 Quando eu criar `nuvemlocalfiscal`, comecar por estes arquivos:
 
@@ -599,7 +636,7 @@ Quando eu criar `nuvemlocalfiscal`, comecar por estes arquivos:
 
 ---
 
-## 17. Exemplo de `.env.example`
+## 18. Exemplo de `.env.example`
 
 ```env
 PORT=3001
@@ -622,7 +659,7 @@ APP_ENV=development
 
 ---
 
-## 18. Decisao final de produto
+## 19. Decisao final de produto
 
 O `nuvemlocalfiscal` nao sera apenas um proxy HTTP.
 

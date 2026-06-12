@@ -329,6 +329,137 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(emission.statusCode, 202);
     const documentId = emission.json().id as string;
 
+    const nfeEmission = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: bearer,
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          versao: "4.00",
+          ide: {
+            cUF: 41,
+            natOp: "VENDA",
+            mod: 55,
+            serie: 1,
+            nNF: 322,
+            dhEmi: "2026-06-11T10:00:00-03:00",
+            tpNF: 1,
+            idDest: 1,
+            cMunFG: 4106902,
+            tpImp: 1,
+            tpEmis: 1,
+            tpAmb: 2,
+            finNFe: 1,
+            indFinal: 1,
+            indPres: 1,
+            procEmi: 0,
+            verProc: "NuvemLocalFiscal"
+          },
+          emit: {
+            CNPJ: cnpj,
+            xNome: "Empresa Integracao",
+            enderEmit: {
+              xLgr: "Rua de Teste",
+              nro: "100",
+              xBairro: "Centro",
+              cMun: 4106902,
+              xMun: "Curitiba",
+              UF: "PR",
+              CEP: "80000000",
+              cPais: "1058",
+              xPais: "BRASIL"
+            },
+            IE: "1234567890"
+          },
+          dest: {
+            CPF: "12345678909",
+            xNome: "Consumidor Teste",
+            indIEDest: 9
+          },
+          det: [
+            {
+              nItem: 1,
+              prod: {
+                cProd: "1",
+                cEAN: "SEM GTIN",
+                xProd: "Produto NF-e",
+                NCM: "00000000",
+                CFOP: "5102",
+                uCom: "UN",
+                qCom: 1,
+                vUnCom: 10,
+                vProd: 10,
+                cEANTrib: "SEM GTIN",
+                uTrib: "UN",
+                qTrib: 1,
+                vUnTrib: 10,
+                indTot: 1
+              },
+              imposto: {
+                ICMS: {
+                  ICMSSN102: {
+                    orig: 0,
+                    CSOSN: "102"
+                  }
+                },
+                PIS: {
+                  PISOutr: {
+                    CST: "99",
+                    vBC: 0,
+                    pPIS: 0,
+                    vPIS: 0
+                  }
+                },
+                COFINS: {
+                  COFINSOutr: {
+                    CST: "99",
+                    vBC: 0,
+                    pCOFINS: 0,
+                    vCOFINS: 0
+                  }
+                }
+              }
+            }
+          ],
+          total: {
+            ICMSTot: {
+              vBC: 0,
+              vICMS: 0,
+              vICMSDeson: 0,
+              vFCP: 0,
+              vBCST: 0,
+              vST: 0,
+              vFCPST: 0,
+              vFCPSTRet: 0,
+              vProd: 10,
+              vFrete: 0,
+              vSeg: 0,
+              vDesc: 0,
+              vII: 0,
+              vIPI: 0,
+              vIPIDevol: 0,
+              vPIS: 0,
+              vCOFINS: 0,
+              vOutro: 0,
+              vNF: 10
+            }
+          },
+          transp: { modFrete: 9 },
+          pag: {
+            detPag: [
+              {
+                tPag: "01",
+                vPag: 10
+              }
+            ]
+          }
+        }
+      }
+    });
+    assert.equal(nfeEmission.statusCode, 202, nfeEmission.body);
+    assert.equal(nfeEmission.json().status, "processamento");
+
     const password = "senha-integracao";
     const certificateUpload = await app.inject({
       method: "PUT",

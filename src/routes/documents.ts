@@ -9,7 +9,10 @@ import {
   encryptCertificateBundle,
   parsePfx
 } from "../lib/certificates.js";
-import { processHomologationNfce } from "../lib/document-processing.js";
+import {
+  processHomologationDocument,
+  processHomologationNfce
+} from "../lib/document-processing.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment } from "../types.js";
@@ -729,7 +732,6 @@ async function handleCreateDocument(
     });
   }
   if (
-    tipoDocumento === "NFCe" &&
     ambiente === "homologacao" &&
     config.autoTransmitHomologation &&
     !app.store.findActiveCertificate(issuerCnpj)
@@ -755,20 +757,20 @@ async function handleCreateDocument(
   });
   await app.store.waitForPersistence();
 
-  if (
-    tipoDocumento === "NFCe" &&
-    ambiente === "homologacao" &&
-    config.autoTransmitHomologation
-  ) {
-    const processed = await processHomologationNfce(app.store, document.id);
+  if (ambiente === "homologacao" && config.autoTransmitHomologation) {
+    const processed =
+      tipoDocumento === "NFCe"
+        ? await processHomologationNfce(app.store, document.id)
+        : await processHomologationDocument(app.store, document.id);
     if (processed.error) {
       request.log.error(
         {
           documentId: document.id,
+          tipoDocumento,
           cnpj: issuerCnpj,
           error: processed.error
         },
-        "Falha no processamento automatico da NFC-e"
+        `Falha no processamento automatico da ${tipoDocumento}`
       );
     }
     return reply
