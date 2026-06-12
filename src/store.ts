@@ -700,8 +700,6 @@ export class InMemoryStore {
     document.cancelledAt = input.cancelledAt || nowIso();
     if (["135", "136", "155"].includes(input.statusCode)) {
       document.status = "cancelado";
-      document.motivo = input.reason;
-      document.motivoStatus = input.statusCode;
     }
     document.mensagens = [
       {

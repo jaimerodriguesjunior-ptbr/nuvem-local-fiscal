@@ -534,6 +534,31 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nfePdf.body, /Nota Fiscal Eletronica/);
     assert.doesNotMatch(nfePdf.body, /DANFE NFC-e|QR Code|NFCe n\./);
 
+    app.store.saveCancellationResult(nfeDocumentId, {
+      justification: "Erro de preenchimento nos dados da NF-e em homologacao",
+      requestXml: "<evento />",
+      signedXml: "<evento><Signature /></evento>",
+      responseXml: "<retEnvEvento />",
+      processedXml: "<procEventoNFe />",
+      statusCode: "135",
+      reason: "Evento registrado e vinculado a NF-e",
+      protocol: "141260000345750",
+      cancelledAt: "2026-06-12T10:45:39-03:00"
+    });
+    const cancelledNfe = await app.inject({
+      method: "GET",
+      url: `/nfe/${nfeDocumentId}`,
+      headers: bearer
+    });
+    assert.equal(cancelledNfe.statusCode, 200, cancelledNfe.body);
+    assert.equal(cancelledNfe.json().status, "cancelado");
+    assert.equal(cancelledNfe.json().autorizacao.codigo_status, "100");
+    assert.equal(cancelledNfe.json().cancelamento.codigo_status, "135");
+    assert.equal(
+      cancelledNfe.json().cancelamento.numero_protocolo,
+      "141260000345750"
+    );
+
     const snapshot = await app.inject({
       method: "GET",
       url: "/admin/api/snapshot",
