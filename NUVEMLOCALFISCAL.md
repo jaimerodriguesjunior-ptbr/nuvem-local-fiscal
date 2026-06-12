@@ -17,23 +17,39 @@ Fora do v1:
 
 ---
 
-## 0. Marco atual validado em 2026-06-11
+## 0. Marco atual validado em 2026-06-12
 
 Estado operacional atual:
 - a NFC-e da Otica Prisma em homologacao ja emite ponta a ponta usando a Nuvem Local Fiscal
+- a NF-e da Otica Prisma em homologacao ja emite ponta a ponta usando a Nuvem Local Fiscal
 - a Otica troca URL e credenciais para apontar para `http://127.0.0.1:3001`
 - o payload de emissao da Otica nao precisa carregar CSC; o CSC fica salvo na Nuvem Local por empresa, ambiente e servico
 - o certificado A1 fica salvo no Supabase e tambem no estado local de desenvolvimento
 - a emissao automatica de NFC-e em homologacao gera XML, assina, valida XSD, transmite para a SEFAZ-PR e salva protocolo/retorno
+- a emissao de NF-e em homologacao gera XML modelo 55, assina com A1, calcula hashCSRT quando configurado, valida XSD, transmite para a SEFAZ-PR e salva protocolo/retorno
 - XML autorizado e PDF/DANFE ficam disponiveis pelos endpoints compativeis
 - o DANFE NFC-e ja e gerado localmente com layout de cupom termico, QR Code real e altura dinamica de bobina
+- o DANFE NF-e proprio ainda precisa ser implementado; o PDF atual nasceu para NFC-e termica
 - a UI admin possui cadastro unico por empresa, abas Dados/Certificado/Servicos e separacao por ambiente homologacao/producao
 - a inutilizacao de numeracao para NFC-e/NF-e em homologacao ja possui endpoint, assinatura XML, transmissao SEFAZ e formulario simples na UI
 - o cancelamento de NFC-e em homologacao ja usa evento real `110111`, com protocolo proprio e persistencia separada do protocolo de autorizacao
 - o projeto ja esta versionado em Git e publicado no GitHub em `main`
 
+Marco NF-e homologacao validado:
+- documento local: `doc_93323d3e`
+- chave: `41260601997929000108550020000090051152123354`
+- protocolo: `141260000345721`
+- status SEFAZ: `100 - Autorizado o uso da NF-e`
+- lote: `104 - Lote processado`
+- recebimento: `2026-06-12T10:38:14-03:00`
+- CSRT/hashCSRT: configurados por `.env.local` via `NFE_RT_*` e `NFE_CSRT_*`
+
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
+- `POST /nfe`
+- `GET /nfe/:id`
+- `GET /nfe/:id/xml`
+- `GET /nfe/:id/pdf`
 - `POST /nfce`
 - `GET /nfce/:id`
 - `POST /nfce/:id/cancelar`
@@ -54,14 +70,16 @@ Configuracoes persistidas:
 - empresa/ambiente: UF, IE, CRT, serie NF-e e serie NFC-e
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
+- dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
 - cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
 
 Limites atuais:
-- transmissao automatica esta liberada apenas para NFC-e em homologacao
+- transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
-- NF-e e NFS-e aparecem como areas reservadas, mas ainda nao estao prontas para emissao
+- NFS-e aparece como area reservada, mas ainda nao esta pronta para emissao
+- NF-e homologacao ja emite, mas ainda falta DANFE NF-e proprio e cancelamento NF-e real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
 - o deploy em servidor/VPS ainda nao foi feito; os testes atuais foram locais apontando a Otica para `127.0.0.1:3001`
 - filas/retries ainda precisam ser fechados
@@ -70,10 +88,11 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. decidir entre abrir NF-e homologacao ou preparar a NFC-e para producao
-2. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
-3. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
-4. testar outros sistemas clientes somente depois do ambiente central estar estavel
+1. fechar XML/PDF de NF-e autorizada com DANFE NF-e proprio
+2. validar cancelamento real de NF-e em homologacao
+3. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
+4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+5. testar outros sistemas clientes somente depois do ambiente central estar estavel
 
 ---
 
@@ -558,6 +577,12 @@ Implementar NF-e homologacao:
 - XML/PDF
 - cancelamento
 - inutilizacao
+
+Status em 2026-06-12:
+- emissao NF-e homologacao autorizada na SEFAZ-PR
+- XML assinado, XSD e lote `TEnviNFe` validados
+- CSRT/hashCSRT calculados localmente a partir de `.env.local`
+- ainda falta DANFE NF-e proprio e cancelamento NF-e validado
 
 ### Fase 5
 Subir producao:
