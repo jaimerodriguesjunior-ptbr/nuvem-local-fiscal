@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup do banco da Nuvem Local Fiscal
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/nuvem-local-fiscal.env
+ExecStart=/opt/nuvem-local-fiscal/deploy/backup-supabase.sh
+User=root
+Group=root
+PrivateTmp=true
+NoNewPrivileges=true

@@ -122,10 +122,11 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
-2. fechar retries agendados e estrategia de processamento distribuido
-3. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
-4. testar outros sistemas clientes somente depois do ambiente central estar estavel
+1. provisionar a VPS seguindo `docs/DEPLOY_VPS.md`
+2. configurar dominio, HTTPS, `systemd`, Supabase e backup externo
+3. fechar retries agendados e estrategia de processamento distribuido
+4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+5. testar outros sistemas clientes somente depois do ambiente central estar estavel
 
 ---
 
@@ -675,6 +676,8 @@ Deploy esperado:
 - endpoint HTTPS publico, por exemplo `https://fiscal.seu-dominio.com.br`
 - processos separados para Nuvem Local Fiscal e outras integracoes, como WhatsApp
 - Supabase continua como banco central
+- templates de `systemd`, Nginx, ambiente de servidor e backup estao em `deploy/`
+- o processo possui `/health`, `/ready`, encerramento gracioso e validacao rigida para `APP_ENV=production`
 
 Observacao:
 - hoje a Otica esta validada chamando a Nuvem Local Fiscal localmente

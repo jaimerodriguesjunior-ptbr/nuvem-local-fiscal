@@ -50,6 +50,22 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     const basic = `Basic ${Buffer.from("admin:admin").toString("base64")}`;
     const cnpj = "12345678000195";
 
+    const health = await app.inject({
+      method: "GET",
+      url: "/health"
+    });
+    assert.equal(health.statusCode, 200);
+    assert.equal(health.json().fiscalProductionBlocked, true);
+
+    const readiness = await app.inject({
+      method: "GET",
+      url: "/ready"
+    });
+    assert.equal(readiness.statusCode, 200);
+    assert.equal(readiness.json().status, "ready");
+    assert.equal(readiness.json().persistence, "local");
+    assert.equal(readiness.json().fiscalProductionBlocked, true);
+
     const blockedProductionInutilization = await app.inject({
       method: "POST",
       url: "/nfce/inutilizacoes",

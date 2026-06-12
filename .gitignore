@@ -7,3 +7,4 @@ storage/
 *.p12
 *.pem
 doc_*-assinado.xml
+*.dump

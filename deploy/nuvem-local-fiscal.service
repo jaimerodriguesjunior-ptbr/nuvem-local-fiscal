@@ -1,0 +1,27 @@
+[Unit]
+Description=Nuvem Local Fiscal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nuvemfiscal
+Group=nuvemfiscal
+WorkingDirectory=/opt/nuvem-local-fiscal
+EnvironmentFile=/etc/nuvem-local-fiscal.env
+ExecStart=/usr/bin/node /opt/nuvem-local-fiscal/dist/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nuvem-local-fiscal/storage
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nuvem-local-fiscal
+
+[Install]
+WantedBy=multi-user.target

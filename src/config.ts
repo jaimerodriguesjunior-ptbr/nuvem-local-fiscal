@@ -38,6 +38,7 @@ const nfeProductionCsrt =
 
 export const config = {
   port: Number(process.env.PORT ?? 3001),
+  host: process.env.HOST ?? "0.0.0.0",
   env: process.env.APP_ENV ?? "development",
   jwtSecret: process.env.JWT_SECRET ?? "change-me",
   certificateEncryptionKey:
@@ -64,3 +65,43 @@ export const config = {
   autoTransmitHomologation:
     (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true"
 };
+
+export function validateServerConfig() {
+  if (config.env !== "production") {
+    return;
+  }
+
+  const missing: string[] = [];
+  const insecure: string[] = [];
+  if (!config.supabaseUrl) missing.push("SUPABASE_URL");
+  if (!config.supabaseServiceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  if (!process.env.JWT_SECRET) missing.push("JWT_SECRET");
+  if (!process.env.CERTIFICATE_ENCRYPTION_KEY) {
+    missing.push("CERTIFICATE_ENCRYPTION_KEY");
+  }
+  if (!process.env.API_CLIENT_DEFAULT_ID) missing.push("API_CLIENT_DEFAULT_ID");
+  if (!process.env.API_CLIENT_DEFAULT_SECRET) {
+    missing.push("API_CLIENT_DEFAULT_SECRET");
+  }
+  if (!process.env.ADMIN_USERNAME) missing.push("ADMIN_USERNAME");
+  if (!process.env.ADMIN_PASSWORD) missing.push("ADMIN_PASSWORD");
+
+  if (config.jwtSecret === "change-me") insecure.push("JWT_SECRET");
+  if (config.certificateEncryptionKey === "change-me-too") {
+    insecure.push("CERTIFICATE_ENCRYPTION_KEY");
+  }
+  if (config.defaultClientSecret === "local-secret") {
+    insecure.push("API_CLIENT_DEFAULT_SECRET");
+  }
+  if (config.adminPassword === "admin") insecure.push("ADMIN_PASSWORD");
+
+  if (missing.length || insecure.length) {
+    const details = [
+      missing.length ? `ausentes: ${missing.join(", ")}` : "",
+      insecure.length ? `inseguras: ${insecure.join(", ")}` : ""
+    ].filter(Boolean);
+    throw new Error(
+      `Configuracao recusada para APP_ENV=production (${details.join("; ")}).`
+    );
+  }
+}

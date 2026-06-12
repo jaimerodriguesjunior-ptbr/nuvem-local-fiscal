@@ -35,6 +35,13 @@ npm run dev
 
 - API: `http://localhost:3001`
 - Admin: `http://localhost:3001/admin`
+- Healthcheck: `http://localhost:3001/health`
+- Readiness: `http://localhost:3001/ready`
+
+## Deploy
+
+O roteiro para VPS com `systemd`, Nginx, HTTPS e backup esta em
+[`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
 
 ## Credenciais padrao
 
