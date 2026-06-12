@@ -375,6 +375,17 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           dest: {
             CPF: "12345678909",
             xNome: "Consumidor Teste",
+            enderDest: {
+              xLgr: "Rua Cliente",
+              nro: "55",
+              xBairro: "Centro",
+              cMun: 4106902,
+              xMun: "Curitiba",
+              UF: "PR",
+              CEP: "80000000",
+              cPais: "1058",
+              xPais: "BRASIL"
+            },
             indIEDest: 9
           },
           det: [
@@ -459,6 +470,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     });
     assert.equal(nfeEmission.statusCode, 202, nfeEmission.body);
     assert.equal(nfeEmission.json().status, "processamento");
+    const nfeDocumentId = nfeEmission.json().id as string;
 
     const password = "senha-integracao";
     const certificateUpload = await app.inject({
@@ -490,6 +502,37 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(signed.json().assinatura_valida, true);
     assert.equal(signed.json().xsd_valido, true, signed.body);
     assert.equal(signed.json().schema, "PL_010c");
+
+    const signedNfe = await app.inject({
+      method: "POST",
+      url: `/admin/api/documents/${nfeDocumentId}/sign`,
+      headers: { authorization: basic }
+    });
+    assert.equal(signedNfe.statusCode, 200, signedNfe.body);
+    assert.equal(signedNfe.json().assinatura_valida, true);
+    assert.equal(signedNfe.json().xsd_valido, true, signedNfe.body);
+
+    const authorizeNfe = await app.inject({
+      method: "POST",
+      url: `/admin/api/documents/${nfeDocumentId}/status`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: { action: "autorizar" }
+    });
+    assert.equal(authorizeNfe.statusCode, 200, authorizeNfe.body);
+
+    const nfePdf = await app.inject({
+      method: "GET",
+      url: `/nfe/${nfeDocumentId}/pdf`,
+      headers: bearer
+    });
+    assert.equal(nfePdf.statusCode, 200, nfePdf.body);
+    assert.match(nfePdf.body, /^%PDF-1\.4/);
+    assert.match(nfePdf.body, /DANFE/);
+    assert.match(nfePdf.body, /Nota Fiscal Eletronica/);
+    assert.doesNotMatch(nfePdf.body, /DANFE NFC-e|QR Code|NFCe n\./);
 
     const snapshot = await app.inject({
       method: "GET",

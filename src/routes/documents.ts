@@ -1005,7 +1005,10 @@ async function handlePdfDownload(
 
 function createLocalPdf(document: DocumentRecord) {
   const danfe = parseDanfeData(document);
-  const page = danfeContentStream(danfe);
+  const page =
+    document.tipoDocumento === "NFe"
+      ? nfeDanfeContentStream(danfe)
+      : nfceDanfeContentStream(danfe);
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -1059,6 +1062,8 @@ type DanfeData = {
   qrCodeUrl: string;
   consultaUrl: string;
   destinatarioNome: string;
+  destinatarioDocumento: string;
+  destinatarioEndereco: string;
   valorTotal: string;
   formaPagamento: string;
   valorPago: string;
@@ -1077,6 +1082,7 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
   const pag = firstElement(infNFe, "pag");
   const detPag = firstElement(pag, "detPag");
   const dest = firstElement(infNFe, "dest");
+  const enderDest = firstElement(dest, "enderDest");
   const infProt = firstElement(xml.documentElement, "infProt");
 
   const items = allElements(infNFe, "det").map((det): DanfeItem => {
@@ -1101,6 +1107,16 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
   ]
     .filter(Boolean)
     .join(", ");
+  const destAddress = [
+    childText(enderDest, "xLgr"),
+    childText(enderDest, "nro"),
+    childText(enderDest, "xBairro"),
+    childText(enderDest, "xMun"),
+    childText(enderDest, "UF"),
+    childText(enderDest, "CEP")
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return {
     numero: childText(ide, "nNF") || String(document.numero),
@@ -1120,6 +1136,11 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
     qrCodeUrl: firstText(xml.documentElement, "qrCode"),
     consultaUrl: firstText(xml.documentElement, "urlChave"),
     destinatarioNome: childText(dest, "xNome"),
+    destinatarioDocumento:
+      childText(dest, "CNPJ") ||
+      childText(dest, "CPF") ||
+      childText(dest, "idEstrangeiro"),
+    destinatarioEndereco: destAddress,
     valorTotal: childText(icmsTot, "vNF"),
     formaPagamento: paymentLabel(childText(detPag, "tPag")),
     valorPago: childText(detPag, "vPag"),
@@ -1213,7 +1234,150 @@ function formatAccessKey(value: string) {
   return value.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ").trim();
 }
 
-function danfeContentStream(data: DanfeData) {
+function nfeDanfeContentStream(data: DanfeData) {
+  const width = 595;
+  const height = 842;
+  const margin = 28;
+  const right = width - margin;
+  const commands: string[] = [];
+  let y = height - 30;
+  const text = (x: number, yPos: number, size: number, value: string, font = "F1") => {
+    commands.push(`BT /${font} ${size} Tf ${x} ${yPos} Td (${escapePdf(value)}) Tj ET`);
+  };
+  const line = (x1: number, y1: number, x2: number, y2: number) => {
+    commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
+  };
+  const rect = (x: number, yPos: number, rectWidth: number, rectHeight: number) => {
+    commands.push(`${x} ${yPos} ${rectWidth} ${rectHeight} re S`);
+  };
+  const textWidth = (value: string, size: number, font = "F1") =>
+    estimatePdfTextWidth(value, size, font === "F2");
+  const rightText = (xRight: number, yPos: number, size: number, value: string, font = "F1") => {
+    text(Math.max(margin, xRight - textWidth(value, size, font)), yPos, size, value, font);
+  };
+  const centered = (x: number, boxWidth: number, yPos: number, size: number, value: string, font = "F1") => {
+    text(Math.max(x, x + (boxWidth - textWidth(value, size, font)) / 2), yPos, size, value, font);
+  };
+  const sectionTitle = (value: string) => {
+    text(margin, y, 8, value, "F2");
+    y -= 5;
+    line(margin, y, right, y);
+    y -= 13;
+  };
+  const boxedText = (
+    label: string,
+    value: string,
+    x: number,
+    yPos: number,
+    boxWidth: number,
+    boxHeight: number,
+    valueSize = 8
+  ) => {
+    rect(x, yPos, boxWidth, boxHeight);
+    text(x + 4, yPos + boxHeight - 9, 5.5, label);
+    wrapPdfTextByWidth(value, boxWidth - 8, valueSize).slice(0, 3).forEach((lineText, index) => {
+      text(x + 4, yPos + boxHeight - 20 - index * 9, valueSize, lineText, index === 0 ? "F2" : "F1");
+    });
+  };
+
+  rect(margin, y - 78, 332, 78);
+  text(margin + 8, y - 14, 10, data.emitenteNome || data.emitenteFantasia, "F2");
+  wrapPdfTextByWidth(data.emitenteEndereco, 305, 7).slice(0, 3).forEach((value, index) => {
+    text(margin + 8, y - 27 - index * 9, 7, value);
+  });
+  text(margin + 8, y - 58, 7, `CNPJ: ${formatCnpj(data.emitenteCnpj)}   IE: ${data.emitenteIe || "-"}`);
+  if (data.emitenteFone) {
+    text(margin + 8, y - 68, 7, `Fone: ${data.emitenteFone}`);
+  }
+
+  rect(margin + 332, y - 78, 120, 78);
+  centered(margin + 332, 120, y - 18, 12, "DANFE", "F2");
+  centered(margin + 332, 120, y - 31, 7, "Documento Auxiliar da");
+  centered(margin + 332, 120, y - 42, 7, "Nota Fiscal Eletronica");
+  centered(margin + 332, 120, y - 58, 8, "0 - Entrada   1 - Saida");
+  centered(margin + 332, 120, y - 70, 9, `N. ${data.numero} Serie ${data.serie}`, "F2");
+
+  rect(margin + 452, y - 78, 115, 78);
+  centered(margin + 452, 115, y - 18, 7, "CHAVE DE ACESSO", "F2");
+  wrapText(formatAccessKey(data.chave), 22).slice(0, 3).forEach((value, index) => {
+    centered(margin + 452, 115, y - 33 - index * 11, 8, value);
+  });
+  y -= 94;
+
+  centered(margin, right - margin, y, 8, "Consulta de autenticidade no portal nacional da NF-e", "F2");
+  y -= 16;
+  if (data.ambiente === "HOMOLOGACAO") {
+    centered(margin, right - margin, y, 9, "HOMOLOGACAO - SEM VALOR FISCAL", "F2");
+    y -= 16;
+  }
+  if (data.status === "CANCELADO") {
+    centered(margin, right - margin, y, 10, "NF-e CANCELADA", "F2");
+    y -= 16;
+  }
+
+  boxedText("NATUREZA DA OPERACAO", "VENDA DE MERCADORIA", margin, y - 28, 280, 28);
+  boxedText("PROTOCOLO DE AUTORIZACAO", data.protocolo || "-", margin + 280, y - 28, 287, 28);
+  y -= 46;
+
+  sectionTitle("DESTINATARIO / REMETENTE");
+  boxedText("NOME / RAZAO SOCIAL", data.destinatarioNome || "-", margin, y - 30, 260, 30);
+  boxedText("CPF / CNPJ", formatCnpj(data.destinatarioDocumento), margin + 260, y - 30, 115, 30);
+  boxedText("DATA DA EMISSAO", formatShortDateTime(data.emitidaEm) || "-", margin + 375, y - 30, 192, 30);
+  y -= 40;
+  boxedText("ENDERECO", data.destinatarioEndereco || "-", margin, y - 30, 375, 30);
+  boxedText("DATA DE AUTORIZACAO", formatAuthorizationDate(data.recebidoEm), margin + 375, y - 30, 192, 30);
+  y -= 48;
+
+  sectionTitle("CALCULO DO IMPOSTO");
+  boxedText("VALOR TOTAL DOS PRODUTOS", formatMoney(data.valorTotal), margin, y - 30, 140, 30);
+  boxedText("VALOR TOTAL DA NOTA", formatMoney(data.valorTotal), margin + 140, y - 30, 140, 30);
+  boxedText("FORMA DE PAGAMENTO", data.formaPagamento || "-", margin + 280, y - 30, 140, 30);
+  boxedText("VALOR PAGO", formatMoney(data.valorPago || data.valorTotal), margin + 420, y - 30, 147, 30);
+  y -= 48;
+
+  sectionTitle("DADOS DOS PRODUTOS / SERVICOS");
+  const tableTop = y;
+  const tableHeight = Math.min(260, 34 + data.itens.slice(0, 20).length * 18);
+  rect(margin, tableTop - tableHeight, right - margin, tableHeight);
+  text(margin + 4, tableTop - 12, 6, "COD", "F2");
+  text(margin + 54, tableTop - 12, 6, "DESCRICAO", "F2");
+  rightText(right - 175, tableTop - 12, 6, "QTDE", "F2");
+  text(right - 162, tableTop - 12, 6, "UN", "F2");
+  rightText(right - 88, tableTop - 12, 6, "VL UNIT", "F2");
+  rightText(right - 8, tableTop - 12, 6, "VL TOTAL", "F2");
+  line(margin, tableTop - 18, right, tableTop - 18);
+  y = tableTop - 31;
+  for (const item of data.itens.slice(0, 20)) {
+    text(margin + 4, y, 6.5, item.codigo.slice(0, 10));
+    text(margin + 54, y, 6.5, wrapPdfTextByWidth(item.descricao, 235, 6.5)[0] ?? "");
+    rightText(right - 175, y, 6.5, formatQuantity(item.quantidade));
+    text(right - 160, y, 6.5, (item.unidade || "UN").slice(0, 3));
+    rightText(right - 88, y, 6.5, formatMoney(item.valorUnitario));
+    rightText(right - 8, y, 6.5, formatMoney(item.valorTotal), "F2");
+    y -= 18;
+  }
+  if (data.itens.length > 20) {
+    text(margin + 4, y, 6.5, `Mais ${data.itens.length - 20} item(ns) no XML.`);
+  }
+  y = tableTop - tableHeight - 22;
+
+  sectionTitle("DADOS ADICIONAIS");
+  wrapPdfTextByWidth(
+    `Documento emitido por Nuvem Local Fiscal. Chave: ${formatAccessKey(data.chave)}. Protocolo: ${data.protocolo || "-"}.`,
+    right - margin - 8,
+    7
+  ).slice(0, 4).forEach((value, index) => {
+    text(margin + 4, y - index * 9, 7, value);
+  });
+
+  return {
+    content: commands.join("\n"),
+    width,
+    height
+  };
+}
+
+function nfceDanfeContentStream(data: DanfeData) {
   const width = 280;
   const margin = 12;
   const right = width - margin;

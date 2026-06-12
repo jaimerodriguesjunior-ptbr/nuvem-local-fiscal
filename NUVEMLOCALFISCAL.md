@@ -29,7 +29,7 @@ Estado operacional atual:
 - a emissao de NF-e em homologacao gera XML modelo 55, assina com A1, calcula hashCSRT quando configurado, valida XSD, transmite para a SEFAZ-PR e salva protocolo/retorno
 - XML autorizado e PDF/DANFE ficam disponiveis pelos endpoints compativeis
 - o DANFE NFC-e ja e gerado localmente com layout de cupom termico, QR Code real e altura dinamica de bobina
-- o DANFE NF-e proprio ainda precisa ser implementado; o PDF atual nasceu para NFC-e termica
+- o DANFE NF-e inicial ja e gerado em layout A4 proprio, separado do DANFE termico da NFC-e
 - a UI admin possui cadastro unico por empresa, abas Dados/Certificado/Servicos e separacao por ambiente homologacao/producao
 - a inutilizacao de numeracao para NFC-e/NF-e em homologacao ja possui endpoint, assinatura XML, transmissao SEFAZ e formulario simples na UI
 - o cancelamento de NFC-e em homologacao ja usa evento real `110111`, com protocolo proprio e persistencia separada do protocolo de autorizacao
@@ -79,7 +79,7 @@ Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
 - NFS-e aparece como area reservada, mas ainda nao esta pronta para emissao
-- NF-e homologacao ja emite, mas ainda falta DANFE NF-e proprio e cancelamento NF-e real validado
+- NF-e homologacao ja emite e possui DANFE A4 inicial, mas ainda falta cancelamento NF-e real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
 - o deploy em servidor/VPS ainda nao foi feito; os testes atuais foram locais apontando a Otica para `127.0.0.1:3001`
 - filas/retries ainda precisam ser fechados
@@ -88,8 +88,8 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. fechar XML/PDF de NF-e autorizada com DANFE NF-e proprio
-2. validar cancelamento real de NF-e em homologacao
+1. validar cancelamento real de NF-e em homologacao
+2. evoluir o DANFE NF-e A4 inicial para um layout fiscal mais completo
 3. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
 4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
 5. testar outros sistemas clientes somente depois do ambiente central estar estavel
@@ -582,7 +582,8 @@ Status em 2026-06-12:
 - emissao NF-e homologacao autorizada na SEFAZ-PR
 - XML assinado, XSD e lote `TEnviNFe` validados
 - CSRT/hashCSRT calculados localmente a partir de `.env.local`
-- ainda falta DANFE NF-e proprio e cancelamento NF-e validado
+- DANFE NF-e A4 inicial implementado em endpoint compativel
+- ainda falta cancelamento NF-e validado
 
 ### Fase 5
 Subir producao:
