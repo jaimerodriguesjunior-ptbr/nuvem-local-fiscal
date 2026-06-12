@@ -63,6 +63,7 @@ Marco NF-e homologacao com payload real da Otica Prisma:
 - recebimento: `2026-06-12T11:03:57-03:00`
 - observacao tecnica: o payload da Otica trazia `CSRT` dentro de `infRespTec`; a Nuvem Local passou a usar o token apenas para calcular `hashCSRT` e nao serializa `CSRT` no XML, preservando validade XSD e evitando expor o token.
 - compatibilidade de consulta: foi identificado que a tela fiscal da Otica consulta o UUID de NF-e pela rota legada `/nfce/:id`. O erro do cliente foi informado e nao deve ser corrigido no programa sem autorizacao. A Nuvem Local aceita essa consulta GET e devolve as URLs canonicas `/nfe/:id/xml` e `/nfe/:id/pdf`.
+- compatibilidade de cancelamento: o fluxo generico da Otica chama `/nfse/:id/cancelar` para documentos que nao sao NFC-e. A Nuvem Local aceita esse alias apenas quando o UUID pertence a uma NF-e real e transmite o evento como modelo `55`.
 - compatibilidade de pagamento: quando um cliente envia `tPag=90` (sem pagamento) junto com `vPag` positivo, a Nuvem Local normaliza apenas `vPag` para zero, compatibilizando a regra `904` com o schema atualmente implantado pela SEFAZ-PR.
 
 Endpoints compativeis ja exercitados:

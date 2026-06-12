@@ -608,6 +608,28 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       new RegExp(`/nfe/${nfeDocumentId}/xml$`)
     );
 
+    const legacyNfeCancellation = await app.inject({
+      method: "POST",
+      url: `/nfse/${nfeDocumentId}/cancelar`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        codigo: "2",
+        motivo: "motivo curto"
+      }
+    });
+    assert.equal(
+      legacyNfeCancellation.statusCode,
+      400,
+      legacyNfeCancellation.body
+    );
+    assert.equal(
+      legacyNfeCancellation.json().error.code,
+      "invalid_justification"
+    );
+
     app.store.saveCancellationResult(nfeDocumentId, {
       justification: "Erro de preenchimento nos dados da NF-e em homologacao",
       requestXml: "<evento />",

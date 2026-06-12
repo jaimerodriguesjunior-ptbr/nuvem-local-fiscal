@@ -221,6 +221,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handleCancelDocument(app, request, reply, "NFCe");
   });
 
+  app.post("/nfse/:id/cancelar", async (request, reply) => {
+    return handleCancelDocument(app, request, reply, "NFe");
+  });
+
   app.get("/nfe/:id/xml", async (request, reply) => {
     return handleXmlDownload(app, request, reply, "NFe");
   });
