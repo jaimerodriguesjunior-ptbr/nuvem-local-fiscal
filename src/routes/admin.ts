@@ -7,7 +7,10 @@ import {
   decryptSecretPayload,
   openEncryptedCertificate
 } from "../lib/certificates.js";
-import { processHomologationNfce } from "../lib/document-processing.js";
+import {
+  processHomologationDocument,
+  processHomologationNfce
+} from "../lib/document-processing.js";
 import { generateAndSignNfeXml } from "../lib/nfe-xml.js";
 import {
   authorizeNfeAtSefaz,
@@ -1128,8 +1131,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       await app.store.waitForPersistence();
       return {
         message: xsd.valid
-          ? "XML NFC-e assinado e validado no XSD oficial."
-          : "XML NFC-e assinado, mas reprovado no XSD oficial.",
+          ? `XML ${document.tipoDocumento} assinado e validado no XSD oficial.`
+          : `XML ${document.tipoDocumento} assinado, mas reprovado no XSD oficial.`,
         id: updated?.id,
         chave: result.accessKey,
         assinatura_valida: result.signatureValid,
@@ -1161,9 +1164,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!document) {
       return reply.code(404).send({ message: "Documento nao encontrado." });
     }
-    if (document.tipoDocumento !== "NFCe" || document.ambiente !== "homologacao") {
+    if (document.ambiente !== "homologacao") {
       return reply.code(403).send({
-        message: "O processamento automatico esta limitado a NFC-e em homologacao."
+        message: "O processamento automatico esta limitado a homologacao."
       });
     }
     if (document.status === "autorizado" || document.status === "cancelado") {
@@ -1172,7 +1175,10 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       });
     }
 
-    const result = await processHomologationNfce(app.store, document.id);
+    const result =
+      document.tipoDocumento === "NFCe"
+        ? await processHomologationNfce(app.store, document.id)
+        : await processHomologationDocument(app.store, document.id);
     return reply.code(result.error ? 422 : 200).send({
       message:
         result.error ??

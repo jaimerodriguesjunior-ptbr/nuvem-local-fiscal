@@ -12,6 +12,10 @@ import {
   calculateAccessKeyDigit,
   generateAndSignNfeXml
 } from "./nfe-xml.js";
+import {
+  buildAuthorizationBatch,
+  validateAuthorizationBatchXml
+} from "./sefaz-authorization.js";
 import { validateNfeXml } from "./xsd-validator.js";
 
 function createTestPfx(
@@ -376,4 +380,165 @@ test("ordena os campos internos apos round-trip por jsonb e valida no XSD", () =
   const validation = validateNfeXml(result.signedXml);
   assert.deepEqual(validation.errors, []);
   assert.equal(validation.valid, true);
+});
+
+test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
+  const password = "senha-nfe";
+  const opened = openEncryptedCertificate(
+    encryptCertificateBundle(
+      {
+        pfxBase64: createTestPfx(password).toString("base64"),
+        password
+      },
+      "segredo-nfe"
+    ),
+    "segredo-nfe"
+  );
+
+  const result = generateAndSignNfeXml(
+    {
+      infNFe: {
+        versao: "4.00",
+        ide: {
+          cUF: 41,
+          natOp: "VENDA DE MERCADORIA",
+          mod: 55,
+          serie: 1,
+          nNF: 9003,
+          dhEmi: "2026-06-12T10:00:00-03:00",
+          tpNF: 1,
+          idDest: 1,
+          cMunFG: 4108809,
+          tpImp: 1,
+          tpEmis: 1,
+          tpAmb: 2,
+          finNFe: 1,
+          indFinal: 1,
+          indPres: 1,
+          procEmi: 0,
+          verProc: "NuvemLocalFiscal"
+        },
+        emit: {
+          CNPJ: "01997929000108",
+          xNome: "FORSTER E FORSTER LTDA",
+          xFant: "Otica Prisma Guaira",
+          enderEmit: {
+            xLgr: "Av. Mate Laranjeira",
+            nro: "424",
+            xBairro: "Centro",
+            cMun: 4108809,
+            xMun: "Guaira",
+            UF: "PR",
+            CEP: "85980046",
+            cPais: "1058",
+            xPais: "BRASIL"
+          },
+          IE: "9013681047",
+          CRT: 1
+        },
+        dest: {
+          CPF: "12345678909",
+          xNome: "Cliente Teste",
+          enderDest: {
+            xLgr: "Rua Teste",
+            nro: "100",
+            xBairro: "Centro",
+            cMun: 4108809,
+            xMun: "Guaira",
+            UF: "PR",
+            CEP: "85980000",
+            cPais: "1058",
+            xPais: "BRASIL"
+          },
+          indIEDest: 9
+        },
+        det: [
+          {
+            nItem: 1,
+            prod: {
+              cProd: "9383",
+              cEAN: "SEM GTIN",
+              xProd: "Produto NF-e",
+              NCM: "00000000",
+              CFOP: "5102",
+              uCom: "UN",
+              qCom: 1,
+              vUnCom: 270,
+              vProd: 270,
+              cEANTrib: "SEM GTIN",
+              uTrib: "UN",
+              qTrib: 1,
+              vUnTrib: 270,
+              indTot: 1
+            },
+            imposto: {
+              ICMS: {
+                ICMSSN102: { orig: 0, CSOSN: "102" }
+              },
+              PIS: {
+                PISOutr: { CST: "99", vBC: 0, pPIS: 0, vPIS: 0 }
+              },
+              COFINS: {
+                COFINSOutr: { CST: "99", vBC: 0, pCOFINS: 0, vCOFINS: 0 }
+              }
+            }
+          }
+        ],
+        total: {
+          ICMSTot: {
+            vBC: 0,
+            vICMS: 0,
+            vICMSDeson: 0,
+            vFCP: 0,
+            vBCST: 0,
+            vST: 0,
+            vFCPST: 0,
+            vFCPSTRet: 0,
+            vProd: 270,
+            vFrete: 0,
+            vSeg: 0,
+            vDesc: 0,
+            vII: 0,
+            vIPI: 0,
+            vIPIDevol: 0,
+            vPIS: 0,
+            vCOFINS: 0,
+            vOutro: 0,
+            vNF: 270
+          }
+        },
+        transp: { modFrete: 9 },
+        pag: { detPag: [{ tPag: "01", vPag: 270 }] },
+        infRespTec: {
+          CNPJ: "65667543000102",
+          xContato: "Responsavel Tecnico",
+          email: "fiscal@example.com",
+          fone: "44999261487"
+        }
+      }
+    },
+    opened.privateKeyPem,
+    opened.certificatePem
+  );
+
+  assert.equal(result.signatureValid, true);
+  assert.match(result.unsignedXml, /<mod>55<\/mod>/);
+  assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
+  assert.match(
+    result.unsignedXml,
+    /<xNome>NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xNome>/
+  );
+  assert.match(
+    result.unsignedXml,
+    /<xProd>NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xProd>/
+  );
+
+  const xmlValidation = validateNfeXml(result.signedXml);
+  assert.deepEqual(xmlValidation.errors, []);
+  assert.equal(xmlValidation.valid, true);
+
+  const batch = buildAuthorizationBatch(result.signedXml, "000000000009003");
+  const batchValidation = validateAuthorizationBatchXml(batch.batchXml);
+  assert.deepEqual(batchValidation.errors, []);
+  assert.equal(batchValidation.valid, true);
 });
