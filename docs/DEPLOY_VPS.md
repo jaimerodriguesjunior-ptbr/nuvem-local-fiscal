@@ -63,14 +63,44 @@ journalctl -u nuvem-local-fiscal -f
 ## HTTPS
 
 Copie `deploy/nginx.conf.example`, substitua o dominio e os caminhos do
-certificado. Antes de ativar, crie a segunda autenticacao que protege todo o
-admin e suas APIs:
+certificado. Antes de ativar, crie a autenticacao HTTP do Nginx para proteger
+a pagina administrativa:
 
 ```bash
 sudo apt install apache2-utils
 sudo htpasswd -c /etc/nginx/.htpasswd-nuvem-local-fiscal operador
 sudo chown root:www-data /etc/nginx/.htpasswd-nuvem-local-fiscal
 sudo chmod 640 /etc/nginx/.htpasswd-nuvem-local-fiscal
+```
+
+O Nginx deve proteger `/admin`, mas nao deve sobrescrever a autenticacao das
+APIs internas em `/admin/api/`. Essas APIs ja validam `ADMIN_USERNAME` e
+`ADMIN_PASSWORD` dentro da propria aplicacao, e a pagina admin envia esse
+cabecalho automaticamente. Mantenha o bloco de `/admin/api/` antes do bloco de
+`/admin`:
+
+```nginx
+location ^~ /admin/api/ {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 120s;
+}
+
+location ^~ /admin {
+    auth_basic "Administracao fiscal";
+    auth_basic_user_file /etc/nginx/.htpasswd-nuvem-local-fiscal;
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 120s;
+}
 ```
 
 Depois valide e recarregue:
@@ -85,6 +115,65 @@ Somente as portas `80` e `443` devem ficar publicas. A porta `3001` deve
 permanecer acessivel apenas pela propria VPS; por isso o exemplo de producao
 usa `HOST=127.0.0.1`. O caminho `/admin` exige a autenticacao adicional do
 Nginx porque a pagina administrativa opera com credenciais privilegiadas.
+
+## Cadeia ICP-Brasil
+
+As chamadas reais para SEFAZ usam a cadeia ICP-Brasil junto do certificado A1.
+Garanta que o arquivo versionado localmente tambem exista na VPS:
+
+```bash
+sudo mkdir -p /opt/nuvem-local-fiscal/certificates
+sudo chown -R nuvemfiscal:nuvemfiscal /opt/nuvem-local-fiscal/certificates
+```
+
+No computador local:
+
+```powershell
+scp G:\projetos\nuvem-local-fiscal\certificates\icp-brasil-root-v10.pem root@SEU_IP:/opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem
+```
+
+Na VPS:
+
+```bash
+sudo chown nuvemfiscal:nuvemfiscal /opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem
+sudo chmod 644 /opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem
+sudo systemctl restart nuvem-local-fiscal
+curl http://127.0.0.1:3001/ready
+```
+
+Sem esse arquivo, a emissao pode gerar, assinar e validar o XML, mas falhar na
+transmissao com erro de arquivo ausente.
+
+## Certificados A1
+
+`CERTIFICATE_ENCRYPTION_KEY` precisa ser estavel no servidor que vai abrir o
+certificado. Se o A1 foi cadastrado em outro ambiente com outra chave, a VPS
+nao conseguira descriptografar o bundle e pode registrar erro como:
+
+```text
+Unsupported state or unable to authenticate data
+```
+
+Para uma VPS nova, prefira manter uma chave forte em
+`CERTIFICATE_ENCRYPTION_KEY` e recadastrar o A1 pela pagina
+`https://fiscal.seu-dominio.com.br/admin`. Isso regrava o certificado no
+Supabase com a chave correta da VPS.
+
+## Clientes em homologacao
+
+Para apontar um sistema cliente para a VPS, configure a URL da API e tambem a
+URL de autenticacao. Alguns clientes usam autenticacao separada da URL base:
+
+```env
+NUVEMFISCAL_HOM_CLIENT_ID=local-client
+NUVEMFISCAL_HOM_CLIENT_SECRET=<mesmo API_CLIENT_DEFAULT_SECRET da VPS>
+NUVEMFISCAL_HOM_URL=https://fiscal.seu-dominio.com.br
+NUVEMFISCAL_HOM_AUTH_URL=https://fiscal.seu-dominio.com.br/oauth/token
+```
+
+Depois de alterar `.env.local` no cliente, reinicie o servidor do cliente. Se
+o OAuth retornar `Unknown client: local-client`, normalmente o cliente ainda
+esta chamando a autenticacao oficial da Nuvem Fiscal ou leu variaveis antigas.
 
 ## Backup
 
