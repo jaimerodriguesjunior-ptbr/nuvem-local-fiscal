@@ -114,6 +114,18 @@ export type DocumentRecord = {
   updatedAt: string;
 };
 
+export type DocumentEventLevel = "debug" | "info" | "warn" | "error";
+
+export type DocumentEventRecord = {
+  id: string;
+  documentId: string;
+  eventType: string;
+  level: DocumentEventLevel;
+  message: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+
 export type InutilizationStatus =
   | "processamento"
   | "homologado"

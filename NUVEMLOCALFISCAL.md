@@ -106,6 +106,7 @@ Limites atuais:
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
 - o deploy em servidor/VPS ainda nao foi feito; os testes atuais foram locais apontando a Otica para `127.0.0.1:3001`
 - filas/retries ainda precisam ser fechados
+- o processamento de autorizacao ja possui trava local por documento, consulta previa da chave e historico persistente em `fiscal_document_events`; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`

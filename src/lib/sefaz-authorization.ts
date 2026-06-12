@@ -79,6 +79,7 @@ export type SefazDocumentStatusResult = {
   protocolReason: string;
   protocol: string;
   responseXml: string;
+  processedXml: string;
 };
 
 function stripXmlDeclaration(xml: string) {
@@ -353,6 +354,7 @@ export async function querySefazDocumentStatus(input: {
   accessKey: string;
   encryptedCertificateBundle: string;
   encryptionSecret: string;
+  signedXml?: string;
 }): Promise<SefazDocumentStatusResult> {
   const uf = input.uf.toUpperCase();
   const endpoint = getSefazEndpoint({
@@ -421,30 +423,24 @@ export async function querySefazDocumentStatus(input: {
             return;
           }
 
-          const document = new DOMParser().parseFromString(
-            responseBody,
-            "application/xml"
-          );
-          const result = firstElementByLocalName(document, "retConsSitNFe");
-          if (!result) {
-            reject(new Error("A resposta da consulta nao contem retConsSitNFe."));
-            return;
+          try {
+            resolvePromise(
+              parseDocumentStatusResponse(
+                responseBody,
+                {
+                  ambiente: input.ambiente,
+                  uf,
+                  documentType: input.documentType,
+                  endpoint,
+                  httpStatus,
+                  accessKey: input.accessKey
+                },
+                input.signedXml ?? ""
+              )
+            );
+          } catch (error) {
+            reject(error);
           }
-          const protocolInfo = firstElementByLocalName(document, "infProt");
-          resolvePromise({
-            ambiente: input.ambiente,
-            uf,
-            documentType: input.documentType,
-            endpoint,
-            httpStatus,
-            cStat: directChildText(result, "cStat"),
-            xMotivo: directChildText(result, "xMotivo"),
-            accessKey: directChildText(result, "chNFe") || input.accessKey,
-            protocolCStat: directChildText(protocolInfo, "cStat"),
-            protocolReason: directChildText(protocolInfo, "xMotivo"),
-            protocol: directChildText(protocolInfo, "nProt"),
-            responseXml: responseBody
-          });
         });
       }
     );
@@ -455,4 +451,43 @@ export async function querySefazDocumentStatus(input: {
     request.on("error", reject);
     request.end(soapEnvelope);
   });
+}
+
+export function parseDocumentStatusResponse(
+  responseXml: string,
+  context: Pick<
+    SefazDocumentStatusResult,
+    "ambiente" | "uf" | "documentType" | "endpoint" | "httpStatus" | "accessKey"
+  >,
+  signedXml: string
+): SefazDocumentStatusResult {
+  const document = new DOMParser().parseFromString(responseXml, "application/xml");
+  const result = firstElementByLocalName(document, "retConsSitNFe");
+  if (!result) {
+    throw new Error("A resposta da consulta nao contem retConsSitNFe.");
+  }
+  const protocolNode = firstElementByLocalName(document, "protNFe");
+  const protocolInfo = protocolNode
+    ? (protocolNode.getElementsByTagNameNS("*", "infProt").item(0) as Element | null)
+    : null;
+  const protocolCStat = directChildText(protocolInfo, "cStat");
+  const serializer = new XMLSerializer();
+  const processedXml =
+    signedXml &&
+    protocolNode &&
+    ["100", "150"].includes(protocolCStat)
+      ? `<?xml version="1.0" encoding="UTF-8"?><nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">${stripXmlDeclaration(signedXml)}${serializer.serializeToString(protocolNode)}</nfeProc>`
+      : "";
+
+  return {
+    ...context,
+    cStat: directChildText(result, "cStat"),
+    xMotivo: directChildText(result, "xMotivo"),
+    accessKey: directChildText(result, "chNFe") || context.accessKey,
+    protocolCStat,
+    protocolReason: directChildText(protocolInfo, "xMotivo"),
+    protocol: directChildText(protocolInfo, "nProt"),
+    responseXml,
+    processedXml
+  };
 }

@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   Certificate,
+  DocumentEventRecord,
   DocumentRecord,
   InutilizationRecord,
   Issuer,
@@ -14,6 +15,7 @@ export type StoreSnapshotState = {
   certificates: Certificate[];
   serviceConfigs: ServiceConfig[];
   documents: DocumentRecord[];
+  documentEvents: DocumentEventRecord[];
   inutilizations: InutilizationRecord[];
 };
 
@@ -104,6 +106,16 @@ type FiscalServiceConfigRow = {
   updated_at: string;
 };
 
+type FiscalDocumentEventRow = {
+  id: string;
+  document_id: string;
+  event_type: string;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
 type FiscalInutilizationRow = {
   id: string;
   provider_like_id: string;
@@ -148,13 +160,18 @@ export class SupabasePersistence {
       environmentsResult,
       certificatesResult,
       serviceConfigsResult,
-      documentsResult
+      documentsResult,
+      documentEventsResult
     ] = await Promise.all([
       this.client.from("fiscal_companies").select("*").order("created_at"),
       this.client.from("fiscal_company_environments").select("*").order("created_at"),
       this.client.from("fiscal_certificates").select("*").order("uploaded_at"),
       this.client.from("fiscal_service_configs").select("*").order("created_at"),
-      this.client.from("fiscal_documents").select("*").order("created_at", { ascending: false })
+      this.client.from("fiscal_documents").select("*").order("created_at", { ascending: false }),
+      this.client
+        .from("fiscal_document_events")
+        .select("*")
+        .order("created_at", { ascending: false })
     ]);
 
     const error =
@@ -162,7 +179,8 @@ export class SupabasePersistence {
       environmentsResult.error ??
       certificatesResult.error ??
       serviceConfigsResult.error ??
-      documentsResult.error;
+      documentsResult.error ??
+      documentEventsResult.error;
     if (error) {
       throw new Error(`Falha ao carregar estado fiscal do Supabase: ${error.message}`);
     }
@@ -313,7 +331,28 @@ export class SupabasePersistence {
           })
         );
 
-    return { issuers, certificates, serviceConfigs, documents, inutilizations };
+    const documentEvents = (
+      (documentEventsResult.data ?? []) as FiscalDocumentEventRow[]
+    ).map(
+      (event): DocumentEventRecord => ({
+        id: event.id,
+        documentId: event.document_id,
+        eventType: event.event_type,
+        level: event.level,
+        message: event.message,
+        payload: event.payload ?? {},
+        createdAt: event.created_at
+      })
+    );
+
+    return {
+      issuers,
+      certificates,
+      serviceConfigs,
+      documents,
+      documentEvents,
+      inutilizations
+    };
   }
 
   async saveState(state: StoreSnapshotState) {
@@ -322,7 +361,29 @@ export class SupabasePersistence {
     await this.upsertCertificates(state.certificates, companyIds);
     await this.upsertServiceConfigs(state.serviceConfigs, companyIds, environmentIds);
     await this.upsertDocuments(state.documents, companyIds, environmentIds);
+    await this.upsertDocumentEvents(state.documentEvents);
     await this.upsertInutilizations(state.inutilizations, companyIds, environmentIds);
+  }
+
+  private async upsertDocumentEvents(events: DocumentEventRecord[]) {
+    if (!events.length) {
+      return;
+    }
+    const rows = events.map((event) => ({
+      id: event.id,
+      document_id: event.documentId,
+      event_type: event.eventType,
+      level: event.level,
+      message: event.message,
+      payload: event.payload,
+      created_at: event.createdAt
+    }));
+    const { error } = await this.client
+      .from("fiscal_document_events")
+      .upsert(rows, { onConflict: "id" });
+    if (error) {
+      throw new Error(`Falha ao salvar eventos fiscais: ${error.message}`);
+    }
   }
 
   private async upsertCompanies(issuers: Issuer[]) {

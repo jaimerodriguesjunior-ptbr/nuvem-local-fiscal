@@ -573,6 +573,18 @@ const page = String.raw`<!doctype html>
       return state.snapshot.documents.filter(function(doc) { return doc.issuerCnpj === cnpj; });
     }
 
+    function eventsFor(documentId) {
+      return (state.snapshot.documentEvents || []).filter(function(event) {
+        return event.documentId === documentId;
+      });
+    }
+
+    function eventTone(level) {
+      if (level === 'error') return 'bad';
+      if (level === 'warn') return 'warn';
+      return 'ok';
+    }
+
     function badge(text, tone) {
       return '<span class="badge ' + (tone || '') + '">' + escapeHtml(text) + '</span>';
     }
@@ -905,7 +917,7 @@ const page = String.raw`<!doctype html>
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
       const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
-      const canAutoProcess = doc.tipoDocumento === 'NFCe' && doc.ambiente === 'homologacao' &&
+      const canAutoProcess = doc.ambiente === 'homologacao' &&
         doc.status !== 'autorizado' && doc.status !== 'cancelado';
       const tone = doc.status === 'autorizado' ? 'ok' :
         doc.status === 'processamento' ? 'warn' :
@@ -947,6 +959,14 @@ const page = String.raw`<!doctype html>
           '</div>' +
           (doc.xsdErrors && doc.xsdErrors.length ? '<details><summary>Erros de validação XSD</summary><pre>' +
             escapeHtml(doc.xsdErrors.join('\\n')) + '</pre></details>' : '') +
+          (eventsFor(doc.id).length
+            ? '<details><summary>Historico de processamento (' + eventsFor(doc.id).length +
+              ')</summary><div class="log-list">' + eventsFor(doc.id).map(function(event) {
+                return '<article class="log"><strong>' + formatDate(event.createdAt, true) +
+                  '</strong><span>' + badge(event.level, eventTone(event.level)) +
+                  '</span><span>' + escapeHtml(event.message) + '</span></article>';
+              }).join('') + '</div></details>'
+            : '') +
           '<details><summary>Payload normalizado</summary><pre>' +
             escapeHtml(JSON.stringify(doc.payloadNormalizado, null, 2)) + '</pre></details>' +
         '</div></article>';
@@ -971,19 +991,28 @@ const page = String.raw`<!doctype html>
 
     function renderLogs() {
       const docs = state.snapshot.documents;
+      const events = state.snapshot.documentEvents || [];
+      const eventRows = events.map(function(event) {
+        const doc = docs.find(function(item) { return item.id === event.documentId; });
+        return '<article class="log"><strong>' + formatDate(event.createdAt, true) + '</strong>' +
+          '<span>' + badge(event.level, eventTone(event.level)) + '</span><span>' +
+          escapeHtml((doc ? doc.tipoDocumento + ' #' + doc.numero + ' - ' : '') + event.message) +
+          '</span><button type="button" class="btn ghost" onclick="inspectLog(\'' +
+          event.documentId + '\')">Inspecionar</button></article>';
+      }).join('');
       return pageHead(
         'Diagnóstico',
         'Logs e debug',
         'Uma leitura técnica do que entrou, do que foi validado e da última resposta conhecida da SEFAZ.'
       ) +
-      '<div class="log-list">' + (docs.length ? docs.map(function(doc) {
+      '<div class="log-list">' + (eventRows || (docs.length ? docs.map(function(doc) {
         const event = doc.sefazResponseXml ? 'Resposta SEFAZ' :
           doc.xmlSigned ? 'XML assinado' : 'Documento recebido';
         return '<article class="log"><strong>' + formatDate(doc.updatedAt, true) + '</strong>' +
           '<span>' + escapeHtml(event) + '</span><span>' +
           escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' · ' + doc.id) + '</span>' +
           '<button type="button" class="btn ghost" onclick="inspectLog(\'' + doc.id + '\')">Inspecionar</button></article>';
-      }).join('') : '<div class="empty">Nenhum evento fiscal registrado.</div>') + '</div>' +
+      }).join('') : '<div class="empty">Nenhum evento fiscal registrado.</div>')) + '</div>' +
       '<section class="section-head"><div><h2>Ferramenta manual</h2><p>Útil apenas para diagnóstico local; o fluxo normal começa no sistema emissor.</p></div></section>' +
       '<section class="surface"><form id="documentForm"><div class="two-col">' +
         '<label>Tipo<select name="tipoDocumento"><option value="nfce">NFC-e</option><option value="nfe">NF-e</option></select></label>' +
@@ -1084,6 +1113,7 @@ const page = String.raw`<!doctype html>
         lote: doc.sefazBatchId || null,
         recibo: doc.sefazReceipt || null,
         resposta_sefaz_xml: doc.sefazResponseXml || null,
+        eventos: eventsFor(doc.id),
         payload_normalizado: doc.payloadNormalizado
       });
       document.getElementById('responseBox').scrollIntoView({ behavior: 'smooth', block: 'center' });

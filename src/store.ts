@@ -7,6 +7,8 @@ import type {
   AccessTokenRecord,
   ApiClient,
   Certificate,
+  DocumentEventLevel,
+  DocumentEventRecord,
   DocumentRecord,
   DocumentStatus,
   DocumentType,
@@ -86,6 +88,7 @@ export class InMemoryStore {
   certificates: Certificate[];
   serviceConfigs: ServiceConfig[];
   documents: DocumentRecord[];
+  documentEvents: DocumentEventRecord[];
   inutilizations: InutilizationRecord[];
   accessTokens: AccessTokenRecord[];
   private readonly tokenSecret: string;
@@ -106,6 +109,7 @@ export class InMemoryStore {
     this.certificates = [];
     this.serviceConfigs = [];
     this.documents = [];
+    this.documentEvents = [];
     this.inutilizations = [];
     this.accessTokens = [];
     this.tokenSecret = tokenSecret;
@@ -132,6 +136,7 @@ export class InMemoryStore {
       this.certificates = state.certificates;
       this.serviceConfigs = state.serviceConfigs;
       this.documents = state.documents;
+      this.documentEvents = state.documentEvents;
       this.inutilizations = state.inutilizations;
       this.writeLocalState();
       return;
@@ -436,6 +441,33 @@ export class InMemoryStore {
     return this.documents.find(
       (item) => item.id === id && (!tipoDocumento || item.tipoDocumento === tipoDocumento)
     ) ?? null;
+  }
+
+  addDocumentEvent(
+    documentId: string,
+    input: {
+      eventType: string;
+      level?: DocumentEventLevel;
+      message: string;
+      payload?: Record<string, unknown>;
+    }
+  ) {
+    const event: DocumentEventRecord = {
+      id: randomUUID(),
+      documentId,
+      eventType: input.eventType,
+      level: input.level ?? "info",
+      message: input.message,
+      payload: input.payload ?? {},
+      createdAt: nowIso()
+    };
+    this.documentEvents.unshift(event);
+    this.saveState();
+    return event;
+  }
+
+  getDocumentEvents(documentId: string) {
+    return this.documentEvents.filter((event) => event.documentId === documentId);
   }
 
   authorizeDocument(id: string, tipoDocumento?: DocumentType) {
@@ -818,6 +850,7 @@ export class InMemoryStore {
       documents: this.documents.map(
         ({ nfceConfigEncrypted: _nfceConfigEncrypted, ...document }) => document
       ),
+      documentEvents: this.documentEvents,
       inutilizations: this.inutilizations,
       summary: {
         clients: this.apiClients.length,
@@ -825,6 +858,7 @@ export class InMemoryStore {
         certificates: this.certificates.length,
         serviceConfigs: this.serviceConfigs.length,
         documents: this.documents.length,
+        documentEvents: this.documentEvents.length,
         inutilizations: this.inutilizations.length
       }
     };
@@ -853,12 +887,14 @@ export class InMemoryStore {
         certificates?: Certificate[];
         serviceConfigs?: ServiceConfig[];
         documents?: DocumentRecord[];
+        documentEvents?: DocumentEventRecord[];
         inutilizations?: InutilizationRecord[];
       };
       this.issuers = state.issuers ?? this.issuers;
       this.certificates = state.certificates ?? [];
       this.serviceConfigs = state.serviceConfigs ?? [];
       this.documents = state.documents ?? [];
+      this.documentEvents = state.documentEvents ?? [];
       this.inutilizations = state.inutilizations ?? [];
     } catch {
       // A falha de leitura nao deve impedir o servidor de desenvolvimento de subir.
@@ -880,6 +916,7 @@ export class InMemoryStore {
           certificates: this.certificates,
           serviceConfigs: this.serviceConfigs,
           documents: this.documents,
+          documentEvents: this.documentEvents,
           inutilizations: this.inutilizations
         },
         null,
@@ -895,6 +932,7 @@ export class InMemoryStore {
       certificates: this.certificates,
       serviceConfigs: this.serviceConfigs,
       documents: this.documents,
+      documentEvents: this.documentEvents,
       inutilizations: this.inutilizations
     };
   }

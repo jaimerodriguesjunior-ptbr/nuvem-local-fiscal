@@ -505,6 +505,22 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(recoveredNfeStatus.statusCode, 200, recoveredNfeStatus.body);
     assert.equal(recoveredNfeStatus.json().status, "autorizado");
     assert.deepEqual(recoveredNfeStatus.json().mensagens, []);
+    app.store.addDocumentEvent(recoveredNfe.id, {
+      eventType: "authorization_recovered",
+      message: "Autorizacao recuperada em teste.",
+      payload: { protocol: "141260000345844" }
+    });
+    const recoveredNfeEvents = await app.inject({
+      method: "GET",
+      url: `/admin/api/documents/${recoveredNfe.id}/events`,
+      headers: { authorization: basic }
+    });
+    assert.equal(recoveredNfeEvents.statusCode, 200, recoveredNfeEvents.body);
+    assert.equal(recoveredNfeEvents.json().events.length, 1);
+    assert.equal(
+      recoveredNfeEvents.json().events[0].eventType,
+      "authorization_recovered"
+    );
 
     const password = "senha-integracao";
     const certificateUpload = await app.inject({
@@ -526,6 +542,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(adminPage.statusCode, 200);
     assert.match(adminPage.body, /Operação fiscal, sem ruído\./);
     assert.match(adminPage.body, /Logs e debug/);
+    assert.match(adminPage.body, /Historico de processamento/);
 
     const signed = await app.inject({
       method: "POST",

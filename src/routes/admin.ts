@@ -708,6 +708,21 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     return app.store.getSnapshot();
   });
 
+  app.get("/admin/api/documents/:id/events", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const params = request.params as { id: string };
+    const document = app.store.findDocument(params.id);
+    if (!document) {
+      return reply.code(404).send({ message: "Documento nao encontrado." });
+    }
+    return {
+      document_id: document.id,
+      events: app.store.getDocumentEvents(document.id)
+    };
+  });
+
   app.get("/admin/api/fiscal-health", async (request, reply) => {
     if (!isValidBasic(request.headers.authorization)) {
       return reply.code(401).send(unauthorized());
@@ -1302,13 +1317,56 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         ambiente: document.ambiente,
         documentType: document.tipoDocumento,
         accessKey,
+        signedXml: document.xmlSigned,
         encryptedCertificateBundle: certificate.encryptedBundle,
         encryptionSecret: config.certificateEncryptionKey
       });
-      if (
-        currentStatus.cStat !== "217" ||
-        ["100", "150"].includes(currentStatus.protocolCStat)
-      ) {
+      app.store.addDocumentEvent(document.id, {
+        eventType: "sefaz_preflight_completed",
+        message: currentStatus.protocolReason || currentStatus.xMotivo,
+        payload: {
+          source: "admin_manual",
+          cStat: currentStatus.cStat,
+          protocolCStat: currentStatus.protocolCStat || null,
+          protocol: currentStatus.protocol || null
+        }
+      });
+      if (["100", "150"].includes(currentStatus.protocolCStat)) {
+        const recovered = app.store.saveSefazAuthorization(document.id, {
+          batchId: "",
+          receipt: "",
+          batchCStat: currentStatus.cStat,
+          batchReason: currentStatus.xMotivo,
+          protocolCStat: currentStatus.protocolCStat,
+          protocolReason: currentStatus.protocolReason,
+          protocol: currentStatus.protocol,
+          accessKey: currentStatus.accessKey,
+          responseXml: currentStatus.responseXml,
+          processedXml: currentStatus.processedXml
+        });
+        app.store.addDocumentEvent(document.id, {
+          eventType: "authorization_recovered",
+          message: "Autorizacao existente recuperada pela administracao.",
+          payload: {
+            source: "admin_manual",
+            accessKey: currentStatus.accessKey,
+            protocol: currentStatus.protocol
+          }
+        });
+        await app.store.waitForPersistence();
+        return {
+          message: currentStatus.protocolReason,
+          transmite_documento: false,
+          autorizacao_recuperada: true,
+          consulta_previa: true,
+          id: recovered?.id,
+          chave: currentStatus.accessKey,
+          protocolo: currentStatus.protocol,
+          status_protocolo: currentStatus.protocolCStat
+        };
+      }
+      if (currentStatus.cStat !== "217") {
+        await app.store.waitForPersistence();
         return reply.code(409).send({
           message:
             currentStatus.protocolReason ||
@@ -1330,6 +1388,20 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         signedXml: document.xmlSigned,
         encryptedCertificateBundle: certificate.encryptedBundle,
         encryptionSecret: config.certificateEncryptionKey
+      });
+      app.store.addDocumentEvent(document.id, {
+        eventType: "sefaz_authorization_completed",
+        level: ["100", "150"].includes(result.protocolCStat)
+          ? "info"
+          : "warn",
+        message: result.protocolReason || result.batchReason,
+        payload: {
+          source: "admin_manual",
+          batchId: result.idLote,
+          batchCStat: result.batchCStat,
+          protocolCStat: result.protocolCStat || null,
+          protocol: result.protocol || null
+        }
       });
       const updated = app.store.saveSefazAuthorization(document.id, {
         batchId: result.idLote,
@@ -1364,6 +1436,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         versao_aplicacao: result.applicationVersion
       };
     } catch (error) {
+      app.store.addDocumentEvent(document.id, {
+        eventType: "authorization_attempt_failed",
+        level: "error",
+        message: error instanceof Error ? error.message : String(error),
+        payload: { source: "admin_manual" }
+      });
+      await app.store.waitForPersistence();
       request.log.error(
         {
           documentId: document.id,
