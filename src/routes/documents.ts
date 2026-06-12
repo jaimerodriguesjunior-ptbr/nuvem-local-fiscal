@@ -1421,6 +1421,34 @@ function nfeDanfeContentStream(data: DanfeData) {
   const rect = (x: number, yPos: number, rectWidth: number, rectHeight: number) => {
     commands.push(`${x} ${yPos} ${rectWidth} ${rectHeight} re S`);
   };
+  const roundedRect = (
+    x: number,
+    yPos: number,
+    rectWidth: number,
+    rectHeight: number,
+    radius = 3
+  ) => {
+    const r = Math.min(radius, rectWidth / 2, rectHeight / 2);
+    const curve = r * 0.5522847498;
+    const left = x;
+    const bottom = yPos;
+    const rightEdge = x + rectWidth;
+    const top = yPos + rectHeight;
+    commands.push(
+      [
+        `${formatPdfNumber(left + r)} ${formatPdfNumber(bottom)} m`,
+        `${formatPdfNumber(rightEdge - r)} ${formatPdfNumber(bottom)} l`,
+        `${formatPdfNumber(rightEdge - r + curve)} ${formatPdfNumber(bottom)} ${formatPdfNumber(rightEdge)} ${formatPdfNumber(bottom + r - curve)} ${formatPdfNumber(rightEdge)} ${formatPdfNumber(bottom + r)} c`,
+        `${formatPdfNumber(rightEdge)} ${formatPdfNumber(top - r)} l`,
+        `${formatPdfNumber(rightEdge)} ${formatPdfNumber(top - r + curve)} ${formatPdfNumber(rightEdge - r + curve)} ${formatPdfNumber(top)} ${formatPdfNumber(rightEdge - r)} ${formatPdfNumber(top)} c`,
+        `${formatPdfNumber(left + r)} ${formatPdfNumber(top)} l`,
+        `${formatPdfNumber(left + r - curve)} ${formatPdfNumber(top)} ${formatPdfNumber(left)} ${formatPdfNumber(top - r + curve)} ${formatPdfNumber(left)} ${formatPdfNumber(top - r)} c`,
+        `${formatPdfNumber(left)} ${formatPdfNumber(bottom + r)} l`,
+        `${formatPdfNumber(left)} ${formatPdfNumber(bottom + r - curve)} ${formatPdfNumber(left + r - curve)} ${formatPdfNumber(bottom)} ${formatPdfNumber(left + r)} ${formatPdfNumber(bottom)} c`,
+        "h S"
+      ].join(" ")
+    );
+  };
   const textWidth = (value: string, size: number, font = "F1") =>
     estimatePdfTextWidth(value, size, font === "F2");
   const rightText = (xRight: number, yPos: number, size: number, value: string, font = "F1") => {
@@ -1437,9 +1465,12 @@ function nfeDanfeContentStream(data: DanfeData) {
     boxWidth: number,
     boxHeight: number,
     valueSize = 7,
-    align: "left" | "right" | "center" = "left"
+    align: "left" | "right" | "center" = "left",
+    drawBorder = true
   ) => {
-    rect(x, yPos, boxWidth, boxHeight);
+    if (drawBorder) {
+      rect(x, yPos, boxWidth, boxHeight);
+    }
     text(x + 2, yPos + boxHeight - 6, 4.5, label, "F2");
     const values = wrapPdfTextByWidth(value || "-", boxWidth - 5, valueSize).slice(
       0,
@@ -1462,7 +1493,7 @@ function nfeDanfeContentStream(data: DanfeData) {
 
   // Canhoto de recebimento.
   const receiptY = 790;
-  rect(margin, receiptY, contentWidth, 44);
+  roundedRect(margin, receiptY, contentWidth, 44);
   line(margin + 468, receiptY, margin + 468, receiptY + 44);
   line(margin, receiptY + 15, margin + 468, receiptY + 15);
   text(
@@ -1507,7 +1538,9 @@ function nfeDanfeContentStream(data: DanfeData) {
   const danfeWidth = 112;
   const accessX = margin + issuerWidth + danfeWidth;
   const accessWidth = contentWidth - issuerWidth - danfeWidth;
-  rect(margin, headerY, issuerWidth, headerHeight);
+  roundedRect(margin, headerY, contentWidth, headerHeight);
+  line(margin + issuerWidth, headerY, margin + issuerWidth, headerY + headerHeight);
+  line(accessX, headerY, accessX, headerY + headerHeight);
   centered(
     margin,
     issuerWidth,
@@ -1539,7 +1572,6 @@ function nfeDanfeContentStream(data: DanfeData) {
     centered(margin + 4, issuerWidth - 8, headerY + 16, 6.5, `Fone: ${data.emitenteFone}`);
   }
 
-  rect(margin + issuerWidth, headerY, danfeWidth, headerHeight);
   centered(margin + issuerWidth, danfeWidth, headerY + 82, 13, "DANFE", "F2");
   centered(margin + issuerWidth, danfeWidth, headerY + 69, 6, "Documento Auxiliar da");
   centered(margin + issuerWidth, danfeWidth, headerY + 60, 6, "Nota Fiscal Eletronica");
@@ -1571,7 +1603,6 @@ function nfeDanfeContentStream(data: DanfeData) {
     "F2"
   );
 
-  rect(accessX, headerY, accessWidth, headerHeight);
   drawCode128C(commands, data.chave, accessX + 7, headerY + 60, accessWidth - 14, 35);
   centered(accessX, accessWidth, headerY + 51, 4.5, "CHAVE DE ACESSO", "F2");
   centered(accessX, accessWidth, headerY + 40, 7, formatAccessKey(data.chave), "F2");
@@ -1675,7 +1706,7 @@ function nfeDanfeContentStream(data: DanfeData) {
     ["ALIQ. ICMS", 32],
     ["ALIQ. IPI", 27]
   ] as const;
-  rect(margin, tableBottom, contentWidth, tableTop - tableBottom);
+  roundedRect(margin, tableBottom, contentWidth, tableTop - tableBottom);
   let columnX = margin;
   for (const [label, columnWidth] of columns) {
     if (columnX > margin) line(columnX, tableBottom, columnX, tableTop);
@@ -1724,6 +1755,8 @@ function nfeDanfeContentStream(data: DanfeData) {
   }
 
   section("DADOS ADICIONAIS", 96);
+  roundedRect(margin, 24, contentWidth, 68);
+  line(margin + 390, 24, margin + 390, 92);
   field(
     "INFORMACOES COMPLEMENTARES",
     data.informacoesComplementares ||
@@ -1732,9 +1765,21 @@ function nfeDanfeContentStream(data: DanfeData) {
     24,
     390,
     68,
-    5.5
+    5.5,
+    "left",
+    false
   );
-  field("RESERVADO AO FISCO", "", margin + 390, 24, contentWidth - 390, 68, 5.5);
+  field(
+    "RESERVADO AO FISCO",
+    "",
+    margin + 390,
+    24,
+    contentWidth - 390,
+    68,
+    5.5,
+    "left",
+    false
+  );
 
   return {
     content: commands.join("\n"),
