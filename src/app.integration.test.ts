@@ -566,6 +566,9 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nfePdf.body, /^%PDF-1\.4/);
     assert.match(nfePdf.body, /DANFE/);
     assert.match(nfePdf.body, /Nota Fiscal Eletronica/);
+    assert.match(nfePdf.body, /TRANSPORTADOR/);
+    assert.match(nfePdf.body, /CALCULO DO IMPOSTO/);
+    assert.match(nfePdf.body, /INFORMACOES COMPLEMENTARES/);
     assert.doesNotMatch(nfePdf.body, /DANFE NFC-e|QR Code|NFCe n\./);
 
     const nfeViaLegacyNfceStatusRoute = await app.inject({

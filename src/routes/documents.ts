@@ -1073,10 +1073,18 @@ function createLocalPdf(document: DocumentRecord) {
 type DanfeItem = {
   codigo: string;
   descricao: string;
+  ncm: string;
+  cst: string;
+  cfop: string;
   quantidade: string;
   unidade: string;
   valorUnitario: string;
   valorTotal: string;
+  baseIcms: string;
+  valorIcms: string;
+  valorIpi: string;
+  aliquotaIcms: string;
+  aliquotaIpi: string;
 };
 
 type DanfeData = {
@@ -1089,9 +1097,14 @@ type DanfeData = {
   emitenteCnpj: string;
   emitenteIe: string;
   emitenteEndereco: string;
+  emitenteMunicipio: string;
+  emitenteUf: string;
+  emitenteCep: string;
   emitenteFone: string;
   chave: string;
   protocolo: string;
+  naturezaOperacao: string;
+  tipoOperacao: string;
   emitidaEm: string;
   recebidoEm: string;
   qrCodeUrl: string;
@@ -1099,9 +1112,43 @@ type DanfeData = {
   destinatarioNome: string;
   destinatarioDocumento: string;
   destinatarioEndereco: string;
+  destinatarioBairro: string;
+  destinatarioCep: string;
+  destinatarioMunicipio: string;
+  destinatarioUf: string;
+  destinatarioFone: string;
+  destinatarioIe: string;
+  baseIcms: string;
+  valorIcms: string;
+  baseIcmsSt: string;
+  valorIcmsSt: string;
+  valorFrete: string;
+  valorSeguro: string;
+  valorDesconto: string;
+  valorIpi: string;
+  valorPis: string;
+  valorCofins: string;
+  outrasDespesas: string;
   valorTotal: string;
+  valorProdutos: string;
   formaPagamento: string;
   valorPago: string;
+  transportadorNome: string;
+  transportadorDocumento: string;
+  transportadorIe: string;
+  transportadorEndereco: string;
+  transportadorMunicipio: string;
+  transportadorUf: string;
+  modalidadeFrete: string;
+  placaVeiculo: string;
+  veiculoUf: string;
+  quantidadeVolumes: string;
+  especieVolumes: string;
+  marcaVolumes: string;
+  numeracaoVolumes: string;
+  pesoBruto: string;
+  pesoLiquido: string;
+  informacoesComplementares: string;
   itens: DanfeItem[];
 };
 
@@ -1118,17 +1165,38 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
   const detPag = firstElement(pag, "detPag");
   const dest = firstElement(infNFe, "dest");
   const enderDest = firstElement(dest, "enderDest");
+  const transp = firstElement(infNFe, "transp");
+  const transporta = firstElement(transp, "transporta");
+  const veicTransp = firstElement(transp, "veicTransp");
+  const vol = firstElement(transp, "vol");
+  const infAdic = firstElement(infNFe, "infAdic");
   const infProt = firstElement(xml.documentElement, "infProt");
 
   const items = allElements(infNFe, "det").map((det): DanfeItem => {
     const prod = firstElement(det, "prod");
+    const imposto = firstElement(det, "imposto");
+    const icms = firstElement(imposto, "ICMS");
+    const icmsDetail = firstChildElement(icms);
+    const ipi = firstElement(imposto, "IPI");
+    const ipiDetail =
+      firstElement(ipi, "IPITrib") || firstElement(ipi, "IPINT");
     return {
       codigo: childText(prod, "cProd"),
       descricao: childText(prod, "xProd"),
+      ncm: childText(prod, "NCM"),
+      cst:
+        childText(icmsDetail, "CST") ||
+        childText(icmsDetail, "CSOSN"),
+      cfop: childText(prod, "CFOP"),
       quantidade: childText(prod, "qCom"),
       unidade: childText(prod, "uCom"),
       valorUnitario: childText(prod, "vUnCom"),
-      valorTotal: childText(prod, "vProd")
+      valorTotal: childText(prod, "vProd"),
+      baseIcms: childText(icmsDetail, "vBC"),
+      valorIcms: childText(icmsDetail, "vICMS"),
+      valorIpi: childText(ipiDetail, "vIPI"),
+      aliquotaIcms: childText(icmsDetail, "pICMS"),
+      aliquotaIpi: childText(ipiDetail, "pIPI")
     };
   });
 
@@ -1145,10 +1213,7 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
   const destAddress = [
     childText(enderDest, "xLgr"),
     childText(enderDest, "nro"),
-    childText(enderDest, "xBairro"),
-    childText(enderDest, "xMun"),
-    childText(enderDest, "UF"),
-    childText(enderDest, "CEP")
+    childText(enderDest, "xCpl")
   ]
     .filter(Boolean)
     .join(", ");
@@ -1163,9 +1228,14 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
     emitenteCnpj: childText(emit, "CNPJ") || document.issuerCnpj,
     emitenteIe: childText(emit, "IE"),
     emitenteEndereco: address,
+    emitenteMunicipio: childText(enderEmit, "xMun"),
+    emitenteUf: childText(enderEmit, "UF"),
+    emitenteCep: childText(enderEmit, "CEP"),
     emitenteFone: childText(enderEmit, "fone"),
     chave: childText(infProt, "chNFe") || document.chave || "",
     protocolo: childText(infProt, "nProt") || document.protocolo || "",
+    naturezaOperacao: childText(ide, "natOp"),
+    tipoOperacao: childText(ide, "tpNF"),
     emitidaEm: childText(ide, "dhEmi"),
     recebidoEm: childText(infProt, "dhRecbto"),
     qrCodeUrl: firstText(xml.documentElement, "qrCode"),
@@ -1176,9 +1246,44 @@ function parseDanfeData(document: DocumentRecord): DanfeData {
       childText(dest, "CPF") ||
       childText(dest, "idEstrangeiro"),
     destinatarioEndereco: destAddress,
+    destinatarioBairro: childText(enderDest, "xBairro"),
+    destinatarioCep: childText(enderDest, "CEP"),
+    destinatarioMunicipio: childText(enderDest, "xMun"),
+    destinatarioUf: childText(enderDest, "UF"),
+    destinatarioFone: childText(enderDest, "fone"),
+    destinatarioIe: childText(dest, "IE"),
+    baseIcms: childText(icmsTot, "vBC"),
+    valorIcms: childText(icmsTot, "vICMS"),
+    baseIcmsSt: childText(icmsTot, "vBCST"),
+    valorIcmsSt: childText(icmsTot, "vST"),
+    valorFrete: childText(icmsTot, "vFrete"),
+    valorSeguro: childText(icmsTot, "vSeg"),
+    valorDesconto: childText(icmsTot, "vDesc"),
+    valorIpi: childText(icmsTot, "vIPI"),
+    valorPis: childText(icmsTot, "vPIS"),
+    valorCofins: childText(icmsTot, "vCOFINS"),
+    outrasDespesas: childText(icmsTot, "vOutro"),
     valorTotal: childText(icmsTot, "vNF"),
+    valorProdutos: childText(icmsTot, "vProd"),
     formaPagamento: paymentLabel(childText(detPag, "tPag")),
     valorPago: childText(detPag, "vPag"),
+    transportadorNome: childText(transporta, "xNome"),
+    transportadorDocumento:
+      childText(transporta, "CNPJ") || childText(transporta, "CPF"),
+    transportadorIe: childText(transporta, "IE"),
+    transportadorEndereco: childText(transporta, "xEnder"),
+    transportadorMunicipio: childText(transporta, "xMun"),
+    transportadorUf: childText(transporta, "UF"),
+    modalidadeFrete: freightLabel(childText(transp, "modFrete")),
+    placaVeiculo: childText(veicTransp, "placa"),
+    veiculoUf: childText(veicTransp, "UF"),
+    quantidadeVolumes: childText(vol, "qVol"),
+    especieVolumes: childText(vol, "esp"),
+    marcaVolumes: childText(vol, "marca"),
+    numeracaoVolumes: childText(vol, "nVol"),
+    pesoBruto: childText(vol, "pesoB"),
+    pesoLiquido: childText(vol, "pesoL"),
+    informacoesComplementares: childText(infAdic, "infCpl"),
     itens: items
   };
 }
@@ -1193,6 +1298,17 @@ function allElements(parent: Element | null, localName: string) {
   if (!parent) return [];
   const nodes = parent.getElementsByTagNameNS("*", localName);
   return Array.from({ length: nodes.length }, (_, index) => nodes.item(index) as Element);
+}
+
+function firstChildElement(parent: Element | null) {
+  if (!parent) return null;
+  for (let index = 0; index < parent.childNodes.length; index += 1) {
+    const child = parent.childNodes.item(index);
+    if (child?.nodeType === 1) {
+      return child as Element;
+    }
+  }
+  return null;
 }
 
 function childText(parent: Element | null, localName: string) {
@@ -1222,6 +1338,18 @@ function paymentLabel(code: string) {
   return labels[code] ?? (code ? `Pagamento ${code}` : "");
 }
 
+function freightLabel(code: string) {
+  const labels: Record<string, string> = {
+    "0": "0 - Emitente",
+    "1": "1 - Destinatario",
+    "2": "2 - Terceiros",
+    "3": "3 - Emitente proprio",
+    "4": "4 - Destinatario proprio",
+    "9": "9 - Sem frete"
+  };
+  return labels[code] ?? code;
+}
+
 function formatMoney(value: string) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return value || "0,00";
@@ -1235,6 +1363,14 @@ function formatCnpj(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.length !== 14) return value;
   return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
+function formatFiscalDocument(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  }
+  return formatCnpj(value);
 }
 
 function formatQuantity(value: string) {
@@ -1272,10 +1408,10 @@ function formatAccessKey(value: string) {
 function nfeDanfeContentStream(data: DanfeData) {
   const width = 595;
   const height = 842;
-  const margin = 28;
+  const margin = 8;
   const right = width - margin;
   const commands: string[] = [];
-  let y = height - 30;
+  const contentWidth = right - margin;
   const text = (x: number, yPos: number, size: number, value: string, font = "F1") => {
     commands.push(`BT /${font} ${size} Tf ${x} ${yPos} Td (${escapePdf(value)}) Tj ET`);
   };
@@ -1293,123 +1429,384 @@ function nfeDanfeContentStream(data: DanfeData) {
   const centered = (x: number, boxWidth: number, yPos: number, size: number, value: string, font = "F1") => {
     text(Math.max(x, x + (boxWidth - textWidth(value, size, font)) / 2), yPos, size, value, font);
   };
-  const sectionTitle = (value: string) => {
-    text(margin, y, 8, value, "F2");
-    y -= 5;
-    line(margin, y, right, y);
-    y -= 13;
-  };
-  const boxedText = (
+  const field = (
     label: string,
     value: string,
     x: number,
     yPos: number,
     boxWidth: number,
     boxHeight: number,
-    valueSize = 8
+    valueSize = 7,
+    align: "left" | "right" | "center" = "left"
   ) => {
     rect(x, yPos, boxWidth, boxHeight);
-    text(x + 4, yPos + boxHeight - 9, 5.5, label);
-    wrapPdfTextByWidth(value, boxWidth - 8, valueSize).slice(0, 3).forEach((lineText, index) => {
-      text(x + 4, yPos + boxHeight - 20 - index * 9, valueSize, lineText, index === 0 ? "F2" : "F1");
+    text(x + 2, yPos + boxHeight - 6, 4.5, label, "F2");
+    const values = wrapPdfTextByWidth(value || "-", boxWidth - 5, valueSize).slice(
+      0,
+      Math.max(1, Math.floor((boxHeight - 9) / (valueSize + 1)))
+    );
+    values.forEach((lineText, index) => {
+      const baseline = yPos + boxHeight - 15 - index * (valueSize + 1);
+      if (align === "right") {
+        rightText(x + boxWidth - 3, baseline, valueSize, lineText, "F2");
+      } else if (align === "center") {
+        centered(x, boxWidth, baseline, valueSize, lineText, "F2");
+      } else {
+        text(x + 2, baseline, valueSize, lineText, "F2");
+      }
     });
   };
+  const section = (label: string, yPos: number) => {
+    text(margin + 1, yPos, 5, label, "F2");
+  };
 
-  rect(margin, y - 78, 332, 78);
-  text(margin + 8, y - 14, 10, data.emitenteNome || data.emitenteFantasia, "F2");
-  wrapPdfTextByWidth(data.emitenteEndereco, 305, 7).slice(0, 3).forEach((value, index) => {
-    text(margin + 8, y - 27 - index * 9, 7, value);
-  });
-  text(margin + 8, y - 58, 7, `CNPJ: ${formatCnpj(data.emitenteCnpj)}   IE: ${data.emitenteIe || "-"}`);
+  // Canhoto de recebimento.
+  const receiptY = 790;
+  rect(margin, receiptY, contentWidth, 44);
+  line(margin + 468, receiptY, margin + 468, receiptY + 44);
+  line(margin, receiptY + 15, margin + 468, receiptY + 15);
+  text(
+    margin + 3,
+    receiptY + 33,
+    5.5,
+    `RECEBEMOS DE ${data.emitenteNome || data.emitenteFantasia} OS PRODUTOS E/OU SERVICOS CONSTANTES DA NOTA FISCAL ELETRONICA INDICADA ABAIXO.`
+  );
+  text(
+    margin + 3,
+    receiptY + 24,
+    5.5,
+    `EMISSAO: ${formatShortDateTime(data.emitidaEm) || "-"}  DESTINATARIO: ${data.destinatarioNome || "-"}  VALOR TOTAL: R$ ${formatMoney(data.valorTotal)}`
+  );
+  text(margin + 3, receiptY + 4, 4.5, "DATA DE RECEBIMENTO");
+  text(margin + 150, receiptY + 4, 4.5, "IDENTIFICACAO E ASSINATURA DO RECEBEDOR");
+  centered(margin + 468, contentWidth - 468, receiptY + 31, 11, "NF-e", "F2");
+  centered(
+    margin + 468,
+    contentWidth - 468,
+    receiptY + 17,
+    7,
+    `N. ${data.numero.padStart(9, "0")}`,
+    "F2"
+  );
+  centered(
+    margin + 468,
+    contentWidth - 468,
+    receiptY + 7,
+    7,
+    `Serie ${data.serie.padStart(3, "0")}`,
+    "F2"
+  );
+  commands.push("[2 2] 0 d");
+  line(margin, receiptY - 5, right, receiptY - 5);
+  commands.push("[] 0 d");
+
+  // Cabecalho principal.
+  const headerY = 678;
+  const headerHeight = 102;
+  const issuerWidth = 238;
+  const danfeWidth = 112;
+  const accessX = margin + issuerWidth + danfeWidth;
+  const accessWidth = contentWidth - issuerWidth - danfeWidth;
+  rect(margin, headerY, issuerWidth, headerHeight);
+  centered(
+    margin,
+    issuerWidth,
+    headerY + 82,
+    10,
+    data.emitenteNome || data.emitenteFantasia,
+    "F2"
+  );
+  wrapPdfTextByWidth(data.emitenteEndereco, issuerWidth - 12, 6.5)
+    .slice(0, 3)
+    .forEach((value, index) => {
+      centered(margin + 4, issuerWidth - 8, headerY + 68 - index * 8, 6.5, value);
+    });
+  centered(
+    margin + 4,
+    issuerWidth - 8,
+    headerY + 38,
+    6.5,
+    `Municipio: ${data.emitenteMunicipio || "-"} - ${data.emitenteUf || "-"}  CEP: ${data.emitenteCep || "-"}`
+  );
+  centered(
+    margin + 4,
+    issuerWidth - 8,
+    headerY + 27,
+    6.5,
+    `CNPJ: ${formatCnpj(data.emitenteCnpj)}  IE: ${data.emitenteIe || "-"}`
+  );
   if (data.emitenteFone) {
-    text(margin + 8, y - 68, 7, `Fone: ${data.emitenteFone}`);
+    centered(margin + 4, issuerWidth - 8, headerY + 16, 6.5, `Fone: ${data.emitenteFone}`);
   }
 
-  rect(margin + 332, y - 78, 120, 78);
-  centered(margin + 332, 120, y - 18, 12, "DANFE", "F2");
-  centered(margin + 332, 120, y - 31, 7, "Documento Auxiliar da");
-  centered(margin + 332, 120, y - 42, 7, "Nota Fiscal Eletronica");
-  centered(margin + 332, 120, y - 58, 8, "0 - Entrada   1 - Saida");
-  centered(margin + 332, 120, y - 70, 9, `N. ${data.numero} Serie ${data.serie}`, "F2");
+  rect(margin + issuerWidth, headerY, danfeWidth, headerHeight);
+  centered(margin + issuerWidth, danfeWidth, headerY + 82, 13, "DANFE", "F2");
+  centered(margin + issuerWidth, danfeWidth, headerY + 69, 6, "Documento Auxiliar da");
+  centered(margin + issuerWidth, danfeWidth, headerY + 60, 6, "Nota Fiscal Eletronica");
+  text(margin + issuerWidth + 7, headerY + 43, 7, "0 - ENTRADA");
+  text(margin + issuerWidth + 7, headerY + 33, 7, "1 - SAIDA");
+  rect(margin + issuerWidth + 87, headerY + 31, 17, 17);
+  centered(
+    margin + issuerWidth + 87,
+    17,
+    headerY + 35,
+    10,
+    data.tipoOperacao === "0" ? "0" : "1",
+    "F2"
+  );
+  centered(
+    margin + issuerWidth,
+    danfeWidth,
+    headerY + 18,
+    8,
+    `N. ${data.numero.padStart(9, "0")}`,
+    "F2"
+  );
+  centered(
+    margin + issuerWidth,
+    danfeWidth,
+    headerY + 7,
+    7,
+    `Serie ${data.serie.padStart(3, "0")}  Folha 1/1`,
+    "F2"
+  );
 
-  rect(margin + 452, y - 78, 115, 78);
-  centered(margin + 452, 115, y - 18, 7, "CHAVE DE ACESSO", "F2");
-  wrapText(formatAccessKey(data.chave), 22).slice(0, 3).forEach((value, index) => {
-    centered(margin + 452, 115, y - 33 - index * 11, 8, value);
-  });
-  y -= 94;
+  rect(accessX, headerY, accessWidth, headerHeight);
+  drawCode128C(commands, data.chave, accessX + 7, headerY + 60, accessWidth - 14, 35);
+  centered(accessX, accessWidth, headerY + 51, 4.5, "CHAVE DE ACESSO", "F2");
+  centered(accessX, accessWidth, headerY + 40, 7, formatAccessKey(data.chave), "F2");
+  centered(accessX, accessWidth, headerY + 27, 5.5, "Consulta de autenticidade no portal nacional da NF-e");
+  centered(accessX, accessWidth, headerY + 18, 5.5, "www.nfe.fazenda.gov.br/portal ou no site da Sefaz autorizadora");
+  centered(
+    accessX,
+    accessWidth,
+    headerY + 7,
+    5.5,
+    `PROTOCOLO: ${data.protocolo || "-"}  ${formatAuthorizationDate(data.recebidoEm)}`,
+    "F2"
+  );
 
-  centered(margin, right - margin, y, 8, "Consulta de autenticidade no portal nacional da NF-e", "F2");
-  y -= 16;
+  field("NATUREZA DA OPERACAO", data.naturezaOperacao, margin, 646, 310, 28, 7);
+  field("INSCRICAO ESTADUAL", data.emitenteIe, margin + 310, 646, 130, 28, 7);
+  field("CNPJ", formatCnpj(data.emitenteCnpj), margin + 440, 646, contentWidth - 440, 28, 7);
+
   if (data.ambiente === "HOMOLOGACAO") {
-    centered(margin, right - margin, y, 9, "HOMOLOGACAO - SEM VALOR FISCAL", "F2");
-    y -= 16;
+    centered(margin, contentWidth, 638, 7, "HOMOLOGACAO - SEM VALOR FISCAL", "F2");
   }
   if (data.status === "CANCELADO") {
-    centered(margin, right - margin, y, 10, "NF-e CANCELADA", "F2");
-    y -= 16;
+    centered(margin, contentWidth, 628, 8, "NF-e CANCELADA", "F2");
   }
 
-  boxedText("NATUREZA DA OPERACAO", "VENDA DE MERCADORIA", margin, y - 28, 280, 28);
-  boxedText("PROTOCOLO DE AUTORIZACAO", data.protocolo || "-", margin + 280, y - 28, 287, 28);
-  y -= 46;
+  section("DESTINATARIO / REMETENTE", 622);
+  field("NOME / RAZAO SOCIAL", data.destinatarioNome, margin, 590, 300, 28);
+  field("CNPJ / CPF", formatFiscalDocument(data.destinatarioDocumento), margin + 300, 590, 150, 28);
+  field("DATA DA EMISSAO", formatShortDateTime(data.emitidaEm), margin + 450, 590, contentWidth - 450, 28, 6);
+  field("ENDERECO", data.destinatarioEndereco, margin, 562, 260, 28, 6);
+  field("BAIRRO / DISTRITO", data.destinatarioBairro, margin + 260, 562, 110, 28, 6);
+  field("CEP", data.destinatarioCep, margin + 370, 562, 80, 28, 6);
+  field("DATA DA SAIDA / ENTRADA", "", margin + 450, 562, contentWidth - 450, 28, 6);
+  field("MUNICIPIO", data.destinatarioMunicipio, margin, 534, 220, 28, 6);
+  field("FONE / FAX", data.destinatarioFone, margin + 220, 534, 100, 28, 6);
+  field("UF", data.destinatarioUf, margin + 320, 534, 50, 28, 7, "center");
+  field("INSCRICAO ESTADUAL", data.destinatarioIe, margin + 370, 534, 80, 28, 6);
+  field("HORA DA SAIDA", "", margin + 450, 534, contentWidth - 450, 28, 6);
 
-  sectionTitle("DESTINATARIO / REMETENTE");
-  boxedText("NOME / RAZAO SOCIAL", data.destinatarioNome || "-", margin, y - 30, 260, 30);
-  boxedText("CPF / CNPJ", formatCnpj(data.destinatarioDocumento), margin + 260, y - 30, 115, 30);
-  boxedText("DATA DA EMISSAO", formatShortDateTime(data.emitidaEm) || "-", margin + 375, y - 30, 192, 30);
-  y -= 40;
-  boxedText("ENDERECO", data.destinatarioEndereco || "-", margin, y - 30, 375, 30);
-  boxedText("DATA DE AUTORIZACAO", formatAuthorizationDate(data.recebidoEm), margin + 375, y - 30, 192, 30);
-  y -= 48;
-
-  sectionTitle("CALCULO DO IMPOSTO");
-  boxedText("VALOR TOTAL DOS PRODUTOS", formatMoney(data.valorTotal), margin, y - 30, 140, 30);
-  boxedText("VALOR TOTAL DA NOTA", formatMoney(data.valorTotal), margin + 140, y - 30, 140, 30);
-  boxedText("FORMA DE PAGAMENTO", data.formaPagamento || "-", margin + 280, y - 30, 140, 30);
-  boxedText("VALOR PAGO", formatMoney(data.valorPago || data.valorTotal), margin + 420, y - 30, 147, 30);
-  y -= 48;
-
-  sectionTitle("DADOS DOS PRODUTOS / SERVICOS");
-  const tableTop = y;
-  const tableHeight = Math.min(260, 34 + data.itens.slice(0, 20).length * 18);
-  rect(margin, tableTop - tableHeight, right - margin, tableHeight);
-  text(margin + 4, tableTop - 12, 6, "COD", "F2");
-  text(margin + 54, tableTop - 12, 6, "DESCRICAO", "F2");
-  rightText(right - 175, tableTop - 12, 6, "QTDE", "F2");
-  text(right - 162, tableTop - 12, 6, "UN", "F2");
-  rightText(right - 88, tableTop - 12, 6, "VL UNIT", "F2");
-  rightText(right - 8, tableTop - 12, 6, "VL TOTAL", "F2");
-  line(margin, tableTop - 18, right, tableTop - 18);
-  y = tableTop - 31;
-  for (const item of data.itens.slice(0, 20)) {
-    text(margin + 4, y, 6.5, item.codigo.slice(0, 10));
-    text(margin + 54, y, 6.5, wrapPdfTextByWidth(item.descricao, 235, 6.5)[0] ?? "");
-    rightText(right - 175, y, 6.5, formatQuantity(item.quantidade));
-    text(right - 160, y, 6.5, (item.unidade || "UN").slice(0, 3));
-    rightText(right - 88, y, 6.5, formatMoney(item.valorUnitario));
-    rightText(right - 8, y, 6.5, formatMoney(item.valorTotal), "F2");
-    y -= 18;
-  }
-  if (data.itens.length > 20) {
-    text(margin + 4, y, 6.5, `Mais ${data.itens.length - 20} item(ns) no XML.`);
-  }
-  y = tableTop - tableHeight - 22;
-
-  sectionTitle("DADOS ADICIONAIS");
-  wrapPdfTextByWidth(
-    `Documento emitido por Nuvem Local Fiscal. Chave: ${formatAccessKey(data.chave)}. Protocolo: ${data.protocolo || "-"}.`,
-    right - margin - 8,
-    7
-  ).slice(0, 4).forEach((value, index) => {
-    text(margin + 4, y - index * 9, 7, value);
+  section("CALCULO DO IMPOSTO", 526);
+  const taxWidth = contentWidth / 5;
+  const taxRow1 = [
+    ["BASE DE CALCULO DO ICMS", data.baseIcms],
+    ["VALOR DO ICMS", data.valorIcms],
+    ["BASE DE CALCULO DO ICMS ST", data.baseIcmsSt],
+    ["VALOR DO ICMS ST", data.valorIcmsSt],
+    ["VALOR TOTAL DOS PRODUTOS", data.valorProdutos]
+  ];
+  taxRow1.forEach(([label, value], index) => {
+    field(label, formatMoney(value), margin + index * taxWidth, 494, taxWidth, 28, 7, "right");
   });
+  const taxRow2 = [
+    ["VALOR DO FRETE", data.valorFrete],
+    ["VALOR DO SEGURO", data.valorSeguro],
+    ["DESCONTO", data.valorDesconto],
+    ["OUTRAS DESPESAS / IPI", String(Number(data.outrasDespesas || 0) + Number(data.valorIpi || 0))],
+    ["VALOR TOTAL DA NOTA", data.valorTotal]
+  ];
+  taxRow2.forEach(([label, value], index) => {
+    field(label, formatMoney(value), margin + index * taxWidth, 466, taxWidth, 28, 7, "right");
+  });
+
+  section("TRANSPORTADOR / VOLUMES TRANSPORTADOS", 458);
+  field("NOME / RAZAO SOCIAL", data.transportadorNome, margin, 426, 245, 28, 6);
+  field("FRETE POR CONTA", data.modalidadeFrete, margin + 245, 426, 120, 28, 6);
+  field("CODIGO ANTT / PLACA", data.placaVeiculo, margin + 365, 426, 85, 28, 6);
+  field("UF", data.veiculoUf, margin + 450, 426, 35, 28, 6, "center");
+  field("CNPJ / CPF", formatFiscalDocument(data.transportadorDocumento), margin + 485, 426, contentWidth - 485, 28, 6);
+  field("ENDERECO", data.transportadorEndereco, margin, 398, 245, 28, 6);
+  field("MUNICIPIO", data.transportadorMunicipio, margin + 245, 398, 120, 28, 6);
+  field("UF", data.transportadorUf, margin + 365, 398, 40, 28, 6, "center");
+  field("INSCRICAO ESTADUAL", data.transportadorIe, margin + 405, 398, contentWidth - 405, 28, 6);
+  const volumeWidth = contentWidth / 6;
+  [
+    ["QUANTIDADE", data.quantidadeVolumes],
+    ["ESPECIE", data.especieVolumes],
+    ["MARCA", data.marcaVolumes],
+    ["NUMERACAO", data.numeracaoVolumes],
+    ["PESO BRUTO", data.pesoBruto],
+    ["PESO LIQUIDO", data.pesoLiquido]
+  ].forEach(([label, value], index) => {
+    field(label, value, margin + index * volumeWidth, 370, volumeWidth, 28, 6);
+  });
+
+  section("DADOS DOS PRODUTOS / SERVICOS", 362);
+  const tableTop = 356;
+  const tableBottom = 104;
+  const columns = [
+    ["CODIGO", 38],
+    ["DESCRICAO DO PRODUTO / SERVICO", 165],
+    ["NCM/SH", 35],
+    ["CST", 22],
+    ["CFOP", 27],
+    ["UN", 18],
+    ["QUANT.", 32],
+    ["VALOR UNIT.", 40],
+    ["VALOR TOTAL", 40],
+    ["B.CALC. ICMS", 38],
+    ["VALOR ICMS", 35],
+    ["VALOR IPI", 30],
+    ["ALIQ. ICMS", 32],
+    ["ALIQ. IPI", 27]
+  ] as const;
+  rect(margin, tableBottom, contentWidth, tableTop - tableBottom);
+  let columnX = margin;
+  for (const [label, columnWidth] of columns) {
+    if (columnX > margin) line(columnX, tableBottom, columnX, tableTop);
+    wrapPdfTextByWidth(label, columnWidth - 2, 4.2).slice(0, 2).forEach((value, index) => {
+      centered(columnX, columnWidth, tableTop - 7 - index * 5, 4.2, value, "F2");
+    });
+    columnX += columnWidth;
+  }
+  line(margin, tableTop - 14, right, tableTop - 14);
+  const itemValues = (item: DanfeItem) => [
+    item.codigo,
+    item.descricao,
+    item.ncm,
+    item.cst,
+    item.cfop,
+    item.unidade,
+    formatQuantity(item.quantidade),
+    formatMoney(item.valorUnitario),
+    formatMoney(item.valorTotal),
+    formatMoney(item.baseIcms),
+    formatMoney(item.valorIcms),
+    formatMoney(item.valorIpi),
+    formatQuantity(item.aliquotaIcms),
+    formatQuantity(item.aliquotaIpi)
+  ];
+  let itemY = tableTop - 24;
+  for (const item of data.itens.slice(0, 18)) {
+    columnX = margin;
+    itemValues(item).forEach((value, index) => {
+      const columnWidth = columns[index][1];
+      const fontSize = index === 1 ? 4.2 : 4.5;
+      const horizontalPadding = index === 1 ? 9 : 3;
+      const shown =
+        wrapPdfTextByWidth(value, columnWidth - horizontalPadding, fontSize)[0] ?? "";
+      if (index >= 6) {
+        rightText(columnX + columnWidth - 2, itemY, fontSize, shown);
+      } else {
+        text(columnX + 2, itemY, fontSize, shown);
+      }
+      columnX += columnWidth;
+    });
+    itemY -= 13;
+  }
+  if (data.itens.length > 18) {
+    text(margin + 2, itemY, 5, `Demais ${data.itens.length - 18} item(ns) disponiveis no XML autorizado.`);
+  }
+
+  section("DADOS ADICIONAIS", 96);
+  field(
+    "INFORMACOES COMPLEMENTARES",
+    data.informacoesComplementares ||
+      `Documento emitido por Nuvem Local Fiscal. Protocolo: ${data.protocolo || "-"}.`,
+    margin,
+    24,
+    390,
+    68,
+    5.5
+  );
+  field("RESERVADO AO FISCO", "", margin + 390, 24, contentWidth - 390, 68, 5.5);
 
   return {
     content: commands.join("\n"),
     width,
     height
   };
+}
+
+const code128Patterns = [
+  "212222", "222122", "222221", "121223", "121322", "131222", "122213",
+  "122312", "132212", "221213", "221312", "231212", "112232", "122132",
+  "122231", "113222", "123122", "123221", "223211", "221132", "221231",
+  "213212", "223112", "312131", "311222", "321122", "321221", "312212",
+  "322112", "322211", "212123", "212321", "232121", "111323", "131123",
+  "131321", "112313", "132113", "132311", "211313", "231113", "231311",
+  "112133", "112331", "132131", "113123", "113321", "133121", "313121",
+  "211331", "231131", "213113", "213311", "213131", "311123", "311321",
+  "331121", "312113", "312311", "332111", "314111", "221411", "431111",
+  "111224", "111422", "121124", "121421", "141122", "141221", "112214",
+  "112412", "122114", "122411", "142112", "142211", "241211", "221114",
+  "413111", "241112", "134111", "111242", "121142", "121241", "114212",
+  "124112", "124211", "411212", "421112", "421211", "212141", "214121",
+  "412121", "111143", "111341", "131141", "114113", "114311", "411113",
+  "411311", "113141", "114131", "311141", "411131", "211412", "211214",
+  "211232", "2331112"
+] as const;
+
+function drawCode128C(
+  commands: string[],
+  value: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits || digits.length % 2 !== 0) {
+    rectCommand(commands, x, y, width, height);
+    return;
+  }
+
+  const values = [105];
+  for (let index = 0; index < digits.length; index += 2) {
+    values.push(Number(digits.slice(index, index + 2)));
+  }
+  let checksum = values[0];
+  for (let index = 1; index < values.length; index += 1) {
+    checksum += values[index] * index;
+  }
+  values.push(checksum % 103, 106);
+
+  const patterns = values.map((code) => code128Patterns[code]);
+  const totalModules = patterns.reduce(
+    (total, pattern) =>
+      total + Array.from(pattern).reduce((sum, module) => sum + Number(module), 0),
+    0
+  );
+  const moduleWidth = width / totalModules;
+  let cursor = x;
+  commands.push("0 g");
+  for (const pattern of patterns) {
+    Array.from(pattern).forEach((module, index) => {
+      const segmentWidth = Number(module) * moduleWidth;
+      if (index % 2 === 0) {
+        commands.push(
+          `${formatPdfNumber(cursor)} ${formatPdfNumber(y)} ${formatPdfNumber(segmentWidth)} ${formatPdfNumber(height)} re f`
+        );
+      }
+      cursor += segmentWidth;
+    });
+  }
+  commands.push("0 G");
 }
 
 function nfceDanfeContentStream(data: DanfeData) {

@@ -35,7 +35,7 @@ Estado operacional atual:
 - a emissao de NF-e em homologacao gera XML modelo 55, assina com A1, calcula hashCSRT quando configurado, valida XSD, transmite para a SEFAZ-PR e salva protocolo/retorno
 - XML autorizado e PDF/DANFE ficam disponiveis pelos endpoints compativeis
 - o DANFE NFC-e ja e gerado localmente com layout de cupom termico, QR Code real e altura dinamica de bobina
-- o DANFE NF-e inicial ja e gerado em layout A4 proprio, separado do DANFE termico da NFC-e
+- o DANFE NF-e ja e gerado em layout A4 fiscal proprio, com canhoto, codigo de barras Code 128, identificacao, impostos, transporte, itens e dados adicionais, separado do DANFE termico da NFC-e
 - a UI admin possui cadastro unico por empresa, abas Dados/Certificado/Servicos e separacao por ambiente homologacao/producao
 - a inutilizacao de numeracao para NFC-e/NF-e em homologacao ja possui endpoint, assinatura XML, transmissao SEFAZ e formulario simples na UI
 - o cancelamento de NFC-e/NF-e em homologacao ja usa evento real `110111`, com protocolo proprio e persistencia separada do protocolo de autorizacao
@@ -111,7 +111,7 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. evoluir o DANFE NF-e A4 inicial para um layout fiscal mais completo
+1. validar o DANFE NF-e A4 com mais emissores, produtos e cenarios de transporte
 2. revisar pacote de fechamento/contabilidade usando XML autorizado e XML de cancelamento
 3. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
 4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
