@@ -47,6 +47,16 @@ Marco NF-e homologacao validado:
 - protocolo de cancelamento: `141260000345750`
 - registro do cancelamento: `2026-06-12T10:45:39-03:00`
 
+Marco NF-e homologacao com payload real da Otica Prisma:
+- documento local: `doc_de18e670`
+- nota exibida na loja: `#4`, serie `2`
+- chave SEFAZ: `41260601997929000108550010000000271727886936`
+- protocolo: `141260000345844`
+- status SEFAZ: `100 - Autorizado o uso da NF-e`
+- lote: `104 - Lote processado`
+- recebimento: `2026-06-12T11:03:57-03:00`
+- observacao tecnica: o payload da Otica trazia `CSRT` dentro de `infRespTec`; a Nuvem Local passou a usar o token apenas para calcular `hashCSRT` e nao serializa `CSRT` no XML, preservando validade XSD e evitando expor o token.
+
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
 - `POST /nfe`

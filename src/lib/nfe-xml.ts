@@ -205,10 +205,15 @@ function serializeObject(name: string, value: JsonObject) {
   }
 
   const known = new Set([...order, "versao", "Id", "nItem"]);
+  const orderedContent = order
+    .filter((key) => key in value)
+    .map((key) => serializeElement(key, value[key]));
+  if (name === "infRespTec") {
+    return orderedContent.join("");
+  }
+
   return [
-    ...order
-      .filter((key) => key in value)
-      .map((key) => serializeElement(key, value[key])),
+    ...orderedContent,
     ...Object.entries(value)
       .filter(([key]) => !known.has(key))
       .map(([key, child]) => serializeElement(key, child))

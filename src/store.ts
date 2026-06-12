@@ -539,6 +539,7 @@ export class InMemoryStore {
     if (["100", "150"].includes(input.protocolCStat)) {
       document.status = "autorizado";
       document.xml = input.processedXml;
+      document.mensagens = [];
     } else if (input.protocolCStat) {
       document.status = "rejeitado";
       document.mensagens = [

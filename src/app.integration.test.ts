@@ -472,6 +472,40 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(nfeEmission.json().status, "processamento");
     const nfeDocumentId = nfeEmission.json().id as string;
 
+    const recoveredNfe = app.store.createDocument({
+      tipoDocumento: "NFe",
+      issuerCnpj: cnpj,
+      ambiente: "homologacao",
+      payloadOriginal: nfeEmission.json().payloadOriginal ?? {},
+      payloadNormalizado: {},
+      forcedStatus: "processamento"
+    });
+    app.store.failDocument(
+      recoveredNfe.id,
+      "PROCESSAMENTO_AUTOMATICO",
+      "XML reprovado no XSD"
+    );
+    app.store.saveSefazAuthorization(recoveredNfe.id, {
+      batchId: "123",
+      receipt: "",
+      batchCStat: "104",
+      batchReason: "Lote processado",
+      protocolCStat: "100",
+      protocolReason: "Autorizado o uso da NF-e",
+      protocol: "141260000345844",
+      accessKey: "41260601997929000108550010000000271727886936",
+      responseXml: "<retEnviNFe />",
+      processedXml: "<nfeProc />"
+    });
+    const recoveredNfeStatus = await app.inject({
+      method: "GET",
+      url: `/nfe/${recoveredNfe.id}`,
+      headers: bearer
+    });
+    assert.equal(recoveredNfeStatus.statusCode, 200, recoveredNfeStatus.body);
+    assert.equal(recoveredNfeStatus.json().status, "autorizado");
+    assert.deepEqual(recoveredNfeStatus.json().mensagens, []);
+
     const password = "senha-integracao";
     const certificateUpload = await app.inject({
       method: "PUT",
