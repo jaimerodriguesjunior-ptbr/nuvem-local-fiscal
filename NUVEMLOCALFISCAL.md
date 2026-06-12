@@ -65,6 +65,8 @@ Marco NF-e homologacao com payload real da Otica Prisma:
 - compatibilidade de consulta: foi identificado que a tela fiscal da Otica consulta o UUID de NF-e pela rota legada `/nfce/:id`. O erro do cliente foi informado e nao deve ser corrigido no programa sem autorizacao. A Nuvem Local aceita essa consulta GET e devolve as URLs canonicas `/nfe/:id/xml` e `/nfe/:id/pdf`.
 - compatibilidade de cancelamento: o fluxo generico da Otica chama `/nfse/:id/cancelar` para documentos que nao sao NFC-e. A Nuvem Local aceita esse alias apenas quando o UUID pertence a uma NF-e real e transmite o evento como modelo `55`.
 - compatibilidade de pagamento: quando um cliente envia `tPag=90` (sem pagamento) junto com `vPag` positivo, a Nuvem Local normaliza apenas `vPag` para zero, compatibilizando a regra `904` com o schema atualmente implantado pela SEFAZ-PR.
+- cenario com multiplos produtos validado na nota local `#7`: dois itens, `vProd=410.00`, pagamento em dinheiro `tPag=01`, protocolo `141260000346817` e status SEFAZ `100`.
+- cenario com desconto, frete, transportadora e dinheiro validado na nota local `#8`: `vProd=30.00`, `vFrete=10.00`, `vDesc=3.00`, `vNF=37.00`, transportadora com CNPJ, `modFrete=0`, pagamento `tPag=01` no valor de `37.00`, protocolo `141260000346830` e status SEFAZ `100`.
 
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
