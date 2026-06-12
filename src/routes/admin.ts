@@ -1120,10 +1120,28 @@ export async function registerAdminRoutes(app: FastifyInstance) {
               consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
             }
           : undefined,
-        config.nfeResponsibleTechnicalCsrtId && config.nfeResponsibleTechnicalCsrt
+        config.nfeResponsibleTechnicalCnpj ||
+          config.nfeResponsibleTechnicalContact ||
+          config.nfeResponsibleTechnicalEmail ||
+          config.nfeResponsibleTechnicalPhone ||
+          (document.ambiente === "producao"
+            ? config.nfeResponsibleTechnicalCsrtIdProduction ||
+              config.nfeResponsibleTechnicalCsrtProduction
+            : config.nfeResponsibleTechnicalCsrtIdHomologation ||
+              config.nfeResponsibleTechnicalCsrtHomologation)
           ? {
-              idCSRT: config.nfeResponsibleTechnicalCsrtId,
-              csrt: config.nfeResponsibleTechnicalCsrt
+              cnpj: config.nfeResponsibleTechnicalCnpj,
+              contact: config.nfeResponsibleTechnicalContact,
+              email: config.nfeResponsibleTechnicalEmail,
+              phone: config.nfeResponsibleTechnicalPhone,
+              idCSRT:
+                document.ambiente === "producao"
+                  ? config.nfeResponsibleTechnicalCsrtIdProduction
+                  : config.nfeResponsibleTechnicalCsrtIdHomologation,
+              csrt:
+                document.ambiente === "producao"
+                  ? config.nfeResponsibleTechnicalCsrtProduction
+                  : config.nfeResponsibleTechnicalCsrtHomologation
             }
           : undefined
       );

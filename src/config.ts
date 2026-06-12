@@ -23,6 +23,19 @@ function loadLocalEnvFile(filePath: string) {
 loadLocalEnvFile(".env.local");
 loadLocalEnvFile(".env");
 
+const nfeHomologationCsrtId =
+  process.env.NFE_CSRT_ID_HOMOLOGATION ??
+  process.env.NFE_RESP_TEC_ID_CSRT ??
+  "";
+const nfeHomologationCsrt =
+  process.env.NFE_CSRT_TOKEN_HOMOLOGATION ??
+  process.env.NFE_RESP_TEC_CSRT ??
+  "";
+const nfeProductionCsrtId =
+  process.env.NFE_CSRT_ID_PRODUCTION ?? "";
+const nfeProductionCsrt =
+  process.env.NFE_CSRT_TOKEN_PRODUCTION ?? "";
+
 export const config = {
   port: Number(process.env.PORT ?? 3001),
   env: process.env.APP_ENV ?? "development",
@@ -38,8 +51,16 @@ export const config = {
   stateFile: process.env.STATE_FILE ?? "./storage/mock-state.json",
   supabaseUrl: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  nfeResponsibleTechnicalCsrtId: process.env.NFE_RESP_TEC_ID_CSRT ?? "",
-  nfeResponsibleTechnicalCsrt: process.env.NFE_RESP_TEC_CSRT ?? "",
+  nfeResponsibleTechnicalCnpj: process.env.NFE_RT_CNPJ ?? "",
+  nfeResponsibleTechnicalContact: process.env.NFE_RT_CONTATO ?? "",
+  nfeResponsibleTechnicalEmail: process.env.NFE_RT_EMAIL ?? "",
+  nfeResponsibleTechnicalPhone: process.env.NFE_RT_FONE ?? "",
+  nfeResponsibleTechnicalCsrtId: nfeHomologationCsrtId,
+  nfeResponsibleTechnicalCsrt: nfeHomologationCsrt,
+  nfeResponsibleTechnicalCsrtIdHomologation: nfeHomologationCsrtId,
+  nfeResponsibleTechnicalCsrtHomologation: nfeHomologationCsrt,
+  nfeResponsibleTechnicalCsrtIdProduction: nfeProductionCsrtId,
+  nfeResponsibleTechnicalCsrtProduction: nfeProductionCsrt,
   autoTransmitHomologation:
     (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true"
 };

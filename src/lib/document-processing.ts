@@ -37,17 +37,34 @@ function resolveQrCodeConfig(document: DocumentRecord) {
   };
 }
 
-function resolveResponsibleTechnicalCsrtConfig() {
+function resolveResponsibleTechnicalCsrtConfig(document: DocumentRecord) {
+  const idCSRT =
+    document.ambiente === "producao"
+      ? config.nfeResponsibleTechnicalCsrtIdProduction
+      : config.nfeResponsibleTechnicalCsrtIdHomologation;
+  const csrt =
+    document.ambiente === "producao"
+      ? config.nfeResponsibleTechnicalCsrtProduction
+      : config.nfeResponsibleTechnicalCsrtHomologation;
+
   if (
-    !config.nfeResponsibleTechnicalCsrtId ||
-    !config.nfeResponsibleTechnicalCsrt
+    !config.nfeResponsibleTechnicalCnpj &&
+    !config.nfeResponsibleTechnicalContact &&
+    !config.nfeResponsibleTechnicalEmail &&
+    !config.nfeResponsibleTechnicalPhone &&
+    !idCSRT &&
+    !csrt
   ) {
     return undefined;
   }
 
   return {
-    idCSRT: config.nfeResponsibleTechnicalCsrtId,
-    csrt: config.nfeResponsibleTechnicalCsrt
+    cnpj: config.nfeResponsibleTechnicalCnpj,
+    contact: config.nfeResponsibleTechnicalContact,
+    email: config.nfeResponsibleTechnicalEmail,
+    phone: config.nfeResponsibleTechnicalPhone,
+    idCSRT,
+    csrt
   };
 }
 
@@ -85,7 +102,7 @@ export async function processHomologationDocument(
         opened.privateKeyPem,
         opened.certificatePem,
         resolveQrCodeConfig(document),
-        resolveResponsibleTechnicalCsrtConfig()
+        resolveResponsibleTechnicalCsrtConfig(document)
       );
       const xsd = validateNfeXml(signed.signedXml);
       const updated = store.saveSignedXml(document.id, {

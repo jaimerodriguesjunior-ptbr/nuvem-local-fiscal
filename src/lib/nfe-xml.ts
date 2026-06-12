@@ -20,6 +20,10 @@ export type NfceQrCodeConfig = {
 };
 
 export type ResponsibleTechnicalCsrtConfig = {
+  cnpj?: string;
+  contact?: string;
+  email?: string;
+  phone?: string;
   idCSRT: string;
   csrt: string;
 };
@@ -422,10 +426,32 @@ function applyResponsibleTechnicalCsrt(
   accessKey: string,
   config?: ResponsibleTechnicalCsrtConfig
 ) {
-  if (typeof infNFe.infRespTec !== "object" || infNFe.infRespTec === null) {
+  if (!config) {
     return;
   }
-  if (!config?.idCSRT || !config.csrt) {
+
+  if (typeof infNFe.infRespTec !== "object" || infNFe.infRespTec === null) {
+    if (!config.cnpj) {
+      return;
+    }
+    infNFe.infRespTec = {};
+  }
+
+  const infRespTec = infNFe.infRespTec as JsonObject;
+  if (config.cnpj && !infRespTec.CNPJ) {
+    infRespTec.CNPJ = onlyDigits(config.cnpj);
+  }
+  if (config.contact && !infRespTec.xContato) {
+    infRespTec.xContato = config.contact;
+  }
+  if (config.email && !infRespTec.email) {
+    infRespTec.email = config.email;
+  }
+  if (config.phone && !infRespTec.fone) {
+    infRespTec.fone = onlyDigits(config.phone);
+  }
+
+  if (!config.idCSRT || !config.csrt) {
     return;
   }
 
@@ -437,7 +463,6 @@ function applyResponsibleTechnicalCsrt(
     throw new Error("O CSRT do responsavel tecnico nao foi informado.");
   }
 
-  const infRespTec = infNFe.infRespTec as JsonObject;
   infRespTec.idCSRT = idCSRT;
   infRespTec.hashCSRT = createHash("sha1")
     .update(`${config.csrt.trim()}${accessKey}`, "utf8")

@@ -35,7 +35,16 @@ function nextHomologationNumber(app: ReturnType<typeof buildApp>) {
   return Math.max(9002, ...used) + 1;
 }
 
-function buildPayload(nNF: number, serie: number) {
+function buildPayload(
+  nNF: number,
+  serie: number,
+  responsibleTechnical: {
+    cnpj: string;
+    contact: string;
+    email: string;
+    phone: string;
+  }
+) {
   return {
     ambiente: "homologacao",
     infNFe: {
@@ -151,10 +160,10 @@ function buildPayload(nNF: number, serie: number) {
       transp: { modFrete: 9 },
       pag: { detPag: [{ tPag: "01", vPag: 270 }] },
       infRespTec: {
-        CNPJ: "65667543000102",
-        xContato: "Responsavel Tecnico",
-        email: "fiscal@example.com",
-        fone: "44999261487"
+        CNPJ: responsibleTechnical.cnpj,
+        xContato: responsibleTechnical.contact,
+        email: responsibleTechnical.email,
+        fone: responsibleTechnical.phone
       }
     }
   };
@@ -203,7 +212,12 @@ async function main() {
         authorization: `Bearer ${tokenResponse.json().access_token}`,
         "content-type": "application/json"
       },
-      payload: buildPayload(nNF, issuer.serieNfe)
+      payload: buildPayload(nNF, issuer.serieNfe, {
+        cnpj: config.nfeResponsibleTechnicalCnpj || "65667543000102",
+        contact: config.nfeResponsibleTechnicalContact || "Responsavel Tecnico",
+        email: config.nfeResponsibleTechnicalEmail || "fiscal@example.com",
+        phone: config.nfeResponsibleTechnicalPhone || "44999261487"
+      })
     });
     if (emissionResponse.statusCode !== 202) {
       throw new Error(`Falha ao criar NF-e: ${emissionResponse.body}`);

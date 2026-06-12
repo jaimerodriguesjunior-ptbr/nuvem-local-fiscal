@@ -534,7 +534,7 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
   assert.match(result.unsignedXml, /<mod>55<\/mod>/);
   assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
   assert.match(result.unsignedXml, /<idCSRT>07<\/idCSRT>/);
-  assert.match(result.unsignedXml, new RegExp(`<hashCSRT>${expectedHash}</hashCSRT>`));
+  assert.ok(result.unsignedXml.includes(`<hashCSRT>${expectedHash}</hashCSRT>`));
   assert.match(
     result.unsignedXml,
     /<xNome>NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xNome>/
