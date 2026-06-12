@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import forge from "node-forge";
@@ -518,12 +519,22 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
       }
     },
     opened.privateKeyPem,
-    opened.certificatePem
+    opened.certificatePem,
+    undefined,
+    {
+      idCSRT: "7",
+      csrt: "CSRT-DE-HOMOLOGACAO-TESTE"
+    }
   );
+  const expectedHash = createHash("sha1")
+    .update(`CSRT-DE-HOMOLOGACAO-TESTE${result.accessKey}`, "utf8")
+    .digest("base64");
 
   assert.equal(result.signatureValid, true);
   assert.match(result.unsignedXml, /<mod>55<\/mod>/);
   assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
+  assert.match(result.unsignedXml, /<idCSRT>07<\/idCSRT>/);
+  assert.match(result.unsignedXml, new RegExp(`<hashCSRT>${expectedHash}</hashCSRT>`));
   assert.match(
     result.unsignedXml,
     /<xNome>NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xNome>/

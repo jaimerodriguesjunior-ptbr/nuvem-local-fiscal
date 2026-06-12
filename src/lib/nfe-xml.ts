@@ -19,6 +19,11 @@ export type NfceQrCodeConfig = {
   consultationUrl: string;
 };
 
+export type ResponsibleTechnicalCsrtConfig = {
+  idCSRT: string;
+  csrt: string;
+};
+
 const XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
 const C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 const ENVELOPED = `${XMLDSIG}enveloped-signature`;
@@ -412,11 +417,39 @@ function buildNfceSupplement(
   );
 }
 
+function applyResponsibleTechnicalCsrt(
+  infNFe: JsonObject,
+  accessKey: string,
+  config?: ResponsibleTechnicalCsrtConfig
+) {
+  if (typeof infNFe.infRespTec !== "object" || infNFe.infRespTec === null) {
+    return;
+  }
+  if (!config?.idCSRT || !config.csrt) {
+    return;
+  }
+
+  const idCSRT = fixedDigits(config.idCSRT, 2);
+  if (!/^\d{2}$/.test(idCSRT)) {
+    throw new Error("O idCSRT deve conter 2 digitos.");
+  }
+  if (!config.csrt.trim()) {
+    throw new Error("O CSRT do responsavel tecnico nao foi informado.");
+  }
+
+  const infRespTec = infNFe.infRespTec as JsonObject;
+  infRespTec.idCSRT = idCSRT;
+  infRespTec.hashCSRT = createHash("sha1")
+    .update(`${config.csrt.trim()}${accessKey}`, "utf8")
+    .digest("base64");
+}
+
 export function generateAndSignNfeXml(
   payload: JsonObject,
   privateKeyPem: string,
   certificatePem: string,
-  nfceQrCodeConfig?: NfceQrCodeConfig
+  nfceQrCodeConfig?: NfceQrCodeConfig,
+  responsibleTechnicalCsrtConfig?: ResponsibleTechnicalCsrtConfig
 ): SignedNfeResult {
   const rawInfNFe =
     typeof payload.infNFe === "object" && payload.infNFe !== null
@@ -434,6 +467,7 @@ export function generateAndSignNfeXml(
 
   applyHomologationRequiredText(infNFe);
   const accessKey = accessKeyFromInfNFe(infNFe);
+  applyResponsibleTechnicalCsrt(infNFe, accessKey, responsibleTechnicalCsrtConfig);
   const version = String(infNFe.versao ?? "4.00");
   const content = serializeInfNFe(infNFe);
   const model = String((infNFe.ide as JsonObject).mod ?? "");

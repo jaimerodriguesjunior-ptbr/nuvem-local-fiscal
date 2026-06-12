@@ -37,6 +37,20 @@ function resolveQrCodeConfig(document: DocumentRecord) {
   };
 }
 
+function resolveResponsibleTechnicalCsrtConfig() {
+  if (
+    !config.nfeResponsibleTechnicalCsrtId ||
+    !config.nfeResponsibleTechnicalCsrt
+  ) {
+    return undefined;
+  }
+
+  return {
+    idCSRT: config.nfeResponsibleTechnicalCsrtId,
+    csrt: config.nfeResponsibleTechnicalCsrt
+  };
+}
+
 export async function processHomologationDocument(
   store: InMemoryStore,
   documentId: string
@@ -70,7 +84,8 @@ export async function processHomologationDocument(
         document.payloadOriginal as Record<string, unknown>,
         opened.privateKeyPem,
         opened.certificatePem,
-        resolveQrCodeConfig(document)
+        resolveQrCodeConfig(document),
+        resolveResponsibleTechnicalCsrtConfig()
       );
       const xsd = validateNfeXml(signed.signedXml);
       const updated = store.saveSignedXml(document.id, {

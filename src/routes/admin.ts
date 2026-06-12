@@ -1119,6 +1119,12 @@ export async function registerAdminRoutes(app: FastifyInstance) {
               qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
               consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
             }
+          : undefined,
+        config.nfeResponsibleTechnicalCsrtId && config.nfeResponsibleTechnicalCsrt
+          ? {
+              idCSRT: config.nfeResponsibleTechnicalCsrtId,
+              csrt: config.nfeResponsibleTechnicalCsrt
+            }
           : undefined
       );
       const xsd = validateNfeXml(result.signedXml);

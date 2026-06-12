@@ -38,6 +38,8 @@ export const config = {
   stateFile: process.env.STATE_FILE ?? "./storage/mock-state.json",
   supabaseUrl: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  nfeResponsibleTechnicalCsrtId: process.env.NFE_RESP_TEC_ID_CSRT ?? "",
+  nfeResponsibleTechnicalCsrt: process.env.NFE_RESP_TEC_CSRT ?? "",
   autoTransmitHomologation:
     (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true"
 };
