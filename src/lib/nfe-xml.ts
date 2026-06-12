@@ -385,6 +385,29 @@ function applyHomologationRequiredText(infNFe: JsonObject) {
   }
 }
 
+function applyPaymentCompatibility(infNFe: JsonObject) {
+  if (typeof infNFe.pag !== "object" || infNFe.pag === null) {
+    return;
+  }
+
+  const payment = infNFe.pag as JsonObject;
+  const originalDetails = Array.isArray(payment.detPag)
+    ? payment.detPag
+    : payment.detPag
+      ? [payment.detPag]
+      : [];
+
+  for (const detail of originalDetails) {
+    if (
+      typeof detail === "object" &&
+      detail !== null &&
+      String((detail as JsonObject).tPag ?? "").padStart(2, "0") === "90"
+    ) {
+      (detail as JsonObject).vPag = 0;
+    }
+  }
+}
+
 function certificateBody(certificatePem: string) {
   return certificatePem
     .replace(/-----BEGIN CERTIFICATE-----/g, "")
@@ -496,6 +519,7 @@ export function generateAndSignNfeXml(
   }
 
   applyHomologationRequiredText(infNFe);
+  applyPaymentCompatibility(infNFe);
   const accessKey = accessKeyFromInfNFe(infNFe);
   applyResponsibleTechnicalCsrt(infNFe, accessKey, responsibleTechnicalCsrtConfig);
   const version = String(infNFe.versao ?? "4.00");

@@ -91,7 +91,12 @@ export async function processHomologationDocument(
 
   try {
     let signedXml = document.xmlSigned;
-    if (!signedXml || !document.signatureValid || !document.xsdValid) {
+    if (
+      document.status === "erro" ||
+      !signedXml ||
+      !document.signatureValid ||
+      !document.xsdValid
+    ) {
       const opened = openEncryptedCertificate(
         certificate.encryptedBundle,
         config.certificateEncryptionKey

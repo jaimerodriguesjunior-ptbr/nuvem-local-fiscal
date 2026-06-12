@@ -509,7 +509,7 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
           }
         },
         transp: { modFrete: 9 },
-        pag: { detPag: [{ tPag: "01", vPag: 270 }] },
+        pag: { detPag: [{ tPag: "90", vPag: 270 }] },
         infRespTec: {
           CNPJ: "65667543000102",
           xContato: "Responsavel Tecnico",
@@ -534,6 +534,10 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
   assert.equal(result.signatureValid, true);
   assert.match(result.unsignedXml, /<mod>55<\/mod>/);
   assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
+  assert.match(
+    result.unsignedXml,
+    /<pag><detPag><tPag>90<\/tPag><vPag>0<\/vPag><\/detPag><\/pag>/
+  );
   assert.doesNotMatch(result.unsignedXml, /<CSRT>|NAO-DEVE-SAIR-NO-XML/);
   assert.match(result.unsignedXml, /<idCSRT>07<\/idCSRT>/);
   assert.ok(result.unsignedXml.includes(`<hashCSRT>${expectedHash}</hashCSRT>`));
