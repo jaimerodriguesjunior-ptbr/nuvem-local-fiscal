@@ -568,6 +568,26 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nfePdf.body, /Nota Fiscal Eletronica/);
     assert.doesNotMatch(nfePdf.body, /DANFE NFC-e|QR Code|NFCe n\./);
 
+    const nfeViaLegacyNfceStatusRoute = await app.inject({
+      method: "GET",
+      url: `/nfce/${nfeDocumentId}`,
+      headers: bearer
+    });
+    assert.equal(
+      nfeViaLegacyNfceStatusRoute.statusCode,
+      200,
+      nfeViaLegacyNfceStatusRoute.body
+    );
+    assert.equal(nfeViaLegacyNfceStatusRoute.json().status, "autorizado");
+    assert.match(
+      nfeViaLegacyNfceStatusRoute.json().pdf_url,
+      new RegExp(`/nfe/${nfeDocumentId}/pdf$`)
+    );
+    assert.match(
+      nfeViaLegacyNfceStatusRoute.json().xml_url,
+      new RegExp(`/nfe/${nfeDocumentId}/xml$`)
+    );
+
     app.store.saveCancellationResult(nfeDocumentId, {
       justification: "Erro de preenchimento nos dados da NF-e em homologacao",
       requestXml: "<evento />",

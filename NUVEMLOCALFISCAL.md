@@ -10,6 +10,12 @@ Objetivo do v1:
 - traduzir os payloads para SEFAZ
 - devolver respostas compativeis o bastante para evitar reescrever os sistemas clientes
 
+Regra obrigatoria de compatibilidade:
+- nao alterar os programas clientes para adaptar integracoes a Nuvem Local Fiscal
+- a Nuvem Local Fiscal deve absorver diferencas compativeis de rotas, payloads e respostas sempre que isso puder ser feito sem risco fiscal
+- se for identificado um erro real em um programa cliente, ele deve ser informado ao responsavel, com o diagnostico e o impacto, mas nao corrigido no repo cliente sem autorizacao explicita
+- qualquer excecao que exija mudanca em cliente deve ser discutida antes da edicao
+
 Fora do v1:
 - cobertura completa de NFS-e por prefeitura
 - imitar 100% da Nuvem Fiscal
@@ -56,6 +62,7 @@ Marco NF-e homologacao com payload real da Otica Prisma:
 - lote: `104 - Lote processado`
 - recebimento: `2026-06-12T11:03:57-03:00`
 - observacao tecnica: o payload da Otica trazia `CSRT` dentro de `infRespTec`; a Nuvem Local passou a usar o token apenas para calcular `hashCSRT` e nao serializa `CSRT` no XML, preservando validade XSD e evitando expor o token.
+- compatibilidade de consulta: foi identificado que a tela fiscal da Otica consulta o UUID de NF-e pela rota legada `/nfce/:id`. O erro do cliente foi informado e nao deve ser corrigido no programa sem autorizacao. A Nuvem Local aceita essa consulta GET e devolve as URLs canonicas `/nfe/:id/xml` e `/nfe/:id/pdf`.
 
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`

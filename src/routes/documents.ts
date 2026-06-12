@@ -819,7 +819,9 @@ async function handleGetDocument(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const storedDocument = app.store.findDocument(params.id, tipoDocumento);
+  const storedDocument =
+    app.store.findDocument(params.id, tipoDocumento) ??
+    app.store.findDocument(params.id);
   if (!storedDocument) {
     return reply.code(404).send({
       message: "Documento nao encontrado."
