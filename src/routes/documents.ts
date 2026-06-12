@@ -197,12 +197,28 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handleGetInutilization(app, request, reply, "NFCe");
   });
 
+  app.get("/nfce/inutilizacoes/:id/xml", async (request, reply) => {
+    return handleInutilizationXmlDownload(app, request, reply, "NFCe", "signed");
+  });
+
+  app.get("/nfce/inutilizacoes/:id/resposta/xml", async (request, reply) => {
+    return handleInutilizationXmlDownload(app, request, reply, "NFCe", "response");
+  });
+
   app.post("/nfe/inutilizacoes", async (request, reply) => {
     return handleCreateInutilization(app, request, reply, "NFe");
   });
 
   app.get("/nfe/inutilizacoes/:id", async (request, reply) => {
     return handleGetInutilization(app, request, reply, "NFe");
+  });
+
+  app.get("/nfe/inutilizacoes/:id/xml", async (request, reply) => {
+    return handleInutilizationXmlDownload(app, request, reply, "NFe", "signed");
+  });
+
+  app.get("/nfe/inutilizacoes/:id/resposta/xml", async (request, reply) => {
+    return handleInutilizationXmlDownload(app, request, reply, "NFe", "response");
   });
 
   app.get("/nfe/:id", async (request, reply) => {
@@ -493,6 +509,12 @@ function mapInutilizationResponse(record: import("../types.js").InutilizationRec
     },
     xml_pedido_disponivel: Boolean(record.xmlAssinado),
     xml_resposta_disponivel: Boolean(record.xmlResposta),
+    xml_url: record.xmlAssinado
+      ? `/${record.tipoDocumento === "NFe" ? "nfe" : "nfce"}/inutilizacoes/${record.id}/xml`
+      : null,
+    xml_resposta_url: record.xmlResposta
+      ? `/${record.tipoDocumento === "NFe" ? "nfe" : "nfce"}/inutilizacoes/${record.id}/resposta/xml`
+      : null,
     criado_em: record.createdAt,
     atualizado_em: record.updatedAt
   };
@@ -658,6 +680,38 @@ async function handleGetInutilization(
   }
 
   return mapInutilizationResponse(record);
+}
+
+async function handleInutilizationXmlDownload(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  tipoDocumento: DocumentType,
+  artifact: "signed" | "response"
+) {
+  const params = request.params as { id: string };
+  const record = app.store.findInutilization(params.id, tipoDocumento);
+  if (!record) {
+    return reply.code(404).send({ message: "Inutilizacao nao encontrada." });
+  }
+
+  const xml = artifact === "signed" ? record.xmlAssinado : record.xmlResposta;
+  if (!xml) {
+    return reply.code(409).send({
+      message:
+        artifact === "signed"
+          ? "O XML assinado da inutilizacao ainda nao esta disponivel."
+          : "A resposta XML da SEFAZ ainda nao esta disponivel."
+    });
+  }
+
+  const suffix = artifact === "signed" ? "pedido-assinado" : "resposta-sefaz";
+  reply.header("content-type", "application/xml; charset=utf-8");
+  reply.header(
+    "content-disposition",
+    `attachment; filename="${tipoDocumento}-${record.serie}-${record.numeroInicial}-${suffix}.xml"`
+  );
+  return xml;
 }
 
 async function handleCreateDocument(

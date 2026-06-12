@@ -98,6 +98,27 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       getInutilization.json().autorizacao.numero_protocolo,
       "141260001356197"
     );
+    assert.match(getInutilization.json().xml_url, /\/nfce\/inutilizacoes\/.+\/xml$/);
+    assert.match(
+      getInutilization.json().xml_resposta_url,
+      /\/nfce\/inutilizacoes\/.+\/resposta\/xml$/
+    );
+
+    const signedInutilizationXml = await app.inject({
+      method: "GET",
+      url: `/nfce/inutilizacoes/${savedInutilization.id}/xml`,
+      headers: bearer
+    });
+    assert.equal(signedInutilizationXml.statusCode, 200);
+    assert.match(signedInutilizationXml.body, /<Signature/);
+
+    const responseInutilizationXml = await app.inject({
+      method: "GET",
+      url: `/nfce/inutilizacoes/${savedInutilization.id}/resposta/xml`,
+      headers: bearer
+    });
+    assert.equal(responseInutilizationXml.statusCode, 200);
+    assert.match(responseInutilizationXml.body, /<retInutNFe/);
 
     const saveCompany = await app.inject({
       method: "POST",
@@ -618,6 +639,9 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(adminPage.body, /Operação fiscal, sem ruído\./);
     assert.match(adminPage.body, /Logs e debug/);
     assert.match(adminPage.body, /Historico de processamento/);
+    assert.match(adminPage.body, /XML autorizado/);
+    assert.match(adminPage.body, /Inutilizações/);
+    assert.match(adminPage.body, /setListFilter/);
 
     const signed = await app.inject({
       method: "POST",

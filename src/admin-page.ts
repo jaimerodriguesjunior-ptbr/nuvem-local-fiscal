@@ -210,6 +210,17 @@ const page = String.raw`<!doctype html>
     }
     .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
     .company-list, .document-list, .log-list { display: grid; gap: 12px; }
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper);
+    }
     .company {
       display: grid;
       grid-template-columns: 1fr auto auto;
@@ -459,6 +470,7 @@ const page = String.raw`<!doctype html>
       .metrics { grid-template-columns: 1fr 1fr; }
       .company { grid-template-columns: 1fr; gap: 14px; }
       .two-col, .info-grid { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: 1fr 1fr; }
       .document-summary { grid-template-columns: 80px 1fr auto; }
       .document-summary > :nth-child(3) { display: none; }
       .document-quick-actions { grid-column: 1 / -1; justify-content: flex-start; }
@@ -471,6 +483,7 @@ const page = String.raw`<!doctype html>
       .page-head { align-items: flex-start; flex-direction: column; }
       .tabs { width: 100%; overflow-x: auto; }
       .tabs button { white-space: nowrap; }
+      .filters { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -498,6 +511,14 @@ const page = String.raw`<!doctype html>
       companyTab: 'dados',
       service: 'nfce',
       environment: 'homologacao',
+      listFilters: {
+        company: '',
+        type: '',
+        status: '',
+        environment: '',
+        from: '',
+        to: ''
+      },
       snapshot: null,
       fiscalHealth: null,
       lastResponse: 'Nenhuma ação executada nesta sessão.'
@@ -1017,6 +1038,19 @@ const page = String.raw`<!doctype html>
             '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeição</button>' +
             (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
               doc.id + '\')">Baixar XML assinado</button>' : '') +
+            ((doc.status === 'autorizado' || doc.status === 'cancelado')
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/xml\', \'' + doc.id + '-autorizado.xml\')">XML autorizado</button>' +
+                '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/pdf\', \'' + doc.id + '-danfe.pdf\')">DANFE</button>'
+              : '') +
+            (doc.cancellationProcessedXml
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/cancelamento/xml\', \'' + doc.id + '-cancelamento.xml\')">XML cancelamento</button>'
+              : '') +
           '</div>' +
           (doc.xsdErrors && doc.xsdErrors.length ? '<details><summary>Erros de validação XSD</summary><pre>' +
             escapeHtml(doc.xsdErrors.join('\\n')) + '</pre></details>' : '') +
@@ -1038,6 +1072,7 @@ const page = String.raw`<!doctype html>
       if (state.companyCnpj) {
         docs = docs.filter(function(doc) { return doc.issuerCnpj === state.companyCnpj; });
       }
+      docs = filterDocuments(docs);
       const subtitle = state.companyCnpj
         ? 'Exibindo documentos da empresa selecionada. Limpe o filtro para ver todos.'
         : 'Emissões recebidas, validações e respostas fiscais.';
@@ -1045,14 +1080,18 @@ const page = String.raw`<!doctype html>
         ? '<button type="button" class="btn ghost" onclick="clearCompanyFilter()">Limpar filtro</button>'
         : '';
       return pageHead('Operação', 'Documentos', subtitle, clear) +
+        renderListFilters() +
         (docs.length ? '<div class="document-list">' + docs.map(documentRow).join('') + '</div>' :
           '<div class="empty">Nenhum documento encontrado para este filtro.</div>') +
         responseConsole();
     }
 
     function renderLogs() {
-      const docs = state.snapshot.documents;
-      const events = state.snapshot.documentEvents || [];
+      const docs = filterDocuments(state.snapshot.documents);
+      const visibleIds = new Set(docs.map(function(doc) { return doc.id; }));
+      const events = (state.snapshot.documentEvents || []).filter(function(event) {
+        return visibleIds.has(event.documentId);
+      });
       const eventRows = events.map(function(event) {
         const doc = docs.find(function(item) { return item.id === event.documentId; });
         return '<article class="log"><strong>' + formatDate(event.createdAt, true) + '</strong>' +
@@ -1066,6 +1105,7 @@ const page = String.raw`<!doctype html>
         'Logs e debug',
         'Uma leitura técnica do que entrou, do que foi validado e da última resposta conhecida da SEFAZ.'
       ) +
+      renderListFilters() +
       '<div class="log-list">' + (eventRows || (docs.length ? docs.map(function(doc) {
         const event = doc.sefazResponseXml ? 'Resposta SEFAZ' :
           doc.xmlSigned ? 'XML assinado' : 'Documento recebido';
@@ -1074,6 +1114,7 @@ const page = String.raw`<!doctype html>
           escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' · ' + doc.id) + '</span>' +
           '<button type="button" class="btn ghost" onclick="inspectLog(\'' + doc.id + '\')">Inspecionar</button></article>';
       }).join('') : '<div class="empty">Nenhum evento fiscal registrado.</div>')) + '</div>' +
+      renderInutilizations() +
       '<section class="section-head"><div><h2>Ferramenta manual</h2><p>Útil apenas para diagnóstico local; o fluxo normal começa no sistema emissor.</p></div></section>' +
       '<section class="surface"><form id="documentForm"><div class="two-col">' +
         '<label>Tipo<select name="tipoDocumento"><option value="nfce">NFC-e</option><option value="nfe">NF-e</option></select></label>' +
@@ -1085,6 +1126,79 @@ const page = String.raw`<!doctype html>
         '<label>Ambiente<select name="ambiente"><option value="homologacao">Homologação</option><option value="producao">Produção</option></select></label>' +
         '<div><button type="submit" class="btn">Criar documento manual</button></div>' +
       '</form></section>' + responseConsole();
+    }
+
+    function filterDocuments(documents) {
+      const filters = state.listFilters;
+      return documents.filter(function(doc) {
+        if (filters.company && doc.issuerCnpj !== filters.company) return false;
+        if (filters.type && doc.tipoDocumento !== filters.type) return false;
+        if (filters.status && doc.status !== filters.status) return false;
+        if (filters.environment && doc.ambiente !== filters.environment) return false;
+        const created = new Date(doc.createdAt);
+        if (filters.from && created < new Date(filters.from + 'T00:00:00')) return false;
+        if (filters.to && created > new Date(filters.to + 'T23:59:59.999')) return false;
+        return true;
+      });
+    }
+
+    function renderListFilters() {
+      const filters = state.listFilters;
+      return '<section class="filters">' +
+        '<label>Empresa<select onchange="setListFilter(\'company\', this.value)"><option value="">Todas</option>' +
+          groupedCompanies().map(function(company) {
+            return '<option value="' + escapeHtml(company.cnpj) + '"' +
+              (filters.company === company.cnpj ? ' selected' : '') + '>' +
+              escapeHtml(company.nomeFantasia) + '</option>';
+          }).join('') + '</select></label>' +
+        '<label>Documento<select onchange="setListFilter(\'type\', this.value)">' +
+          '<option value="">Todos</option><option value="NFe"' + (filters.type === 'NFe' ? ' selected' : '') +
+          '>NF-e</option><option value="NFCe"' + (filters.type === 'NFCe' ? ' selected' : '') + '>NFC-e</option></select></label>' +
+        '<label>Status<select onchange="setListFilter(\'status\', this.value)"><option value="">Todos</option>' +
+          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro'].map(function(status) {
+            return '<option value="' + status + '"' + (filters.status === status ? ' selected' : '') + '>' +
+              status + '</option>';
+          }).join('') + '</select></label>' +
+        '<label>Ambiente<select onchange="setListFilter(\'environment\', this.value)"><option value="">Todos</option>' +
+          '<option value="homologacao"' + (filters.environment === 'homologacao' ? ' selected' : '') +
+          '>Homologação</option><option value="producao"' + (filters.environment === 'producao' ? ' selected' : '') +
+          '>Produção</option></select></label>' +
+        '<label>De<input type="date" value="' + escapeHtml(filters.from) +
+          '" onchange="setListFilter(\'from\', this.value)" /></label>' +
+        '<label>Até<input type="date" value="' + escapeHtml(filters.to) +
+          '" onchange="setListFilter(\'to\', this.value)" /></label>' +
+        '<button type="button" class="btn ghost" onclick="clearListFilters()">Limpar</button>' +
+      '</section>';
+    }
+
+    function renderInutilizations() {
+      const filters = state.listFilters;
+      const records = (state.snapshot.inutilizations || []).filter(function(item) {
+        if (filters.company && item.issuerCnpj !== filters.company) return false;
+        if (filters.type && item.tipoDocumento !== filters.type) return false;
+        if (filters.environment && item.ambiente !== filters.environment) return false;
+        if (filters.status && item.status !== filters.status) return false;
+        const created = new Date(item.createdAt);
+        if (filters.from && created < new Date(filters.from + 'T00:00:00')) return false;
+        if (filters.to && created > new Date(filters.to + 'T23:59:59.999')) return false;
+        return true;
+      });
+      if (!records.length) return '';
+      return '<section class="section-head"><div><h2>Inutilizações</h2></div></section>' +
+        '<div class="log-list">' + records.map(function(item) {
+          const base = item.tipoDocumento === 'NFe' ? 'nfe' : 'nfce';
+          return '<article class="log"><strong>' + formatDate(item.createdAt, true) + '</strong>' +
+            '<span>' + badge(item.status, item.status === 'homologado' ? 'ok' : 'warn') + '</span>' +
+            '<span>' + escapeHtml(item.tipoDocumento + ' série ' + item.serie + ' · ' +
+              item.numeroInicial + (item.numeroFinal !== item.numeroInicial ? '-' + item.numeroFinal : '') +
+              (item.protocolo ? ' · ' + item.protocolo : '')) + '</span>' +
+            '<div class="actions">' +
+              (item.xmlAssinado ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                base + '/inutilizacoes/' + item.id + '/xml\', \'' + item.id + '-pedido.xml\')">Pedido XML</button>' : '') +
+              (item.xmlResposta ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                base + '/inutilizacoes/' + item.id + '/resposta/xml\', \'' + item.id + '-resposta.xml\')">Resposta XML</button>' : '') +
+            '</div></article>';
+        }).join('') + '</div>';
     }
 
     function responseConsole() {
@@ -1127,6 +1241,23 @@ const page = String.raw`<!doctype html>
 
     function clearCompanyFilter() {
       state.companyCnpj = null;
+      render();
+    }
+
+    function setListFilter(name, value) {
+      state.listFilters[name] = value;
+      render();
+    }
+
+    function clearListFilters() {
+      state.listFilters = {
+        company: '',
+        type: '',
+        status: '',
+        environment: '',
+        from: '',
+        to: ''
+      };
       render();
     }
 
@@ -1524,6 +1655,24 @@ const page = String.raw`<!doctype html>
       const link = document.createElement('a');
       link.href = url;
       link.download = id + '-assinado.xml';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function downloadFiscalArtifact(path, filename) {
+      const token = await getAccessToken();
+      const response = await fetch(path, {
+        headers: { Authorization: 'Bearer ' + token.access_token }
+      });
+      if (!response.ok) {
+        setResponse(await response.text());
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
     }

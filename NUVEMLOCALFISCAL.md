@@ -67,6 +67,7 @@ Marco NF-e homologacao com payload real da Otica Prisma:
 - compatibilidade de pagamento: quando um cliente envia `tPag=90` (sem pagamento) junto com `vPag` positivo, a Nuvem Local normaliza apenas `vPag` para zero, compatibilizando a regra `904` com o schema atualmente implantado pela SEFAZ-PR.
 - cenario com multiplos produtos validado na nota local `#7`: dois itens, `vProd=410.00`, pagamento em dinheiro `tPag=01`, protocolo `141260000346817` e status SEFAZ `100`.
 - cenario com desconto, frete, transportadora e dinheiro validado na nota local `#8`: `vProd=30.00`, `vFrete=10.00`, `vDesc=3.00`, `vNF=37.00`, transportadora com CNPJ, `modFrete=0`, pagamento `tPag=01` no valor de `37.00`, protocolo `141260000346830` e status SEFAZ `100`.
+- inutilizacao NF-e real validada pela pagina da Otica: modelo `55`, serie `1`, numero `9100`, status `102 - Inutilizacao de numero homologado`, protocolo `141260000346968` e recebimento `2026-06-12T15:39:52-03:00`.
 
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
@@ -89,8 +90,12 @@ Endpoints compativeis ja exercitados:
 - `GET /empresas/:cnpj/nfce`
 - `POST /nfce/inutilizacoes`
 - `GET /nfce/inutilizacoes/:id`
+- `GET /nfce/inutilizacoes/:id/xml`
+- `GET /nfce/inutilizacoes/:id/resposta/xml`
 - `POST /nfe/inutilizacoes`
 - `GET /nfe/inutilizacoes/:id`
+- `GET /nfe/inutilizacoes/:id/xml`
+- `GET /nfe/inutilizacoes/:id/resposta/xml`
 
 Configuracoes persistidas:
 - empresa/ambiente: UF, IE, CRT, serie NF-e e serie NFC-e
@@ -101,7 +106,7 @@ Configuracoes persistidas:
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
 - cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
-- a aba NF-e do admin e propositalmente enxuta; payloads, XMLs, respostas SEFAZ e eventos tecnicos ficam em Documentos e Logs e debug
+- a aba NF-e do admin e propositalmente enxuta; Documentos e Logs e debug possuem filtros e downloads de XML autorizado, DANFE, cancelamento e inutilizacao
 
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
@@ -117,11 +122,10 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. validar o DANFE NF-e A4 com mais emissores, produtos e cenarios de transporte
-2. revisar pacote de fechamento/contabilidade usando XML autorizado e XML de cancelamento
-3. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
-4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
-5. testar outros sistemas clientes somente depois do ambiente central estar estavel
+1. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
+2. fechar retries agendados e estrategia de processamento distribuido
+3. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+4. testar outros sistemas clientes somente depois do ambiente central estar estavel
 
 ---
 
