@@ -174,6 +174,31 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     });
     assert.equal(saveEnvironment.statusCode, 200, saveEnvironment.body);
 
+    const saveNfeServiceConfig = await app.inject({
+      method: "POST",
+      url: `/admin/api/companies/${cnpj}/services/nfe/homologacao`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        crt: "1",
+        serieNfe: 2,
+        ativo: true,
+        autoTransmit: false
+      }
+    });
+    assert.equal(saveNfeServiceConfig.statusCode, 200, saveNfeServiceConfig.body);
+    assert.equal(saveNfeServiceConfig.json().service.active, true);
+    assert.equal(
+      saveNfeServiceConfig.json().service.settings.autoTransmit,
+      false
+    );
+    assert.equal(
+      app.store.findIssuerByCnpj(cnpj, "homologacao")?.serieNfe,
+      2
+    );
+
     const saveServiceConfig = await app.inject({
       method: "POST",
       url: `/admin/api/companies/${cnpj}/services/nfce/homologacao`,
@@ -202,6 +227,56 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       }
     });
     assert.equal(invalidServiceConfig.statusCode, 400);
+
+    const disableNfeService = await app.inject({
+      method: "POST",
+      url: `/admin/api/companies/${cnpj}/services/nfe/homologacao`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        crt: "1",
+        serieNfe: 2,
+        ativo: false,
+        autoTransmit: false
+      }
+    });
+    assert.equal(disableNfeService.statusCode, 200, disableNfeService.body);
+
+    const disabledNfeEmission = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: bearer,
+      payload: {
+        ambiente: "homologacao",
+        emitente: {
+          cnpj
+        }
+      }
+    });
+    assert.equal(disabledNfeEmission.statusCode, 409, disabledNfeEmission.body);
+    assert.equal(disabledNfeEmission.json().error.code, "service_disabled");
+
+    const reactivateNfeService = await app.inject({
+      method: "POST",
+      url: `/admin/api/companies/${cnpj}/services/nfe/homologacao`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        crt: "1",
+        serieNfe: 2,
+        ativo: true,
+        autoTransmit: false
+      }
+    });
+    assert.equal(reactivateNfeService.statusCode, 200, reactivateNfeService.body);
+    assert.equal(
+      app.store.findServiceConfig(cnpj, "homologacao", "NFE")?.active,
+      true
+    );
 
     const emission = await app.inject({
       method: "POST",

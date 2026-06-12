@@ -1004,6 +1004,62 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     };
   });
 
+  app.post("/admin/api/companies/:cnpj/services/nfe/:environment", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+
+    const params = request.params as { cnpj: string; environment: string };
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const cnpj = params.cnpj.replace(/\D/g, "");
+    const environment = parseAdminEnvironment(params.environment);
+    const crt = String(body.crt ?? "").trim();
+    const serieNfe = positiveSeries(body.serieNfe);
+    if (
+      cnpj.length !== 14 ||
+      !environment ||
+      !["1", "2", "3", "4"].includes(crt) ||
+      !serieNfe
+    ) {
+      return reply.code(400).send({
+        message: "Informe CNPJ, ambiente, CRT (1 a 4) e serie NF-e entre 1 e 999."
+      });
+    }
+
+    const issuer = app.store.findIssuerByCnpj(cnpj, environment);
+    if (!issuer) {
+      return reply.code(404).send({
+        message: "Cadastre primeiro os dados fiscais deste ambiente."
+      });
+    }
+
+    app.store.upsertIssuerEnvironment(cnpj, environment, {
+      crt,
+      serieNfe
+    });
+    const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFE", {
+      active: body.ativo === false ? false : true,
+      settings: {
+        autoTransmit:
+          environment === "homologacao" && body.autoTransmit !== false
+      },
+      preserveSecrets: true
+    });
+    await app.store.waitForPersistence();
+
+    return {
+      message: "Configuracao NF-e salva.",
+      service: serviceConfig
+        ? {
+            id: serviceConfig.id,
+            active: serviceConfig.active,
+            settings: serviceConfig.settings
+          }
+        : null,
+      production_blocked: environment === "producao"
+    };
+  });
+
   app.post("/admin/api/documents/:id/status", async (request, reply) => {
     if (!isValidBasic(request.headers.authorization)) {
       return reply.code(401).send(unauthorized());

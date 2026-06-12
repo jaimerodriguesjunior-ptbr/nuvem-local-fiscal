@@ -290,13 +290,17 @@ export class InMemoryStore {
   }
 
   findServiceConfig(cnpj: string, ambiente: Environment, serviceType: ServiceType) {
+    const serviceConfig = this.findServiceConfigRecord(cnpj, ambiente, serviceType);
+    return serviceConfig?.active ? serviceConfig : null;
+  }
+
+  findServiceConfigRecord(cnpj: string, ambiente: Environment, serviceType: ServiceType) {
     return (
       this.serviceConfigs.find(
         (item) =>
           item.cnpj === cnpj &&
           item.ambiente === ambiente &&
-          item.serviceType === serviceType &&
-          item.active
+          item.serviceType === serviceType
       ) ?? null
     );
   }
@@ -362,7 +366,7 @@ export class InMemoryStore {
       return null;
     }
 
-    const existing = this.findServiceConfig(cnpj, ambiente, serviceType);
+    const existing = this.findServiceConfigRecord(cnpj, ambiente, serviceType);
     if (existing) {
       existing.active = input.active ?? existing.active;
       existing.settings = {

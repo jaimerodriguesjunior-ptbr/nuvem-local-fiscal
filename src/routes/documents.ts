@@ -720,6 +720,22 @@ async function handleCreateDocument(
     }
   }
 
+  const nfeServiceConfig =
+    tipoDocumento === "NFe"
+      ? app.store.findServiceConfigRecord(issuerCnpj, ambiente, "NFE")
+      : null;
+  if (nfeServiceConfig && !nfeServiceConfig.active) {
+    return reply.code(409).send({
+      error: {
+        code: "service_disabled",
+        message: "O servico NF-e esta inativo para esta empresa e ambiente."
+      },
+      message: "O servico NF-e esta inativo para esta empresa e ambiente."
+    });
+  }
+  const autoTransmit =
+    tipoDocumento !== "NFe" ||
+    nfeServiceConfig?.settings.autoTransmit !== false;
   const serviceConfig =
     tipoDocumento === "NFCe"
       ? app.store.findServiceConfig(issuerCnpj, ambiente, "NFCE")
@@ -750,6 +766,7 @@ async function handleCreateDocument(
   if (
     ambiente === "homologacao" &&
     config.autoTransmitHomologation &&
+    autoTransmit &&
     !app.store.findActiveCertificate(issuerCnpj)
   ) {
     return reply.code(409).send({
@@ -773,7 +790,11 @@ async function handleCreateDocument(
   });
   await app.store.waitForPersistence();
 
-  if (ambiente === "homologacao" && config.autoTransmitHomologation) {
+  if (
+    ambiente === "homologacao" &&
+    config.autoTransmitHomologation &&
+    autoTransmit
+  ) {
     const processed =
       tipoDocumento === "NFCe"
         ? await processHomologationNfce(app.store, document.id)

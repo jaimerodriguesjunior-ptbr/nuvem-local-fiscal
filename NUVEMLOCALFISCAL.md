@@ -94,12 +94,14 @@ Endpoints compativeis ja exercitados:
 
 Configuracoes persistidas:
 - empresa/ambiente: UF, IE, CRT, serie NF-e e serie NFC-e
+- configuracao NF-e por ambiente: servico ativo/inativo e transmissao automatica; producao continua bloqueada
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
 - cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
+- a aba NF-e do admin e propositalmente enxuta; payloads, XMLs, respostas SEFAZ e eventos tecnicos ficam em Documentos e Logs e debug
 
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada

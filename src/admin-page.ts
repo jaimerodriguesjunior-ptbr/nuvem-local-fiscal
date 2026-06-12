@@ -744,7 +744,9 @@ const page = String.raw`<!doctype html>
         return '<button type="button" class="' + (state.service === service[0] ? 'active' : '') +
           '" onclick="setService(\'' + service[0] + '\')">' + service[1] + '</button>';
       }).join('') + '</div>' +
-      (state.service === 'nfce' ? renderNfceService(company) : renderServicePlaceholder(state.service));
+      (state.service === 'nfce' ? renderNfceService(company) :
+        state.service === 'nfe' ? renderNfeServicePanel(company) :
+        renderServicePlaceholder(state.service));
     }
 
     function renderNfceService(company) {
@@ -828,7 +830,66 @@ const page = String.raw`<!doctype html>
         return '<button type="button" class="' + (state.service === service[0] ? 'active' : '') +
           '" onclick="setService(\'' + service[0] + '\')">' + service[1] + '</button>';
       }).join('') + '</div>' +
-      (state.service === 'nfce' ? renderNfceServicePanel(company) : renderServicePlaceholder(state.service));
+      (state.service === 'nfce' ? renderNfceServicePanel(company) :
+        state.service === 'nfe' ? renderNfeServicePanel(company) :
+        renderServicePlaceholder(state.service));
+    }
+
+    function renderNfeServicePanel(company) {
+      const issuer = company.environments[state.environment];
+      const serviceConfig = serviceConfigFor(company.cnpj, state.environment, 'NFE');
+      const storedConfig = state.snapshot.serviceConfigs.find(function(item) {
+        return item.cnpj === company.cnpj &&
+          item.ambiente === state.environment &&
+          item.serviceType === 'NFE';
+      });
+      const docs = documentsFor(company.cnpj).filter(function(doc) {
+        return doc.tipoDocumento === 'NFe' && doc.ambiente === state.environment;
+      });
+      const lastDocument = docs.length ? docs[0] : null;
+      const active = storedConfig ? storedConfig.active : true;
+      const autoTransmit = storedConfig && storedConfig.settings
+        ? storedConfig.settings.autoTransmit !== false
+        : true;
+      const production = state.environment === 'producao';
+
+      return '<section class="service-box"><div class="eyebrow">Configuracao do servico</div>' +
+        '<h2>Nota Fiscal Eletronica</h2>' +
+        '<p class="small">Parametros da NF-e separados por ambiente. Operacoes e detalhes tecnicos ficam em Documentos e Logs.</p>' +
+        '<div class="env-toggle"><div class="tabs">' +
+          '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
+            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+          '<button type="button" class="' + (production ? 'active' : '') +
+            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+        (issuer ? '<div class="info-grid">' +
+          info('Ambiente', production ? 'Producao bloqueada' : 'Homologacao') +
+          info('Ultima NF-e', lastDocument ? '#' + lastDocument.numero : 'Nenhuma') +
+          info('Ultimo lote', lastDocument && lastDocument.sefazBatchId ? lastDocument.sefazBatchId : 'Nenhum') +
+          '</div><form id="nfeServiceForm">' +
+            '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
+            '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
+            '<div class="two-col">' +
+              '<label>CRT<select name="crt">' +
+                '<option value="1"' + (issuer.crt === '1' ? ' selected' : '') + '>1 - Simples Nacional</option>' +
+                '<option value="2"' + (issuer.crt === '2' ? ' selected' : '') + '>2 - Simples Nacional, excesso</option>' +
+                '<option value="3"' + (issuer.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
+                '<option value="4"' + (issuer.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
+              '</select></label>' +
+              '<label>Serie NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
+                escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Servico<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
+                '>Ativo</option><option value="false"' + (!active ? ' selected' : '') + '>Inativo</option></select></label>' +
+              '<label>Transmissao<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
+                '<option value="true"' + (!production && autoTransmit ? ' selected' : '') + '>Automatica</option>' +
+                '<option value="false"' + (production || !autoTransmit ? ' selected' : '') + '>Manual</option>' +
+              '</select></label>' +
+            '</div>' +
+            (production ? '<div class="empty">A transmissao em producao permanece bloqueada por seguranca.</div>' : '') +
+            '<div><button type="submit" class="btn">Salvar configuracao NF-e</button></div>' +
+          '</form>' :
+          '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
+        '</section>' + responseConsole();
     }
 
     function renderNfceServicePanel(company) {
@@ -1112,9 +1173,20 @@ const page = String.raw`<!doctype html>
         erros_xsd: doc.xsdErrors || [],
         lote: doc.sefazBatchId || null,
         recibo: doc.sefazReceipt || null,
+        payload_original: doc.payloadOriginal,
+        payload_normalizado: doc.payloadNormalizado,
+        xml_gerado: doc.xmlGenerated || null,
+        xml_assinado: doc.xmlSigned || null,
+        xml_autorizado: doc.xml || null,
         resposta_sefaz_xml: doc.sefazResponseXml || null,
+        cancelamento: doc.cancellationStatusCode ? {
+          codigo_status: doc.cancellationStatusCode,
+          motivo: doc.cancellationReason,
+          protocolo: doc.cancellationProtocol,
+          justificativa: doc.cancellationJustification,
+          xml_processado: doc.cancellationProcessedXml || null
+        } : null,
         eventos: eventsFor(doc.id),
-        payload_normalizado: doc.payloadNormalizado
       });
       document.getElementById('responseBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -1129,6 +1201,8 @@ const page = String.raw`<!doctype html>
       });
       const nfceServiceForm = document.getElementById('nfceServiceForm');
       if (nfceServiceForm) nfceServiceForm.addEventListener('submit', saveNfceServiceConfig);
+      const nfeServiceForm = document.getElementById('nfeServiceForm');
+      if (nfeServiceForm) nfeServiceForm.addEventListener('submit', saveNfeServiceConfig);
       const inutilizationForm = document.getElementById('inutilizationForm');
       if (inutilizationForm) inutilizationForm.addEventListener('submit', createInutilization);
     }
@@ -1272,6 +1346,30 @@ const page = String.raw`<!doctype html>
         body: JSON.stringify({
           cscId: form.get('cscId'),
           csc: form.get('csc')
+        })
+      });
+      setResponse(await response.json());
+      await refreshSnapshot();
+    }
+
+    async function saveNfeServiceConfig(event) {
+      event.preventDefault();
+      setResponse('Salvando configuracao NF-e...');
+      const form = new FormData(event.currentTarget);
+      const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
+      const environment = String(form.get('environment'));
+      const response = await fetch('/admin/api/companies/' + cnpj + '/services/nfe/' + environment, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: 'Basic ' + runtimeConfig.adminToken
+        },
+        body: JSON.stringify({
+          crt: form.get('crt'),
+          serieNfe: Number(form.get('serieNfe') || 1),
+          ativo: String(form.get('ativo')) === 'true',
+          autoTransmit: environment === 'homologacao' &&
+            String(form.get('autoTransmit')) === 'true'
         })
       });
       setResponse(await response.json());

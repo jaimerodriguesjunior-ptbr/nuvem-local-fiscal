@@ -58,6 +58,7 @@ export type ServiceConfig = {
   active: boolean;
   settings: {
     cscId?: string;
+    autoTransmit?: boolean;
   };
   secretsEncrypted?: string | null;
   createdAt: string;
