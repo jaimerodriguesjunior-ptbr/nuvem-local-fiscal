@@ -59,7 +59,11 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
           motivo_status: document.cancellationReason,
           numero_protocolo: document.cancellationProtocol,
           justificativa: document.cancellationJustification,
-          cancelado_em: document.cancelledAt
+          cancelado_em: document.cancelledAt,
+          xml_evento_disponivel: Boolean(document.cancellationProcessedXml),
+          xml_evento_url: document.cancellationProcessedXml
+            ? `${baseUrl}${basePath}/${document.id}/cancelamento/xml`
+            : null
         }
       : null,
     xml_autorizado_disponivel: artifactsAvailable && Boolean(document.xml),
@@ -223,6 +227,14 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.get("/nfce/:id/xml", async (request, reply) => {
     return handleXmlDownload(app, request, reply, "NFCe");
+  });
+
+  app.get("/nfe/:id/cancelamento/xml", async (request, reply) => {
+    return handleCancellationXmlDownload(app, request, reply, "NFe");
+  });
+
+  app.get("/nfce/:id/cancelamento/xml", async (request, reply) => {
+    return handleCancellationXmlDownload(app, request, reply, "NFCe");
   });
 
   app.get("/nfe/:id/pdf", async (request, reply) => {
@@ -980,6 +992,27 @@ async function handleXmlDownload(
 
   reply.header("content-type", "application/xml; charset=utf-8");
   return document.xml;
+}
+
+async function handleCancellationXmlDownload(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  tipoDocumento: DocumentType
+) {
+  const params = request.params as { id: string };
+  const document = app.store.findDocument(params.id, tipoDocumento);
+  if (!document) {
+    return reply.code(404).send({ message: "Documento nao encontrado." });
+  }
+  if (!document.cancellationProcessedXml) {
+    return reply.code(409).send({
+      message: "XML de cancelamento ainda nao disponivel para este documento."
+    });
+  }
+
+  reply.header("content-type", "application/xml; charset=utf-8");
+  return document.cancellationProcessedXml;
 }
 
 async function handlePdfDownload(

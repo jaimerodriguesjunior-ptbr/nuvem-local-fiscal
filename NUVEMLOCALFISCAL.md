@@ -53,11 +53,13 @@ Endpoints compativeis ja exercitados:
 - `GET /nfe/:id`
 - `GET /nfe/:id/xml`
 - `GET /nfe/:id/pdf`
+- `GET /nfe/:id/cancelamento/xml`
 - `POST /nfce`
 - `GET /nfce/:id`
 - `POST /nfce/:id/cancelar`
 - `GET /nfce/:id/xml`
 - `GET /nfce/:id/pdf`
+- `GET /nfce/:id/cancelamento/xml`
 - `POST /empresas`
 - `PUT /empresas/:cnpj`
 - `GET /empresas/:cnpj`
@@ -92,7 +94,7 @@ Limites atuais:
 
 Proximo foco:
 1. evoluir o DANFE NF-e A4 inicial para um layout fiscal mais completo
-2. revisar o pacote de XML autorizado/cancelamento para download/contabilidade
+2. revisar pacote de fechamento/contabilidade usando XML autorizado e XML de cancelamento
 3. planejar o deploy em VPS com HTTPS, processo Node persistente e backup
 4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
 5. testar outros sistemas clientes somente depois do ambiente central estar estavel
@@ -587,6 +589,7 @@ Status em 2026-06-12:
 - CSRT/hashCSRT calculados localmente a partir de `.env.local`
 - DANFE NF-e A4 inicial implementado em endpoint compativel
 - cancelamento NF-e homologacao validado via evento real `110111`
+- XML de evento de cancelamento disponivel por endpoint dedicado
 
 ### Fase 5
 Subir producao:

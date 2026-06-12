@@ -558,6 +558,18 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       cancelledNfe.json().cancelamento.numero_protocolo,
       "141260000345750"
     );
+    assert.equal(cancelledNfe.json().cancelamento.xml_evento_disponivel, true);
+    assert.match(
+      cancelledNfe.json().cancelamento.xml_evento_url,
+      new RegExp(`/nfe/${nfeDocumentId}/cancelamento/xml$`)
+    );
+    const cancellationXml = await app.inject({
+      method: "GET",
+      url: `/nfe/${nfeDocumentId}/cancelamento/xml`,
+      headers: bearer
+    });
+    assert.equal(cancellationXml.statusCode, 200, cancellationXml.body);
+    assert.match(cancellationXml.body, /<procEventoNFe/);
 
     const snapshot = await app.inject({
       method: "GET",
