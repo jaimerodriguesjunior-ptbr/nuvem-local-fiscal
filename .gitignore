@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+storage/
+*.pfx
+*.p12
+*.pem
+doc_*-assinado.xml
