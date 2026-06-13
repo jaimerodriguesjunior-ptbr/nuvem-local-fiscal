@@ -3,6 +3,8 @@ import {
   type Document as XmlDocument,
   type Element as XmlElement
 } from "@xmldom/xmldom";
+import { Resolver } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
 
 import { config } from "../config.js";
 import type { InMemoryStore } from "../store.js";
@@ -429,6 +431,57 @@ function validateIpmEndpoint(endpoint: string) {
   return url.toString();
 }
 
+async function postIpmRequest(
+  endpoint: string,
+  request: GuairaIpmMultipartRequest,
+  authorization: string
+) {
+  const url = new URL(endpoint);
+  const resolver = new Resolver();
+  resolver.setServers(["1.1.1.1", "8.8.8.8"]);
+  const addresses = await resolver.resolve4(url.hostname);
+  const address = addresses[0];
+  if (!address) {
+    throw new Error(`DNS publico nao encontrou ${url.hostname}.`);
+  }
+
+  return new Promise<{ status: number; body: string }>((resolve, reject) => {
+    const outgoing = httpsRequest(
+      {
+        protocol: "https:",
+        hostname: address,
+        port: url.port ? Number(url.port) : 443,
+        path: `${url.pathname}${url.search}`,
+        method: "POST",
+        servername: url.hostname,
+        headers: {
+          Host: url.host,
+          Authorization: authorization,
+          "Content-Type": request.contentType,
+          "Content-Length": String(request.contentLength),
+          Accept: "application/xml, text/xml, */*"
+        },
+        timeout: 30_000
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on("end", () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8")
+          });
+        });
+      }
+    );
+    outgoing.on("timeout", () => {
+      outgoing.destroy(new Error("Tempo esgotado ao conectar ao IPM."));
+    });
+    outgoing.on("error", reject);
+    outgoing.end(request.body);
+  });
+}
+
 export async function transmitGuairaIpmTest(
   store: InMemoryStore,
   documentId: string
@@ -478,25 +531,20 @@ export async function transmitGuairaIpmTest(
 
   const request = buildGuairaIpmMultipartRequest(generatedXml);
   const endpoint = validateIpmEndpoint(settings.endpoint);
-  let response: Response;
+  let response: { status: number; body: string };
   try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: buildGuairaIpmBasicAuthorization(settings.cnpj, password),
-        "Content-Type": request.contentType,
-        "Content-Length": String(request.contentLength),
-        Accept: "application/xml, text/xml, */*"
-      },
-      body: request.body,
-      signal: AbortSignal.timeout(30_000)
-    });
+    response = await postIpmRequest(
+      endpoint,
+      request,
+      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Falha de conexao com IPM: ${message}`);
   }
 
-  const responseBody = await response.text();
+  const responseBody = response.body;
+  const responseOk = response.status >= 200 && response.status < 300;
   let parsed: GuairaIpmResponse | null = null;
   try {
     parsed = responseBody.trim() ? parseGuairaIpmResponse(responseBody) : null;
@@ -508,13 +556,13 @@ export async function transmitGuairaIpmTest(
   const hasProviderError = Boolean(parsed && parsed.messages.length && !parsed.success);
   const status = explicitSuccess
     ? "autorizado"
-    : response.ok && !hasProviderError
+    : responseOk && !hasProviderError
       ? "processamento"
       : "rejeitado";
   const reason =
     parsed?.statusDescription ||
     parsed?.messages.map((message) => `${message.codigo} - ${message.descricao}`).join("; ") ||
-    (response.ok
+    (responseOk
       ? "Teste IPM recebido sem confirmacao explicita de autorizacao."
       : `IPM respondeu HTTP ${response.status}.`);
   const reasonCode =
