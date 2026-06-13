@@ -13,9 +13,15 @@ import {
   processHomologationDocument,
   processHomologationNfce
 } from "../lib/document-processing.js";
+import {
+  consultToledoNfse,
+  processToledoNfse
+} from "../lib/nfse-toledo-equiplano.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment } from "../types.js";
+
+type EstadualDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 
 type AuthenticatedRequest = FastifyRequest & {
   tokenRecord: {
@@ -34,7 +40,12 @@ function requestBaseUrl(request: FastifyRequest) {
 }
 
 function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
-  const basePath = document.tipoDocumento === "NFe" ? "/nfe" : "/nfce";
+  const basePath =
+    document.tipoDocumento === "NFe"
+      ? "/nfe"
+      : document.tipoDocumento === "NFCe"
+        ? "/nfce"
+        : "/nfse";
   const artifactsAvailable =
     document.status === "autorizado" || document.status === "cancelado";
   return {
@@ -174,6 +185,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     if (
       request.url.startsWith("/nfe") ||
       request.url.startsWith("/nfce") ||
+      request.url.startsWith("/nfse") ||
       request.url === "/empresas" ||
       request.url.startsWith("/empresas/")
     ) {
@@ -187,6 +199,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.post("/nfce", async (request, reply) => {
     return handleCreateDocument(app, request, reply, "NFCe");
+  });
+
+  app.post("/nfse/dps", async (request, reply) => {
+    return handleCreateNfseDps(app, request, reply);
   });
 
   app.post("/nfce/inutilizacoes", async (request, reply) => {
@@ -229,6 +245,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handleGetDocument(app, request, reply, "NFCe");
   });
 
+  app.get("/nfse/:id", async (request, reply) => {
+    return handleGetDocument(app, request, reply, "NFSe");
+  });
+
   app.post("/nfe/:id/cancelar", async (request, reply) => {
     return handleCancelDocument(app, request, reply, "NFe");
   });
@@ -238,6 +258,12 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   });
 
   app.post("/nfse/:id/cancelar", async (request, reply) => {
+    const params = request.params as { id: string };
+    if (app.store.findDocument(params.id, "NFSe")) {
+      return reply.code(501).send({
+        message: "Cancelamento NFS-e municipal ainda nao foi implementado."
+      });
+    }
     return handleCancelDocument(app, request, reply, "NFe");
   });
 
@@ -247,6 +273,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.get("/nfce/:id/xml", async (request, reply) => {
     return handleXmlDownload(app, request, reply, "NFCe");
+  });
+
+  app.get("/nfse/:id/xml", async (request, reply) => {
+    return handleXmlDownload(app, request, reply, "NFSe");
   });
 
   app.get("/nfe/:id/cancelamento/xml", async (request, reply) => {
@@ -263,6 +293,12 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.get("/nfce/:id/pdf", async (request, reply) => {
     return handlePdfDownload(app, request, reply, "NFCe");
+  });
+
+  app.get("/nfse/:id/pdf", async (_request, reply) => {
+    return reply.code(501).send({
+      message: "PDF NFS-e municipal ainda nao foi implementado."
+    });
   });
 
   app.post("/empresas", async (request, reply) => {
@@ -364,6 +400,25 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       prefeitura: {
         login: serviceConfig.settings.nfseLogin ?? null,
         senha_configurada: Boolean(serviceConfig.secretsEncrypted)
+      },
+      provedor: serviceConfig.settings.nfseProvider ?? null,
+      municipio: {
+        codigo_ibge: serviceConfig.settings.nfseMunicipalityCode ?? null,
+        nome: serviceConfig.settings.nfseMunicipalityName ?? null
+      },
+      rps: {
+        serie: serviceConfig.settings.nfseRpsSerie ?? null,
+        emissor: serviceConfig.settings.nfseRpsEmissor ?? null,
+        numero: serviceConfig.settings.nfseNextRpsNumber ?? null,
+        lote: serviceConfig.settings.nfseNextLotNumber ?? null
+      },
+      equiplano: {
+        endpoint: serviceConfig.settings.nfseEndpoint ?? null,
+        soap_action: serviceConfig.settings.nfseSoapAction ?? null,
+        request_format: serviceConfig.settings.nfseRequestFormat ?? null,
+        inscricao_municipal: serviceConfig.settings.nfseInscricaoMunicipal ?? null,
+        id_entidade: serviceConfig.settings.nfseIdEntidade ?? null,
+        transmissao_automatica: serviceConfig.settings.autoTransmit === true
       }
     };
   });
@@ -377,13 +432,36 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       typeof body.prefeitura === "object" && body.prefeitura !== null
         ? (body.prefeitura as Record<string, unknown>)
         : body;
+    const rps =
+      typeof body.rps === "object" && body.rps !== null
+        ? (body.rps as Record<string, unknown>)
+        : {};
+    const equiplano =
+      typeof body.equiplano === "object" && body.equiplano !== null
+        ? (body.equiplano as Record<string, unknown>)
+        : {};
+    const municipio =
+      typeof body.municipio === "object" && body.municipio !== null
+        ? (body.municipio as Record<string, unknown>)
+        : {};
+    const servico =
+      typeof body.servico === "object" && body.servico !== null
+        ? (body.servico as Record<string, unknown>)
+        : {};
     const login = String(prefeitura.login ?? prefeitura.usuario ?? "").trim();
     const password = String(prefeitura.senha ?? prefeitura.password ?? "").trim();
+    const provider = String(
+      body.provedor ?? body.provider ?? equiplano.provedor ?? ""
+    ).trim();
+    const normalizedProvider =
+      provider.toLowerCase().includes("toledo") || provider.toLowerCase().includes("equiplano")
+        ? "toledo-equiplano"
+        : provider;
 
     if (cnpj.length !== 14) {
       return reply.code(400).send({ message: "Informe CNPJ valido." });
     }
-    if (!login || !password) {
+    if (!login || (!password && !normalizedProvider)) {
       return reply.code(400).send({
         message: "Informe login e senha da prefeitura para a NFS-e."
       });
@@ -395,8 +473,68 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     });
     const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFSE", {
       active: true,
-      settings: { nfseLogin: login },
-      secretsEncrypted: encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
+      settings: {
+        nfseLogin: login,
+        nfseProvider: normalizedProvider || undefined,
+        nfseMunicipalityCode: String(
+          municipio.codigo_ibge ??
+            municipio.codigo_municipio ??
+            body.codigo_municipio ??
+            ""
+        ).replace(/\D/g, "") || undefined,
+        nfseMunicipalityName: String(
+          municipio.nome ?? municipio.cidade ?? body.cidade ?? ""
+        ).trim() || undefined,
+        nfseEndpoint: String(
+          equiplano.endpoint ?? body.endpoint ?? ""
+        ).trim() || undefined,
+        nfseSoapAction: String(
+          equiplano.soap_action ?? equiplano.soapAction ?? body.soap_action ?? ""
+        ).trim() || undefined,
+        nfseRequestFormat:
+          String(equiplano.request_format ?? equiplano.requestFormat ?? body.request_format ?? "")
+            .trim()
+            .toLowerCase() === "xml"
+            ? "xml"
+            : undefined,
+        nfseInscricaoMunicipal: String(
+          equiplano.inscricao_municipal ??
+            body.inscricao_municipal ??
+            prefeitura.inscricao_municipal ??
+            ""
+        ).trim() || undefined,
+        nfseIdEntidade: String(
+          equiplano.id_entidade ?? equiplano.idEntidade ?? body.id_entidade ?? ""
+        ).trim() || undefined,
+        nfseRpsSerie: String(rps.serie ?? body.serie_rps ?? "").trim() || undefined,
+        nfseRpsEmissor: String(rps.emissor ?? rps.emissor_rps ?? body.emissor_rps ?? "").trim() || undefined,
+        nfseNextRpsNumber:
+          Number(rps.numero ?? rps.proximo_numero ?? body.proximo_rps) > 0
+            ? Number(rps.numero ?? rps.proximo_numero ?? body.proximo_rps)
+            : undefined,
+        nfseNextLotNumber:
+          Number(rps.lote ?? rps.proximo_lote ?? body.proximo_lote) > 0
+            ? Number(rps.lote ?? rps.proximo_lote ?? body.proximo_lote)
+            : undefined,
+        nfseDefaultServiceCode: String(
+          servico.codigo ?? servico.codigo_servico ?? body.codigo_servico ?? ""
+        ).trim() || undefined,
+        nfseDefaultServiceItem: String(
+          servico.item ?? servico.item_servico ?? body.item_servico ?? ""
+        ).trim() || undefined,
+        nfseDefaultServiceSubItem: String(
+          servico.subitem ?? servico.subitem_servico ?? body.subitem_servico ?? ""
+        ).trim() || undefined,
+        nfseDefaultAliquotaIss:
+          Number(servico.aliquota_iss ?? body.aliquota_iss) > 0
+            ? Number(servico.aliquota_iss ?? body.aliquota_iss)
+            : undefined,
+        autoTransmit: body.transmissao_automatica === true || body.autoTransmit === true
+      },
+      secretsEncrypted: password
+        ? encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
+        : undefined,
+      preserveSecrets: !password
     });
     await app.store.waitForPersistence();
 
@@ -603,7 +741,7 @@ async function handleCreateInutilization(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  tipoDocumento: DocumentType
+  tipoDocumento: EstadualDocumentType
 ) {
   const body = (request.body as Record<string, unknown> | undefined) ?? {};
   const issuerCnpj = String(
@@ -734,7 +872,7 @@ async function handleGetInutilization(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  tipoDocumento: DocumentType
+  tipoDocumento: EstadualDocumentType
 ) {
   const params = request.params as { id: string };
   const record = app.store.findInutilization(params.id, tipoDocumento);
@@ -749,7 +887,7 @@ async function handleInutilizationXmlDownload(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  tipoDocumento: DocumentType,
+  tipoDocumento: EstadualDocumentType,
   artifact: "signed" | "response"
 ) {
   const params = request.params as { id: string };
@@ -781,7 +919,7 @@ async function handleCreateDocument(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  tipoDocumento: DocumentType
+  tipoDocumento: EstadualDocumentType
 ) {
   const body = (request.body as Record<string, unknown> | undefined) ?? {};
   const payloadNormalizado = normalizePayload(tipoDocumento, body);
@@ -954,6 +1092,111 @@ function resolveEmitentePayload(payloadOriginal: Record<string, unknown>) {
   return null;
 }
 
+function normalizeNfseDpsPayload(body: Record<string, unknown>) {
+  const infDPS = typeof body.infDPS === "object" && body.infDPS !== null
+    ? (body.infDPS as Record<string, unknown>)
+    : body;
+  const prestador =
+    typeof infDPS.prest === "object" && infDPS.prest !== null
+      ? (infDPS.prest as Record<string, unknown>)
+      : typeof infDPS.prestador === "object" && infDPS.prestador !== null
+        ? (infDPS.prestador as Record<string, unknown>)
+        : {};
+  const tomador =
+    typeof infDPS.toma === "object" && infDPS.toma !== null
+      ? (infDPS.toma as Record<string, unknown>)
+      : typeof infDPS.tomador === "object" && infDPS.tomador !== null
+        ? (infDPS.tomador as Record<string, unknown>)
+        : {};
+  const servico =
+    typeof infDPS.serv === "object" && infDPS.serv !== null
+      ? (infDPS.serv as Record<string, unknown>)
+      : typeof infDPS.servico === "object" && infDPS.servico !== null
+        ? (infDPS.servico as Record<string, unknown>)
+        : {};
+  const valores =
+    typeof infDPS.valores === "object" && infDPS.valores !== null
+      ? (infDPS.valores as Record<string, unknown>)
+      : {};
+  const ambiente =
+    body.ambiente ??
+    body.environment ??
+    (String(infDPS.tpAmb ?? "") === "1" ? "producao" : "homologacao");
+  const emitenteCnpj =
+    prestador.CNPJ ??
+    prestador.cnpj ??
+    prestador.cpf_cnpj ??
+    body.emitenteCnpj ??
+    body.cnpj;
+
+  return {
+    tipo: "NFSe" as const,
+    ambiente,
+    emitenteCnpj: emitenteCnpj ?? null,
+    prestador,
+    tomador,
+    servico,
+    valores,
+    metadados: body.metadados ?? null,
+    infDPS
+  };
+}
+
+async function handleCreateNfseDps(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const payloadNormalizado = normalizeNfseDpsPayload(body);
+  const issuerCnpj = String(payloadNormalizado.emitenteCnpj ?? "").replace(/\D/g, "");
+  const ambiente = parseEnvironment(payloadNormalizado.ambiente);
+
+  if (!issuerCnpj) {
+    return reply.code(400).send({
+      error: {
+        message: "Informe infDPS.prest.CNPJ ou emitenteCnpj para a NFS-e."
+      },
+      message: "Informe infDPS.prest.CNPJ ou emitenteCnpj para a NFS-e."
+    });
+  }
+  if (ambiente === "producao") {
+    return reply.code(403).send({
+      message: "Emissao NFS-e em producao permanece bloqueada nesta etapa.",
+      error: {
+        code: "production_blocked",
+        message: "Emissao NFS-e em producao permanece bloqueada nesta etapa."
+      }
+    });
+  }
+
+  app.store.ensureIssuer(issuerCnpj, ambiente, {
+    razaoSocial: `Emitente ${issuerCnpj}`,
+    nomeFantasia: `Emitente ${issuerCnpj}`,
+    uf: "PR"
+  });
+  const document = app.store.createDocument({
+    tipoDocumento: "NFSe",
+    issuerCnpj,
+    ambiente,
+    payloadOriginal: structuredClone(body),
+    payloadNormalizado
+  });
+  await app.store.waitForPersistence();
+
+  const processed = await processToledoNfse(app.store, document.id);
+  const statusCode = processed.error ? 422 : 202;
+  return reply.code(statusCode).send({
+    ...mapDocumentResponse(processed.document, requestBaseUrl(request)),
+    message:
+      processed.error ??
+      processed.document.motivo ??
+      "NFS-e recebida para processamento.",
+    transmissao_municipal: processed.transmitted,
+    provedor: "toledo-equiplano"
+  });
+}
+
 async function handleGetDocument(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -961,13 +1204,17 @@ async function handleGetDocument(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const storedDocument =
+  let storedDocument =
     app.store.findDocument(params.id, tipoDocumento) ??
     app.store.findDocument(params.id);
   if (!storedDocument) {
     return reply.code(404).send({
       message: "Documento nao encontrado."
     });
+  }
+  if (storedDocument.tipoDocumento === "NFSe" && storedDocument.status === "processamento") {
+    const consultation = await consultToledoNfse(app.store, storedDocument.id);
+    storedDocument = consultation.document;
   }
 
   return mapDocumentResponse(storedDocument, requestBaseUrl(request));
@@ -977,7 +1224,7 @@ async function handleCancelDocument(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  tipoDocumento: DocumentType
+  tipoDocumento: EstadualDocumentType
 ) {
   const params = request.params as { id: string };
   const document = app.store.findDocument(params.id, tipoDocumento);
@@ -1129,6 +1376,10 @@ async function handleXmlDownload(
   const document = app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
+  }
+  if (tipoDocumento === "NFSe" && (document.xml || document.xmlSigned || document.xmlGenerated)) {
+    reply.header("content-type", "application/xml; charset=utf-8");
+    return document.xmlSigned || document.xmlGenerated || document.xml;
   }
   if (document.status !== "autorizado" && document.status !== "cancelado") {
     return reply.code(409).send({ message: "XML ainda nao disponivel para este status." });

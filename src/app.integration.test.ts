@@ -201,6 +201,117 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(saveOfficialNfseConfig.statusCode, 200, saveOfficialNfseConfig.body);
     assert.doesNotMatch(saveOfficialNfseConfig.body, /SENHA-FICTICIA-NFSE|secretsEncrypted/);
 
+    const saveToledoNfseConfig = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        provedor: "toledo-equiplano",
+        municipio: {
+          codigo_ibge: "4127700",
+          nome: "Toledo"
+        },
+        prefeitura: {
+          login: "970339",
+          senha: "SENHA-FICTICIA-NFSE"
+        },
+        equiplano: {
+          inscricao_municipal: "970339",
+          id_entidade: "136",
+          request_format: "soap"
+        },
+        rps: {
+          serie: "1",
+          emissor: "1",
+          numero: 1,
+          lote: 1
+        },
+        servico: {
+          codigo: "17.19.01.000",
+          aliquota_iss: 3
+        }
+      }
+    });
+    assert.equal(saveToledoNfseConfig.statusCode, 200, saveToledoNfseConfig.body);
+    assert.doesNotMatch(saveToledoNfseConfig.body, /SENHA-FICTICIA-NFSE|secretsEncrypted/);
+
+    const nfseEmission = await app.inject({
+      method: "POST",
+      url: "/nfse/dps",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infDPS: {
+          dhEmi: "2026-06-13T10:00:00-03:00",
+          prest: {
+            CNPJ: cnpj
+          },
+          toma: {
+            CPF: "12345678909",
+            xNome: "Tomador Toledo Teste",
+            end: {
+              xLgr: "Rua Cliente",
+              nro: "55",
+              xBairro: "Centro",
+              endNac: {
+                cMun: "4127700",
+                CEP: "85900000"
+              },
+              UF: "PR"
+            }
+          },
+          serv: {
+            cServ: {
+              cTribNac: "171901000",
+              xDescServ: "Servico de teste NFS-e Toledo"
+            }
+          },
+          valores: {
+            vServPrest: {
+              vServ: 10
+            },
+            trib: {
+              tribMun: {
+                pAliq: 3,
+                tpRetISSQN: 1
+              }
+            }
+          }
+        }
+      }
+    });
+    assert.equal(nfseEmission.statusCode, 202, nfseEmission.body);
+    assert.equal(nfseEmission.json().status, "processamento");
+    assert.equal(nfseEmission.json().motivo_status, "NFSE_DRY_RUN");
+    assert.equal(nfseEmission.json().transmissao_municipal, false);
+    const nfseDocumentId = nfseEmission.json().id as string;
+
+    const nfseStatus = await app.inject({
+      method: "GET",
+      url: `/nfse/${nfseDocumentId}`,
+      headers: bearer
+    });
+    assert.equal(nfseStatus.statusCode, 200, nfseStatus.body);
+    assert.equal(nfseStatus.json().status, "processamento");
+    assert.equal(nfseStatus.json().xml_gerado, true);
+
+    const nfseXml = await app.inject({
+      method: "GET",
+      url: `/nfse/${nfseDocumentId}/xml`,
+      headers: bearer
+    });
+    assert.equal(nfseXml.statusCode, 200, nfseXml.body);
+    assert.match(nfseXml.body, /enviarLoteRpsEnvio/);
+    assert.match(nfseXml.body, /nrInscricaoMunicipal/);
+    assert.match(nfseXml.body, /17\.19\.01\.000/);
+
     const remoteCompany = await app.inject({
       method: "GET",
       url: `/empresas/${cnpj}`,
@@ -676,6 +787,11 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(adminPage.body, /XML autorizado/);
     assert.match(adminPage.body, /Inutilizações/);
     assert.match(adminPage.body, /setListFilter/);
+    assert.match(adminPage.body, /Nova empresa/);
+    assert.match(adminPage.body, /newCompanyForm/);
+    assert.match(adminPage.body, /Configuração municipal/);
+    assert.match(adminPage.body, /nfseServiceForm/);
+    assert.match(adminPage.body, /Toledo \/ Equiplano/);
 
     const signed = await app.inject({
       method: "POST",

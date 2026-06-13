@@ -15,6 +15,7 @@ import type {
   Environment,
   InutilizationRecord,
   Issuer,
+  SefazDocumentType,
   ServiceConfig,
   ServiceType
 } from "./types.js";
@@ -30,6 +31,18 @@ type CreateDocumentInput = {
 };
 
 const nowIso = () => new Date().toISOString();
+
+function definedSettings(settings: ServiceConfig["settings"] | undefined) {
+  return Object.fromEntries(
+    Object.entries(settings ?? {}).filter(([, value]) => value !== undefined)
+  ) as ServiceConfig["settings"];
+}
+
+function documentRoutePrefix(tipoDocumento: DocumentType) {
+  if (tipoDocumento === "NFe") return "nfe";
+  if (tipoDocumento === "NFCe") return "nfce";
+  return "nfse";
+}
 
 function escapeXml(value: unknown) {
   return String(value ?? "")
@@ -371,7 +384,7 @@ export class InMemoryStore {
       existing.active = input.active ?? existing.active;
       existing.settings = {
         ...existing.settings,
-        ...(input.settings ?? {})
+        ...definedSettings(input.settings)
       };
       if (!input.preserveSecrets) {
         existing.secretsEncrypted = input.secretsEncrypted ?? null;
@@ -388,7 +401,7 @@ export class InMemoryStore {
       ambiente,
       serviceType,
       active: input.active ?? true,
-      settings: input.settings ?? {},
+      settings: definedSettings(input.settings),
       secretsEncrypted: input.preserveSecrets ? null : input.secretsEncrypted ?? null,
       createdAt: nowIso(),
       updatedAt: nowIso()
@@ -407,7 +420,9 @@ export class InMemoryStore {
     const serie = issuer
       ? input.tipoDocumento === "NFe"
         ? issuer.serieNfe
-        : issuer.serieNfce
+        : input.tipoDocumento === "NFCe"
+          ? issuer.serieNfce
+          : 1
       : 1;
     const status = input.forcedStatus ?? "processamento";
     const authorized = status === "autorizado";
@@ -431,7 +446,7 @@ export class InMemoryStore {
       payloadNormalizado: input.payloadNormalizado,
       nfceConfigEncrypted: input.nfceConfigEncrypted ?? null,
       xml: `<mock tipo="${input.tipoDocumento}" id="${id}" numero="${numero}" serie="${serie}" />`,
-      pdfUrl: `/${input.tipoDocumento === "NFe" ? "nfe" : "nfce"}/${id}/pdf`,
+      pdfUrl: `/${documentRoutePrefix(input.tipoDocumento)}/${id}/pdf`,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
@@ -488,6 +503,17 @@ export class InMemoryStore {
         .padStart(42, "0")}`.slice(0, 44);
     const protocol = `14${String(Date.now()).slice(-13)}`;
     const model = document.tipoDocumento === "NFCe" ? "65" : "55";
+
+    if (document.tipoDocumento === "NFSe") {
+      document.status = "autorizado";
+      document.protocolo = protocol;
+      document.motivo = "NFS-e autorizada manualmente no ambiente local";
+      document.motivoStatus = "100";
+      document.xml = document.xmlSigned ?? document.xmlGenerated ?? document.xml;
+      document.updatedAt = nowIso();
+      this.saveState();
+      return document;
+    }
 
     document.status = "autorizado";
     document.chave = accessKey;
@@ -595,6 +621,56 @@ export class InMemoryStore {
     return document;
   }
 
+  saveMunicipalProcessingResult(
+    id: string,
+    input: {
+      providerName?: string | null;
+      generatedXml?: string | null;
+      signedXml?: string | null;
+      requestBody?: string | null;
+      responseBody?: string | null;
+      providerReference?: string | null;
+      status?: DocumentStatus;
+      reason?: string | null;
+      reasonCode?: string | null;
+      protocol?: string | null;
+      providerDocumentNumber?: string | null;
+      processedXml?: string | null;
+      signatureValid?: boolean;
+      xsdValid?: boolean;
+      xsdErrors?: string[];
+    }
+  ) {
+    const document = this.findDocument(id, "NFSe");
+    if (!document) {
+      return null;
+    }
+
+    document.xmlGenerated = input.generatedXml ?? document.xmlGenerated ?? null;
+    document.xmlSigned = input.signedXml ?? document.xmlSigned ?? null;
+    document.providerName = input.providerName ?? document.providerName ?? null;
+    document.providerRequestBody =
+      input.requestBody ?? document.providerRequestBody ?? null;
+    document.providerResponseBody =
+      input.responseBody ?? document.providerResponseBody ?? null;
+    document.providerReference =
+      input.providerReference ?? document.providerReference ?? null;
+    document.status = input.status ?? document.status;
+    document.motivo = input.reason ?? document.motivo;
+    document.motivoStatus = input.reasonCode ?? document.motivoStatus;
+    document.protocolo = input.protocol ?? document.protocolo;
+    document.chave = input.providerDocumentNumber ?? document.chave;
+    document.signatureValid = input.signatureValid ?? document.signatureValid;
+    document.xsdValid = input.xsdValid ?? document.xsdValid;
+    document.xsdErrors = input.xsdErrors ?? document.xsdErrors;
+    if (input.processedXml) {
+      document.xml = input.processedXml;
+    }
+    document.updatedAt = nowIso();
+    this.saveState();
+    return document;
+  }
+
   failDocument(id: string, code: string, reason: string) {
     const document = this.findDocument(id);
     if (!document) {
@@ -697,7 +773,7 @@ export class InMemoryStore {
       xsdValid: false,
       xsdErrors: [],
       certificateId: null,
-      pdfUrl: `/${tipoDocumento === "NFe" ? "nfe" : "nfce"}/${id}/pdf`,
+      pdfUrl: `/${documentRoutePrefix(tipoDocumento)}/${id}/pdf`,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };
@@ -750,7 +826,7 @@ export class InMemoryStore {
   }
 
   createInutilization(input: {
-    tipoDocumento: DocumentType;
+    tipoDocumento: SefazDocumentType;
     issuerCnpj: string;
     ambiente: Environment;
     ano: number;
@@ -786,7 +862,7 @@ export class InMemoryStore {
     return record;
   }
 
-  findInutilization(id: string, tipoDocumento?: DocumentType) {
+  findInutilization(id: string, tipoDocumento?: SefazDocumentType) {
     return (
       this.inutilizations.find(
         (item) => item.id === id && (!tipoDocumento || item.tipoDocumento === tipoDocumento)

@@ -78,6 +78,10 @@ type FiscalDocumentRow = {
   xsd_errors: unknown;
   certificate_id: string | null;
   nfce_config_encrypted: string | null;
+  provider_name: string | null;
+  provider_request_body: string | null;
+  provider_response_body: string | null;
+  provider_reference: string | null;
   sefaz_batch_id: string | null;
   sefaz_receipt: string | null;
   sefaz_response_xml: string | null;
@@ -267,7 +271,7 @@ export class SupabasePersistence {
       (document) => ({
         id: document.id,
         providerLikeId: document.provider_like_id,
-        tipoDocumento: document.document_type === "NFSe" ? "NFe" : document.document_type,
+        tipoDocumento: document.document_type,
         issuerCnpj: document.issuer_cnpj,
         ambiente: document.environment,
         status: document.status,
@@ -288,6 +292,10 @@ export class SupabasePersistence {
         xsdErrors: asArray<string>(document.xsd_errors),
         certificateId: document.certificate_id,
         nfceConfigEncrypted: document.nfce_config_encrypted,
+        providerName: document.provider_name,
+        providerRequestBody: document.provider_request_body,
+        providerResponseBody: document.provider_response_body,
+        providerReference: document.provider_reference,
         sefazBatchId: document.sefaz_batch_id,
         sefazReceipt: document.sefaz_receipt,
         sefazResponseXml: document.sefaz_response_xml,
@@ -557,6 +565,10 @@ export class SupabasePersistence {
           xsd_valid: Boolean(document.xsdValid),
           xsd_errors: document.xsdErrors ?? [],
           nfce_config_encrypted: document.nfceConfigEncrypted ?? null,
+          provider_name: document.providerName ?? null,
+          provider_request_body: document.providerRequestBody ?? null,
+          provider_response_body: document.providerResponseBody ?? null,
+          provider_reference: document.providerReference ?? null,
           sefaz_batch_id: document.sefazBatchId ?? null,
           sefaz_receipt: document.sefazReceipt ?? null,
           sefaz_response_xml: document.sefazResponseXml ?? null,

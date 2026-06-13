@@ -111,3 +111,46 @@ Contexto de clientes:
 - A ideia segue sendo trocar principalmente variaveis de ambiente nos clientes, nao reescrever chamadas.
 
 Por favor, comece verificando o estado atual do repo e siga a partir dai.
+
+## Progresso em 13/06/2026
+
+A primeira base Toledo/Equiplano foi implementada no backend. Depois de
+aprovacao explicita, a UI admin tambem passou a oferecer:
+
+- cadastro de nova empresa e primeiro ambiente fiscal
+- configuracao NFS-e Toledo/Equiplano por ambiente
+- credenciais da prefeitura com preservacao da senha existente
+- municipio, inscricao municipal, endpoint, SOAP Action e `idEntidade`
+- sequencia de RPS/lote, servico padrao e aliquota ISS
+- transmissao desligada por padrao e producao bloqueada
+
+1. `NFSe` passou a ser um tipo de documento real e deixou de ser convertido
+   indevidamente para `NFe` ao carregar do Supabase.
+2. Foram adicionados:
+   - `POST /nfse/dps`
+   - `GET /nfse/:id`
+   - `GET /nfse/:id/xml`
+3. O conector Toledo:
+   - aceita payload `infDPS` estilo Nuvem Fiscal
+   - gera `enviarLoteRpsEnvio`
+   - assina com o A1 salvo na Nuvem Local
+   - envia SOAP 1.1 ao Equiplano quando a transmissao esta habilitada
+   - consulta NFS-e por RPS durante o polling de `GET /nfse/:id`
+   - mantem producao bloqueada
+4. Request, response e referencia municipal passaram a ter campos proprios,
+   sem reutilizar campos `sefaz_*`.
+5. Migracao nova obrigatoria antes do deploy:
+   - `supabase/migrations/20260613_001_nfse_provider_artifacts.sql`
+6. Smoke test:
+   - `npm run nfse:toledo:smoke`
+   - para transmitir, exige
+     `--confirm=TRANSMITIR_NFSE_TOLEDO_HOMOLOGACAO`
+7. `npm run typecheck`, `npm test` e `npm run build` passaram.
+
+Intervencao necessaria para o proximo passo:
+
+- confirmar os dados reais do prestador Toledo que sera usado no primeiro
+  teste: CNPJ, inscricao municipal, `idEntidade`, codigo de servico, aliquota
+  e tomador de homologacao
+- confirmar que o A1 correto desse CNPJ esta cadastrado na Nuvem Local
+- aplicar a migracao nova no Supabase antes de testar pela VPS

@@ -14,9 +14,11 @@ import { parseXml } from "libxmljs2";
 import { decryptCertificateBundle } from "./certificates.js";
 import type { DocumentType, Environment } from "../types.js";
 
+type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
+
 const endpoints: Record<
   string,
-  Record<DocumentType, Record<Environment, string>>
+  Record<SefazDocumentType, Record<Environment, string>>
 > = {
   PR: {
     NFe: {
@@ -69,7 +71,7 @@ export type SefazAuthorizationResult = {
 export type SefazDocumentStatusResult = {
   ambiente: Environment;
   uf: string;
-  documentType: DocumentType;
+  documentType: SefazDocumentType;
   endpoint: string;
   httpStatus: number;
   cStat: string;
@@ -174,7 +176,7 @@ function firstElementByLocalName(document: Document, localName: string) {
 
 export function getSefazEndpoint(input: {
   uf: string;
-  documentType: DocumentType;
+  documentType: SefazDocumentType;
   ambiente: Environment;
   service: "authorization" | "consultation";
 }) {
@@ -245,7 +247,7 @@ export function parseAuthorizationResponse(
 export async function authorizeNfeAtSefaz(input: {
   uf: string;
   ambiente: Environment;
-  documentType: DocumentType;
+  documentType: SefazDocumentType;
   signedXml: string;
   encryptedCertificateBundle: string;
   encryptionSecret: string;
@@ -350,7 +352,7 @@ export async function authorizeNfeAtSefaz(input: {
 export async function querySefazDocumentStatus(input: {
   uf: string;
   ambiente: Environment;
-  documentType: DocumentType;
+  documentType: SefazDocumentType;
   accessKey: string;
   encryptedCertificateBundle: string;
   encryptionSecret: string;

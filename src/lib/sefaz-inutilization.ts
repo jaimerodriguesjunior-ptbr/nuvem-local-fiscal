@@ -9,13 +9,15 @@ import { SignedXml } from "xml-crypto";
 import { decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
 import type { DocumentType, Environment } from "../types.js";
 
+type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
+
 const XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
 const C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 const ENVELOPED = `${XMLDSIG}enveloped-signature`;
 const SHA1 = `${XMLDSIG}sha1`;
 const RSA_SHA1 = `${XMLDSIG}rsa-sha1`;
 
-const endpoints: Record<string, Record<DocumentType, Record<Environment, string>>> = {
+const endpoints: Record<string, Record<SefazDocumentType, Record<Environment, string>>> = {
   PR: {
     NFe: {
       homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeInutilizacao4",
@@ -38,7 +40,7 @@ const soapAction =
 export type InutilizationInput = {
   uf: string;
   ambiente: Environment;
-  documentType: DocumentType;
+  documentType: SefazDocumentType;
   cnpj: string;
   ano: number;
   serie: number;

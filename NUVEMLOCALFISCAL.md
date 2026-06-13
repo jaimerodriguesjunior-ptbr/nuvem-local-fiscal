@@ -134,7 +134,15 @@ Configuracoes persistidas:
 - configuracao NF-e por ambiente: servico ativo/inativo e transmissao automatica; producao continua bloqueada
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
-- configuracao NFS-e por ambiente: login e senha da prefeitura criptografada; endpoint existe apenas para compatibilidade de cadastro, nao para emissao NFS-e
+- configuracao NFS-e por ambiente: login e senha da prefeitura criptografada, provedor/municipio, dados Equiplano e sequencia de RPS/lote
+- a base NFS-e Toledo/Equiplano foi iniciada no backend em 2026-06-13:
+  - `POST /nfse/dps` aceita payload estilo Nuvem Fiscal
+  - `GET /nfse/:id` consulta o documento e, quando habilitado, consulta o RPS no Equiplano
+  - `GET /nfse/:id/xml` disponibiliza o XML municipal gerado/assinado
+  - producao NFS-e permanece bloqueada
+  - o conector gera `enviarLoteRpsEnvio`, assina com o A1 salvo, suporta SOAP 1.1 e persiste request/response municipal
+  - a transmissao municipal fica desligada por padrao e exige configuracao Toledo completa mais `autoTransmit=true`
+  - a UI admin NFS-e foi liberada apos aprovacao explicita, com configuracao Toledo/Equiplano por ambiente, credenciais, RPS/lote, servico padrao e transmissao segura
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
@@ -144,7 +152,8 @@ Configuracoes persistidas:
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
-- NFS-e aparece como area reservada, aceita configuracao basica de prefeitura, mas ainda nao esta pronta para emissao
+- NFS-e possui formulario no admin para Toledo/Equiplano; o backend gera XML em dry-run e possui transmissao/consulta, mas ainda depende de configuracao real e teste homologado
+- a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
 - o deploy em VPS ja foi feito e validado em homologacao; `127.0.0.1:3001` continua valido para desenvolvimento local
@@ -153,14 +162,16 @@ Limites atuais:
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
+- para persistir artefatos e referencias do provedor NFS-e, aplicar a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql`
 
 Proximo foco:
-1. abrir frente NFS-e homologacao por prefeitura, com prioridade para Guaira/PR e Toledo/PR
-2. identificar provedor, ambiente de homologacao, autenticacao, layout XML/API e fluxo de autorizacao de cada prefeitura
-3. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
-4. manter producao bloqueada na Nuvem Local Fiscal
-5. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
-6. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+1. validar em homologacao real o conector Toledo/Equiplano ja iniciado no backend
+2. aplicar a migracao de artefatos NFS-e no Supabase antes do deploy da nova versao
+3. depois abrir o conector Guaira/IPM usando o endpoint direto ja identificado
+4. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
+5. manter producao bloqueada na Nuvem Local Fiscal
+6. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
+7. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
 
 ---
 

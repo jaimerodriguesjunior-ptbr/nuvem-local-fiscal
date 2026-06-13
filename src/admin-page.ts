@@ -679,9 +679,47 @@ const page = String.raw`<!doctype html>
       return pageHead(
         'Cadastros',
         'Empresas',
-        'Cada empresa aparece uma única vez. As configurações fiscais de homologação e produção vivem dentro dela.'
+        'Cada empresa aparece uma única vez. As configurações fiscais de homologação e produção vivem dentro dela.',
+        '<button type="button" class="btn" onclick="navigate(\'new-company\')">Nova empresa</button>'
       ) +
-      '<div class="company-list">' + companies.map(companyCard).join('') + '</div>';
+      (companies.length
+        ? '<div class="company-list">' + companies.map(companyCard).join('') + '</div>'
+        : '<div class="empty">Nenhuma empresa cadastrada. Use "Nova empresa" para iniciar.</div>');
+    }
+
+    function renderNewCompany() {
+      return '<button type="button" class="breadcrumb" onclick="navigate(\'companies\')">← Voltar para empresas</button>' +
+        pageHead(
+          'Novo cadastro',
+          'Nova empresa',
+          'Cadastre o primeiro ambiente fiscal. Depois você poderá incluir certificado e configurar cada serviço separadamente.'
+        ) +
+        '<section class="surface"><form id="newCompanyForm">' +
+          '<div class="two-col">' +
+            '<label>CNPJ<input name="cnpj" inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00" required /></label>' +
+            '<label>Ambiente inicial<select name="environment"><option value="homologacao">Homologação</option><option value="producao">Produção</option></select></label>' +
+          '</div><div class="two-col">' +
+            '<label>Razão social<input name="razaoSocial" required /></label>' +
+            '<label>Nome fantasia<input name="nomeFantasia" required /></label>' +
+          '</div><div class="two-col">' +
+            '<label>UF<input name="uf" maxlength="2" value="PR" required /></label>' +
+            '<label>Inscrição estadual<input name="ie" /></label>' +
+          '</div><div class="two-col">' +
+            '<label>CRT / regime tributário<select name="crt">' +
+              '<option value="1">1 - Simples Nacional</option>' +
+              '<option value="2">2 - Simples Nacional, excesso</option>' +
+              '<option value="3">3 - Regime Normal</option>' +
+              '<option value="4">4 - MEI</option>' +
+            '</select></label>' +
+            '<label>Situação<select name="ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>' +
+          '</div><div class="two-col">' +
+            '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="1" required /></label>' +
+            '<label>Série NFC-e<input type="number" min="1" max="999" name="serieNfce" value="1" required /></label>' +
+          '</div><div class="actions">' +
+            '<button type="submit" class="btn">Cadastrar empresa</button>' +
+            '<button type="button" class="btn ghost" onclick="navigate(\'companies\')">Cancelar</button>' +
+          '</div>' +
+        '</form></section>' + responseConsole();
     }
 
     function renderCompany() {
@@ -853,7 +891,98 @@ const page = String.raw`<!doctype html>
       }).join('') + '</div>' +
       (state.service === 'nfce' ? renderNfceServicePanel(company) :
         state.service === 'nfe' ? renderNfeServicePanel(company) :
-        renderServicePlaceholder(state.service));
+        renderNfseServicePanel(company));
+    }
+
+    function renderNfseServicePanel(company) {
+      const issuer = company.environments[state.environment];
+      const serviceConfig = state.snapshot.serviceConfigs.find(function(item) {
+        return item.cnpj === company.cnpj &&
+          item.ambiente === state.environment &&
+          item.serviceType === 'NFSE';
+      });
+      const settings = serviceConfig && serviceConfig.settings ? serviceConfig.settings : {};
+      const cert = certificateFor(company.cnpj);
+      const production = state.environment === 'producao';
+      const provider = settings.nfseProvider || 'toledo-equiplano';
+      const isToledo = provider === 'toledo-equiplano';
+
+      return '<section class="service-box"><div class="eyebrow">Configuração municipal</div>' +
+        '<h2>Nota Fiscal de Serviço Eletrônica</h2>' +
+        '<p class="small">Configuração específica da prefeitura e do provedor. Para Toledo, o conector usa Equiplano, XML assinado e certificado A1.</p>' +
+        '<div class="env-toggle"><div class="tabs">' +
+          '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
+          '<button type="button" class="' + (production ? 'active' : '') +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
+        (issuer ? '<div class="info-grid">' +
+          info('Provedor', serviceConfig ? provider : 'Não configurado') +
+          info('Município', settings.nfseMunicipalityName || 'Não informado') +
+          info('Certificado A1', cert ? 'Ativo' : 'Não cadastrado') +
+          info('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha não configurada') +
+          info('Próximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Não informado') +
+          info('Transmissão', production ? 'Produção bloqueada' : settings.autoTransmit === true ? 'Automática' : 'Dry-run / manual') +
+          '</div><form id="nfseServiceForm">' +
+            '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
+            '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
+            '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificação do município e credenciais do serviço municipal.</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>Provedor<select name="provider">' +
+                '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
+                '<option value="outro"' + (!isToledo ? ' selected' : '') + '>Outro provedor</option>' +
+              '</select></label>' +
+              '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
+                escapeHtml(settings.nfseMunicipalityCode || (isToledo ? '4127700' : '')) + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Município<input name="municipalityName" value="' +
+                escapeHtml(settings.nfseMunicipalityName || (isToledo ? 'Toledo' : '')) + '" required /></label>' +
+              '<label>Inscrição municipal<input name="municipalRegistration" value="' +
+                escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Login / usuário da prefeitura<input name="login" value="' +
+                escapeHtml(settings.nfseLogin || '') + '" required autocomplete="off" /></label>' +
+              '<label>Senha da prefeitura<input type="password" name="password" placeholder="' +
+                (serviceConfig && serviceConfig.hasSecrets ? 'Já configurada. Preencha apenas para trocar.' : 'Informe a senha') +
+                '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
+            '</div>' +
+            '<div class="section-head"><div><h3>Equiplano e RPS</h3><p>Contrato técnico usado na emissão e na consulta da NFS-e.</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>ID da entidade<input name="entityId" value="' + escapeHtml(settings.nfseIdEntidade || '') + '" required /></label>' +
+              '<label>Formato da requisição<select name="requestFormat">' +
+                '<option value="soap"' + (settings.nfseRequestFormat !== 'xml' ? ' selected' : '') + '>SOAP 1.1</option>' +
+                '<option value="xml"' + (settings.nfseRequestFormat === 'xml' ? ' selected' : '') + '>XML direto</option>' +
+              '</select></label>' +
+            '</div><label>Endpoint<input type="url" name="endpoint" value="' +
+              escapeHtml(settings.nfseEndpoint || (isToledo ? 'https://www.esnfs.com.br:9443//homologacaows/services/Enfs' : '')) + '" required /></label>' +
+            '<label>SOAP Action<input name="soapAction" value="' +
+              escapeHtml(settings.nfseSoapAction || (isToledo ? 'http://services.enfsws.es/esRecepcionarLoteRps' : '')) + '" /></label>' +
+            '<div class="two-col">' +
+              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(settings.nfseRpsSerie || '1') + '" required /></label>' +
+              '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(settings.nfseRpsEmissor || '1') + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Próximo número RPS<input type="number" min="1" name="nextRpsNumber" value="' +
+                escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" required /></label>' +
+              '<label>Próximo lote<input type="number" min="1" name="nextLotNumber" value="' +
+                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '" required /></label>' +
+            '</div>' +
+            '<div class="section-head"><div><h3>Serviço padrão</h3><p>Valores usados quando o sistema cliente não informar um detalhe opcional.</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>Código do serviço<input name="serviceCode" value="' + escapeHtml(settings.nfseDefaultServiceCode || '') + '" required /></label>' +
+              '<label>Alíquota ISS (%)<input type="number" min="0.01" max="100" step="0.0001" name="issRate" value="' +
+                escapeHtml(String(settings.nfseDefaultAliquotaIss || '')) + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Item do serviço<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
+              '<label>Subitem do serviço<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
+            '</div><label>Transmissão<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
+              '<option value="false"' + (settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
+              '<option value="true"' + (!production && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
+            '</select></label>' +
+            (production ? '<div class="empty">A emissão NFS-e em produção permanece bloqueada por segurança.</div>' : '') +
+            (!cert ? '<div class="empty">Você pode salvar a configuração agora, mas a emissão real exigirá um certificado A1 ativo deste CNPJ.</div>' : '') +
+            '<div><button type="submit" class="btn">Salvar configuração NFS-e</button></div>' +
+          '</form>' :
+          '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
+        '</section>' + responseConsole();
     }
 
     function renderNfeServicePanel(company) {
@@ -1323,6 +1452,8 @@ const page = String.raw`<!doctype html>
     }
 
     function bindForms() {
+      const newCompanyForm = document.getElementById('newCompanyForm');
+      if (newCompanyForm) newCompanyForm.addEventListener('submit', createCompany);
       const certificateForm = document.getElementById('certificateForm');
       if (certificateForm) certificateForm.addEventListener('submit', uploadCertificate);
       const documentForm = document.getElementById('documentForm');
@@ -1334,6 +1465,8 @@ const page = String.raw`<!doctype html>
       if (nfceServiceForm) nfceServiceForm.addEventListener('submit', saveNfceServiceConfig);
       const nfeServiceForm = document.getElementById('nfeServiceForm');
       if (nfeServiceForm) nfeServiceForm.addEventListener('submit', saveNfeServiceConfig);
+      const nfseServiceForm = document.getElementById('nfseServiceForm');
+      if (nfseServiceForm) nfseServiceForm.addEventListener('submit', saveNfseServiceConfig);
       const inutilizationForm = document.getElementById('inutilizationForm');
       if (inutilizationForm) inutilizationForm.addEventListener('submit', createInutilization);
     }
@@ -1342,7 +1475,8 @@ const page = String.raw`<!doctype html>
       document.querySelectorAll('[data-nav]').forEach(function(button) {
         const target = button.getAttribute('data-nav');
         button.classList.toggle('active',
-          target === state.page || (state.page === 'company' && target === 'companies'));
+          target === state.page ||
+          ((state.page === 'company' || state.page === 'new-company') && target === 'companies'));
       });
     }
 
@@ -1351,6 +1485,7 @@ const page = String.raw`<!doctype html>
       let html = '';
       if (state.page === 'home') html = renderHome();
       if (state.page === 'companies') html = renderCompanies();
+      if (state.page === 'new-company') html = renderNewCompany();
       if (state.page === 'company') html = renderCompany();
       if (state.page === 'documents') html = renderDocuments();
       if (state.page === 'logs') html = renderLogs();
@@ -1377,7 +1512,7 @@ const page = String.raw`<!doctype html>
         grant_type: 'client_credentials',
         client_id: runtimeConfig.apiClientId,
         client_secret: runtimeConfig.apiClientSecret,
-        scope: 'empresa nfe nfce'
+        scope: 'empresa nfe nfce nfse'
       });
       const response = await fetch('/oauth/token', {
         method: 'POST',
@@ -1412,6 +1547,39 @@ const page = String.raw`<!doctype html>
       const json = await response.json();
       setResponse(json);
       await refreshSnapshot();
+    }
+
+    async function createCompany(event) {
+      event.preventDefault();
+      setResponse('Cadastrando empresa e ambiente fiscal...');
+      const form = new FormData(event.currentTarget);
+      const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
+      const environment = String(form.get('environment'));
+      const response = await fetch('/admin/api/companies/' + cnpj + '/environments/' + environment, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: 'Basic ' + runtimeConfig.adminToken
+        },
+        body: JSON.stringify({
+          razaoSocial: form.get('razaoSocial'),
+          nomeFantasia: form.get('nomeFantasia'),
+          uf: String(form.get('uf') || '').toUpperCase(),
+          ie: form.get('ie'),
+          crt: form.get('crt'),
+          serieNfe: Number(form.get('serieNfe') || 1),
+          serieNfce: Number(form.get('serieNfce') || 1),
+          ativo: String(form.get('ativo')) === 'true'
+        })
+      });
+      const json = await response.json();
+      setResponse(json);
+      if (!response.ok) return;
+      await fetchSnapshot();
+      state.companyCnpj = cnpj;
+      state.companyTab = 'dados';
+      state.page = 'company';
+      render();
     }
 
     async function createManualDocument(event) {
@@ -1500,6 +1668,57 @@ const page = String.raw`<!doctype html>
           serieNfe: Number(form.get('serieNfe') || 1),
           ativo: String(form.get('ativo')) === 'true',
           autoTransmit: environment === 'homologacao' &&
+            String(form.get('autoTransmit')) === 'true'
+        })
+      });
+      setResponse(await response.json());
+      await refreshSnapshot();
+    }
+
+    async function saveNfseServiceConfig(event) {
+      event.preventDefault();
+      setResponse('Salvando configuração NFS-e municipal...');
+      const form = new FormData(event.currentTarget);
+      const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
+      const environment = String(form.get('environment'));
+      const response = await fetch('/empresas/' + cnpj + '/nfse', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: 'Bearer ' + (await getAccessToken()).access_token
+        },
+        body: JSON.stringify({
+          ambiente: environment,
+          provedor: form.get('provider'),
+          municipio: {
+            codigo_ibge: form.get('municipalityCode'),
+            nome: form.get('municipalityName')
+          },
+          prefeitura: {
+            login: form.get('login'),
+            senha: form.get('password'),
+            inscricao_municipal: form.get('municipalRegistration')
+          },
+          rps: {
+            serie: form.get('rpsSeries'),
+            emissor: form.get('rpsIssuer'),
+            numero: Number(form.get('nextRpsNumber')),
+            lote: Number(form.get('nextLotNumber'))
+          },
+          equiplano: {
+            endpoint: form.get('endpoint'),
+            soap_action: form.get('soapAction'),
+            request_format: form.get('requestFormat'),
+            inscricao_municipal: form.get('municipalRegistration'),
+            id_entidade: form.get('entityId')
+          },
+          servico: {
+            codigo: form.get('serviceCode'),
+            item: form.get('serviceItem'),
+            subitem: form.get('serviceSubItem'),
+            aliquota_iss: Number(form.get('issRate'))
+          },
+          transmissao_automatica: environment === 'homologacao' &&
             String(form.get('autoTransmit')) === 'true'
         })
       });

@@ -81,6 +81,13 @@ export async function processHomologationDocument(
   if (!document) {
     throw new Error("Documento nao encontrado para processamento.");
   }
+  if (document.tipoDocumento === "NFSe") {
+    return {
+      document,
+      transmitted: false,
+      error: "Use o conector municipal de NFS-e para processar este documento."
+    };
+  }
   if (document.ambiente !== "homologacao") {
     return { document, transmitted: false, error: null };
   }

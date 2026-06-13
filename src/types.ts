@@ -1,6 +1,7 @@
 export type Environment = "homologacao" | "producao";
 
-export type DocumentType = "NFe" | "NFCe";
+export type DocumentType = "NFe" | "NFCe" | "NFSe";
+export type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 export type ServiceType = "NFE" | "NFCE" | "NFSE";
 
 export type DocumentStatus =
@@ -60,6 +61,22 @@ export type ServiceConfig = {
     cscId?: string;
     autoTransmit?: boolean;
     nfseLogin?: string;
+    nfseProvider?: string;
+    nfseMunicipalityCode?: string;
+    nfseMunicipalityName?: string;
+    nfseEndpoint?: string;
+    nfseSoapAction?: string;
+    nfseRequestFormat?: "soap" | "xml";
+    nfseInscricaoMunicipal?: string;
+    nfseIdEntidade?: string;
+    nfseRpsSerie?: string;
+    nfseRpsEmissor?: string;
+    nfseNextRpsNumber?: number;
+    nfseNextLotNumber?: number;
+    nfseDefaultServiceCode?: string;
+    nfseDefaultServiceItem?: string;
+    nfseDefaultServiceSubItem?: string;
+    nfseDefaultAliquotaIss?: number;
   };
   secretsEncrypted?: string | null;
   createdAt: string;
@@ -99,6 +116,10 @@ export type DocumentRecord = {
   xsdErrors?: string[];
   certificateId?: string | null;
   nfceConfigEncrypted?: string | null;
+  providerName?: string | null;
+  providerRequestBody?: string | null;
+  providerResponseBody?: string | null;
+  providerReference?: string | null;
   sefazBatchId?: string | null;
   sefazReceipt?: string | null;
   sefazResponseXml?: string | null;
@@ -137,7 +158,7 @@ export type InutilizationStatus =
 export type InutilizationRecord = {
   id: string;
   providerLikeId: string;
-  tipoDocumento: DocumentType;
+  tipoDocumento: SefazDocumentType;
   issuerCnpj: string;
   ambiente: Environment;
   status: InutilizationStatus;

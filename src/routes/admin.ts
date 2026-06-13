@@ -1161,6 +1161,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!document) {
       return reply.code(404).send({ message: "Documento nao encontrado." });
     }
+    if (document.tipoDocumento === "NFSe") {
+      return reply.code(501).send({
+        message: "Assinatura NFS-e municipal deve ser feita pelo conector da prefeitura."
+      });
+    }
 
     const certificate = app.store.findActiveCertificate(document.issuerCnpj);
     if (!certificate?.encryptedBundle) {
@@ -1269,6 +1274,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         message: `O documento ja esta com status ${document.status}.`
       });
     }
+    if (document.tipoDocumento === "NFSe") {
+      return reply.code(501).send({
+        message: "Processamento NFS-e municipal deve ser feito pelo conector da prefeitura."
+      });
+    }
 
     const result =
       document.tipoDocumento === "NFCe"
@@ -1291,6 +1301,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
     const params = request.params as { id: string };
     const document = app.store.findDocument(params.id);
+    if (document?.tipoDocumento === "NFSe") {
+      return reply.code(501).send({
+        message: "Previa SEFAZ nao se aplica a NFS-e municipal."
+      });
+    }
     if (
       !document?.xmlSigned ||
       !document.signatureValid ||
@@ -1341,6 +1356,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
 
     const params = request.params as { id: string };
     const document = app.store.findDocument(params.id);
+    if (document?.tipoDocumento === "NFSe") {
+      return reply.code(501).send({
+        message: "Autorizacao SEFAZ nao se aplica a NFS-e municipal."
+      });
+    }
     if (
       !document?.xmlSigned ||
       !document.signatureValid ||
