@@ -23,7 +23,7 @@ Fora do v1:
 
 ---
 
-## 0. Marco atual validado em 2026-06-12
+## 0. Marco atual validado em 2026-06-13
 
 Estado operacional atual:
 - a NFC-e da Otica Prisma em homologacao ja emite ponta a ponta usando a Nuvem Local Fiscal
@@ -40,6 +40,10 @@ Estado operacional atual:
 - a inutilizacao de numeracao para NFC-e/NF-e em homologacao ja possui endpoint, assinatura XML, transmissao SEFAZ e formulario simples na UI
 - o cancelamento de NFC-e/NF-e em homologacao ja usa evento real `110111`, com protocolo proprio e persistencia separada do protocolo de autorizacao
 - o projeto ja esta versionado em Git e publicado no GitHub em `main`
+- a VPS de homologacao ja esta provisionada na DigitalOcean, com dominio, HTTPS, Nginx, `systemd`, Supabase e admin protegido
+- dominio homologacao atual: `https://fiscal.mentebinaria.com`
+- `/ready` em producao controlada retorna `persistence=supabase` e `fiscalProductionBlocked=true`
+- a Otica Prisma e a Autoeletrica/NHT Centro Automotivo ja emitiram documentos reais em homologacao pela VPS
 
 Marco NF-e homologacao validado:
 - documento local: `doc_93323d3e`
@@ -69,6 +73,31 @@ Marco NF-e homologacao com payload real da Otica Prisma:
 - cenario com desconto, frete, transportadora e dinheiro validado na nota local `#8`: `vProd=30.00`, `vFrete=10.00`, `vDesc=3.00`, `vNF=37.00`, transportadora com CNPJ, `modFrete=0`, pagamento `tPag=01` no valor de `37.00`, protocolo `141260000346830` e status SEFAZ `100`.
 - inutilizacao NF-e real validada pela pagina da Otica: modelo `55`, serie `1`, numero `9100`, status `102 - Inutilizacao de numero homologado`, protocolo `141260000346968` e recebimento `2026-06-12T15:39:52-03:00`.
 
+Marco VPS e multiplos clientes:
+- VPS DigitalOcean em Ubuntu 24.04, app em `/opt/nuvem-local-fiscal`, servico `nuvem-local-fiscal.service`, Nginx na frente e TLS via Let's Encrypt
+- Nginx protege `/admin` com Basic Auth; `/admin/api/` fica sem Basic Auth do Nginx porque a propria aplicacao valida `ADMIN_USERNAME`/`ADMIN_PASSWORD`
+- arquivo ICP-Brasil obrigatorio na VPS: `/opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem`
+- certificados A1 e configuracoes de servico persistem no Supabase com UUID real; foram corrigidos bugs onde certificados/configuracoes podiam aparecer na memoria e sumir ao recarregar
+- o deploy atual da VPS esta no commit `afc2c56 fix: update existing active certificates`
+- a Otica Prisma autorizou NF-e homologacao via VPS e gerou DANFE A4
+- a Autoeletrica/NHT Centro Automotivo autorizou NFC-e homologacao via VPS, usando certificado A1 e CSC persistidos no Supabase
+- NFC-e Autoeletrica validada:
+  - emitente: `35181069000143` / NORBERTO HITOSHI TAJIRI LTDA
+  - modelo: `65`
+  - serie: `2`
+  - numero: `7`
+  - chave: `41260635181069000143650020000000071162019552`
+  - protocolo: `141260001358339`
+  - status SEFAZ: `100 - Autorizado o uso da NF-e`
+  - recebimento: `2026-06-13T10:03:20-03:00`
+
+Compatibilidade aplicada na Autoeletrica:
+- `src/lib/nuvemfiscal.ts` passou a respeitar `NUVEMFISCAL_HOM_AUTH_URL`, mantendo auth oficial como fallback
+- cadastro fiscal sincroniza homologacao por padrao; producao so sincroniza se `NUVEMFISCAL_SYNC_PRODUCTION=true`
+- upload de certificado pela tela de configuracoes envia para homologacao
+- a rota de upload adapta o payload para a Nuvem Local quando a URL e local/VPS (`fileName`, `pfxBase64`, `password`)
+- essas mudancas foram feitas para preservar a premissa de trocar ambiente por `.env` e evitar cadastro manual repetitivo quando a integracao cliente estiver madura
+
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
 - `POST /nfe`
@@ -88,6 +117,9 @@ Endpoints compativeis ja exercitados:
 - `PUT /empresas/:cnpj/certificado`
 - `PUT /empresas/:cnpj/nfce`
 - `GET /empresas/:cnpj/nfce`
+- `PUT /empresas/:cnpj/nfse`
+- `POST /empresas/:cnpj/nfse`
+- `GET /empresas/:cnpj/nfse`
 - `POST /nfce/inutilizacoes`
 - `GET /nfce/inutilizacoes/:id`
 - `GET /nfce/inutilizacoes/:id/xml`
@@ -102,6 +134,7 @@ Configuracoes persistidas:
 - configuracao NF-e por ambiente: servico ativo/inativo e transmissao automatica; producao continua bloqueada
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
+- configuracao NFS-e por ambiente: login e senha da prefeitura criptografada; endpoint existe apenas para compatibilidade de cadastro, nao para emissao NFS-e
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
@@ -111,10 +144,10 @@ Configuracoes persistidas:
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
-- NFS-e aparece como area reservada, mas ainda nao esta pronta para emissao
+- NFS-e aparece como area reservada, aceita configuracao basica de prefeitura, mas ainda nao esta pronta para emissao
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
-- o deploy em servidor/VPS ainda nao foi feito; os testes atuais foram locais apontando a Otica para `127.0.0.1:3001`
+- o deploy em VPS ja foi feito e validado em homologacao; `127.0.0.1:3001` continua valido para desenvolvimento local
 - filas/retries ainda precisam ser fechados
 - o processamento de autorizacao ja possui trava local por documento, consulta previa da chave e historico persistente em `fiscal_document_events`; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
@@ -122,11 +155,12 @@ Limites atuais:
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 
 Proximo foco:
-1. provisionar a VPS seguindo `docs/DEPLOY_VPS.md`
-2. configurar dominio, HTTPS, `systemd`, Supabase e backup externo
-3. fechar retries agendados e estrategia de processamento distribuido
-4. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
-5. testar outros sistemas clientes somente depois do ambiente central estar estavel
+1. abrir frente NFS-e homologacao por prefeitura, com prioridade para Guaira/PR e Toledo/PR
+2. identificar provedor, ambiente de homologacao, autenticacao, layout XML/API e fluxo de autorizacao de cada prefeitura
+3. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
+4. manter producao bloqueada na Nuvem Local Fiscal
+5. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
+6. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
 
 ---
 

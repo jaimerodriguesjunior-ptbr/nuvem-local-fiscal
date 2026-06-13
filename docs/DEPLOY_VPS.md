@@ -4,6 +4,14 @@ Este roteiro publica a Nuvem Local Fiscal com Node.js, `systemd`, Nginx,
 HTTPS e Supabase. O deploy do servidor nao libera operacoes fiscais em
 producao: o bloqueio permanece no codigo.
 
+Deploy validado em 2026-06-13:
+
+- dominio: `https://fiscal.mentebinaria.com`
+- VPS: DigitalOcean / Ubuntu 24.04
+- persistencia: Supabase
+- clientes homologacao ja validados pela VPS: Otica Prisma e Autoeletrica/NHT
+- producao fiscal: bloqueada
+
 ## Requisitos
 
 - Ubuntu ou Debian atualizado
@@ -158,6 +166,11 @@ Para uma VPS nova, prefira manter uma chave forte em
 `CERTIFICATE_ENCRYPTION_KEY` e recadastrar o A1 pela pagina
 `https://fiscal.seu-dominio.com.br/admin`. Isso regrava o certificado no
 Supabase com a chave correta da VPS.
+
+Se um certificado aparece na UI e some apos atualizar/reiniciar, confira se a
+persistencia no Supabase esta salvando em `fiscal_certificates`. A aplicacao
+deve atualizar o certificado ativo existente para o CNPJ, nao criar multiplos
+certificados ativos para a mesma empresa.
 
 ## Clientes em homologacao
 
