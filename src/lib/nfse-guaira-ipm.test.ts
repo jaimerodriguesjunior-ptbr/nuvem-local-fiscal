@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildGuairaIpmBasicAuthorization,
+  buildGuairaIpmConsultationXml,
   buildGuairaIpmEmissionXml,
   buildGuairaIpmMultipartRequest,
   extractGuairaIpmSessionCookie,
@@ -101,6 +102,23 @@ test("parses a successful reduced IPM response", () => {
   assert.equal(result.number, "158");
   assert.equal(result.verificationCode, "ABC123");
   assert.equal(result.messages[0]?.codigo, "1");
+});
+
+test("builds an IPM consultation by 40-character authenticity code", () => {
+  const xml = buildGuairaIpmConsultationXml(
+    "7571130626163527010351810692026067397875"
+  );
+
+  assert.match(xml, /<nfse>/);
+  assert.match(xml, /<pesquisa>/);
+  assert.match(
+    xml,
+    /<codigo_autenticidade>7571130626163527010351810692026067397875<\/codigo_autenticidade>/
+  );
+  assert.throws(
+    () => buildGuairaIpmConsultationXml("184"),
+    /Codigo de autenticidade IPM invalido/
+  );
 });
 
 test("accepts Guaira IPM issued response without a numeric message prefix", () => {

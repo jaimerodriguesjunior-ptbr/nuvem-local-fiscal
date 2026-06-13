@@ -1309,7 +1309,13 @@ async function handleGetDocument(
       message: "Documento nao encontrado."
     });
   }
-  if (storedDocument.tipoDocumento === "NFSe" && storedDocument.status === "processamento") {
+  const query = (request.query as Record<string, unknown> | undefined) ?? {};
+  const refreshMunicipal =
+    query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
+  if (
+    storedDocument.tipoDocumento === "NFSe" &&
+    (storedDocument.status === "processamento" || refreshMunicipal)
+  ) {
     const consultation = await consultConfiguredNfse(app.store, storedDocument.id);
     storedDocument = consultation.document;
   }

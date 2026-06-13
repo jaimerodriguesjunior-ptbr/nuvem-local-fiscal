@@ -318,6 +318,19 @@ export function buildGuairaIpmEmissionXml(
 </nfse>`;
 }
 
+export function buildGuairaIpmConsultationXml(verificationCode: string) {
+  const normalizedCode = verificationCode.trim();
+  if (!/^[A-Za-z0-9]{40}$/.test(normalizedCode)) {
+    throw new Error("Codigo de autenticidade IPM invalido para consulta.");
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<nfse>
+  <pesquisa>
+    <codigo_autenticidade>${escapeXml(normalizedCode)}</codigo_autenticidade>
+  </pesquisa>
+</nfse>`;
+}
+
 function elementsByLocalName(xml: XmlDocument, name: string) {
   const result: XmlElement[] = [];
   const all = xml.getElementsByTagName("*");
@@ -622,6 +635,115 @@ export async function transmitGuairaIpmTest(
     transmitted: true,
     error: status === "rejeitado" ? reason : null
   };
+}
+
+export async function consultGuairaIpmNfse(
+  store: InMemoryStore,
+  documentId: string
+): Promise<GuairaNfseProcessingResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) {
+    throw new Error("Documento NFS-e nao encontrado para consulta.");
+  }
+  if (document.ambiente !== "homologacao") {
+    return { document, transmitted: false, error: null };
+  }
+
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(
+    document.issuerCnpj,
+    document.ambiente,
+    "NFSE"
+  );
+  if (!issuer || !serviceConfig?.active || !isGuairaIpmConfig(issuer, serviceConfig)) {
+    return {
+      document,
+      transmitted: false,
+      error: "Configuracao NFS-e Guaira/IPM nao encontrada para consulta."
+    };
+  }
+  if (!serviceConfig.secretsEncrypted) {
+    return {
+      document,
+      transmitted: false,
+      error: "Senha municipal IPM nao configurada para consulta."
+    };
+  }
+
+  const settings = resolveConfig(issuer, serviceConfig);
+  const verificationCode = String(document.protocolo ?? "").trim();
+  let requestXml = "";
+  try {
+    validateConfig(settings);
+    requestXml = buildGuairaIpmConsultationXml(verificationCode);
+    const secret = decryptSecretPayload<{ senha?: string }>(
+      serviceConfig.secretsEncrypted,
+      config.certificateEncryptionKey
+    );
+    const password = String(secret.senha ?? "");
+    if (!password) {
+      throw new Error("Senha municipal IPM vazia.");
+    }
+
+    const response = await postIpmRequest(
+      validateIpmEndpoint(settings.endpoint),
+      buildGuairaIpmMultipartRequest(requestXml),
+      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`IPM respondeu HTTP ${response.status} na consulta.`);
+    }
+    const parsed = parseGuairaIpmResponse(response.body);
+    const issued = parsed.success && parsed.statusCode === "1";
+    const cancelled =
+      Boolean(parsed.number) &&
+      parsed.statusCode === "2" &&
+      /cancelad/i.test(parsed.statusDescription);
+    if (!issued && !cancelled) {
+      const providerMessage =
+        parsed.messages.map((message) => message.descricao).join("; ") ||
+        parsed.statusDescription ||
+        "Resposta IPM sem confirmacao explicita da situacao da NFS-e.";
+      throw new Error(providerMessage);
+    }
+
+    const reason = parsed.statusDescription || (cancelled ? "Cancelada" : "Emitida");
+    const updated = store.saveMunicipalProcessingResult(document.id, {
+      providerName: "guaira-ipm",
+      requestBody: requestXml,
+      responseBody: response.body,
+      status: cancelled ? "cancelado" : "autorizado",
+      reason,
+      reasonCode: parsed.statusCode,
+      protocol: parsed.verificationCode || verificationCode,
+      providerDocumentNumber: parsed.number || document.chave,
+      processedXml: response.body
+    });
+    if (updated) {
+      updated.mensagens = parsed.messages;
+    }
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_guaira_ipm_consultation_completed",
+      message: `Consulta IPM confirmou NFS-e ${reason.toLowerCase()}.`,
+      payload: {
+        provider: "guaira-ipm",
+        statusCode: parsed.statusCode,
+        providerDocumentNumber: parsed.number || document.chave
+      }
+    });
+    await store.waitForPersistence();
+    return { document: updated ?? document, transmitted: true, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_guaira_ipm_consultation_failed",
+      level: "warn",
+      message,
+      payload: { provider: "guaira-ipm" }
+    });
+    await store.waitForPersistence();
+    return { document, transmitted: false, error: message };
+  }
 }
 
 function validateDraft(draft: GuairaIpmDraft) {

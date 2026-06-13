@@ -1,6 +1,7 @@
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
+  consultGuairaIpmNfse,
   isGuairaIpmConfig,
   processGuairaIpmNfse,
   transmitGuairaIpmTest
@@ -66,6 +67,7 @@ export async function consultConfiguredNfse(
     throw new Error("Documento NFS-e nao encontrado para consulta.");
   }
   const provider = configuredNfseProvider(store, document);
+  if (provider === "guaira-ipm") return consultGuairaIpmNfse(store, documentId);
   if (provider === "toledo-equiplano") return consultToledoNfse(store, documentId);
   return { document, transmitted: false, error: null };
 }
