@@ -183,6 +183,24 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(saveOfficialNfceConfig.statusCode, 200, saveOfficialNfceConfig.body);
     assert.doesNotMatch(saveOfficialNfceConfig.body, /CSC-FICTICIO-DO-TESTE|secretsEncrypted/);
 
+    const saveOfficialNfseConfig = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        prefeitura: {
+          login: "usuario-prefeitura",
+          senha: "SENHA-FICTICIA-NFSE"
+        }
+      }
+    });
+    assert.equal(saveOfficialNfseConfig.statusCode, 200, saveOfficialNfseConfig.body);
+    assert.doesNotMatch(saveOfficialNfseConfig.body, /SENHA-FICTICIA-NFSE|secretsEncrypted/);
+
     const remoteCompany = await app.inject({
       method: "GET",
       url: `/empresas/${cnpj}`,

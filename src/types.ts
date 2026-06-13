@@ -59,6 +59,7 @@ export type ServiceConfig = {
   settings: {
     cscId?: string;
     autoTransmit?: boolean;
+    nfseLogin?: string;
   };
   secretsEncrypted?: string | null;
   createdAt: string;

@@ -350,6 +350,69 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/empresas/:cnpj/nfse", async (request, reply) => {
+    const params = request.params as { cnpj: string };
+    const cnpj = params.cnpj.replace(/\D/g, "");
+    const environment = parseEnvironment((request.query as Record<string, unknown>)?.ambiente);
+    const serviceConfig = app.store.findServiceConfig(cnpj, environment, "NFSE");
+    if (!serviceConfig) {
+      return reply.code(404).send({ message: "Configuracao NFS-e nao encontrada." });
+    }
+
+    return {
+      ambiente: environment,
+      prefeitura: {
+        login: serviceConfig.settings.nfseLogin ?? null,
+        senha_configurada: Boolean(serviceConfig.secretsEncrypted)
+      }
+    };
+  });
+
+  const saveNfseConfig = async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { cnpj: string };
+    const cnpj = params.cnpj.replace(/\D/g, "");
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const environment = parseEnvironment(body.ambiente);
+    const prefeitura =
+      typeof body.prefeitura === "object" && body.prefeitura !== null
+        ? (body.prefeitura as Record<string, unknown>)
+        : body;
+    const login = String(prefeitura.login ?? prefeitura.usuario ?? "").trim();
+    const password = String(prefeitura.senha ?? prefeitura.password ?? "").trim();
+
+    if (cnpj.length !== 14) {
+      return reply.code(400).send({ message: "Informe CNPJ valido." });
+    }
+    if (!login || !password) {
+      return reply.code(400).send({
+        message: "Informe login e senha da prefeitura para a NFS-e."
+      });
+    }
+
+    app.store.ensureIssuer(cnpj, environment, {
+      razaoSocial: `Emitente ${cnpj}`,
+      nomeFantasia: `Emitente ${cnpj}`
+    });
+    const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFSE", {
+      active: true,
+      settings: { nfseLogin: login },
+      secretsEncrypted: encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
+    });
+    await app.store.waitForPersistence();
+
+    return {
+      message: "Configuracao NFS-e salva.",
+      ambiente: environment,
+      prefeitura: {
+        login,
+        senha_configurada: Boolean(serviceConfig?.secretsEncrypted)
+      }
+    };
+  };
+
+  app.put("/empresas/:cnpj/nfse", saveNfseConfig);
+  app.post("/empresas/:cnpj/nfse", saveNfseConfig);
+
   app.put("/empresas/:cnpj/certificado", async (request, reply) => {
     const params = request.params as { cnpj: string };
     const normalizedCnpj = params.cnpj.replace(/\D/g, "");
