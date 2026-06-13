@@ -2,7 +2,8 @@ import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
   isGuairaIpmConfig,
-  processGuairaIpmNfse
+  processGuairaIpmNfse,
+  transmitGuairaIpmTest
 } from "./nfse-guaira-ipm.js";
 import {
   cancelToledoNfse,
@@ -67,6 +68,21 @@ export async function consultConfiguredNfse(
   const provider = configuredNfseProvider(store, document);
   if (provider === "toledo-equiplano") return consultToledoNfse(store, documentId);
   return { document, transmitted: false, error: null };
+}
+
+export async function transmitConfiguredNfseTest(
+  store: InMemoryStore,
+  documentId: string
+): Promise<NfseProviderResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) {
+    throw new Error("Documento NFS-e nao encontrado para transmissao.");
+  }
+  const provider = configuredNfseProvider(store, document);
+  if (provider === "guaira-ipm") {
+    return transmitGuairaIpmTest(store, documentId);
+  }
+  throw new Error("Transmissao manual de teste disponivel somente para Guaira/IPM.");
 }
 
 export async function cancelConfiguredNfse(

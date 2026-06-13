@@ -18,7 +18,8 @@ import {
   cancelConfiguredNfse,
   configuredNfseProvider,
   consultConfiguredNfse,
-  processConfiguredNfse
+  processConfiguredNfse,
+  transmitConfiguredNfseTest
 } from "../lib/nfse-provider.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
@@ -311,6 +312,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.post("/nfse/:id/cancelamento", async (request, reply) => {
     return handleCancelNfse(app, request, reply);
+  });
+
+  app.post("/nfse/:id/transmitir-teste", async (request, reply) => {
+    return handleTransmitNfseTest(app, request, reply);
   });
 
   app.get("/nfe/:id/xml", async (request, reply) => {
@@ -1513,6 +1518,53 @@ async function handleCancelNfse(
   return reply
     .code(result.document.status === "cancelado" ? 200 : result.error ? 422 : 200)
     .send(response);
+}
+
+async function handleTransmitNfseTest(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const params = request.params as { id: string };
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const confirmation = String(body.confirmacao ?? body.confirmation ?? "").trim();
+  if (confirmation !== "TRANSMITIR TESTE IPM") {
+    return reply.code(400).send({
+      message:
+        "Confirmacao invalida. Informe exatamente TRANSMITIR TESTE IPM.",
+      transmite_documento: false
+    });
+  }
+
+  const document = app.store.findDocument(params.id, "NFSe");
+  if (!document) {
+    return reply.code(404).send({ message: "NFS-e nao encontrada." });
+  }
+  if (document.status !== "processamento" || document.motivoStatus !== "NFSE_IPM_DRY_RUN") {
+    return reply.code(409).send({
+      message: "Somente um dry-run IPM pendente pode ser transmitido por esta rota.",
+      transmite_documento: false
+    });
+  }
+
+  try {
+    const result = await transmitConfiguredNfseTest(app.store, document.id);
+    return reply.code(result.error ? 422 : 200).send({
+      ...mapDocumentResponse(result.document, requestBaseUrl(request)),
+      message: result.error ?? result.document.motivo,
+      transmissao_municipal: result.transmitted,
+      provedor: "guaira-ipm"
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    request.log.error({ err: error, documentId: document.id }, message);
+    return reply.code(422).send({
+      ...mapDocumentResponse(document, requestBaseUrl(request)),
+      message,
+      transmissao_municipal: false,
+      provedor: "guaira-ipm"
+    });
+  }
 }
 
 async function handleXmlDownload(

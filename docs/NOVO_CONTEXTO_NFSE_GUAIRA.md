@@ -25,6 +25,43 @@ da NF-e, NFC-e e NFS-e Toledo.
 7. Consultar repos clientes e permitido para entender payloads, rotas e respostas
    esperadas. Editar nao e permitido sem autorizacao.
 
+### Regra operacional da Autoeletrica para o tomador
+
+Na operacao real da Autoeletrica, muitas vezes nao e viavel obter CPF e endereco
+completo do cliente. A Nuvem Local Fiscal nao deve introduzir uma trava nova que
+impeca a NFS-e apenas porque o endereco do tomador foi preenchido com o fallback
+que o sistema cliente ja utiliza.
+
+Fallback atual enviado pela Autoeletrica quando o endereco nao esta cadastrado:
+
+- logradouro: `Nao Informado`
+- numero: `SN`
+- bairro: `Centro`
+- CEP: CEP da empresa ou `85980000`
+- municipio: Guaira/PR, codigo IBGE `4108809`
+- telefone: telefone da empresa, quando o cliente nao possui telefone
+
+Requisitos:
+
+1. Aceitar esse payload no dry-run.
+2. Preservar a compatibilidade e enviar esse fallback ao IPM no teste municipal.
+3. Nao exigir endereco real como validacao adicional da Nuvem Local.
+4. Tratar como bloqueio somente uma rejeicao efetiva da prefeitura/IPM.
+5. Se o IPM permitir tomador nao identificado ou endereco nao informado por meio
+   de campos proprios, avaliar esse contrato sem exigir mudanca imediata no
+   programa cliente.
+6. CPF/CNPJ e endereco real continuam preferiveis quando estiverem disponiveis,
+   mas nao podem se tornar uma trava operacional criada pela Nuvem Local.
+
+Estado observado em 13/06/2026:
+
+- o endereco ja recebe o fallback acima antes do envio;
+- a Autoeletrica ainda valida e exige CPF/CNPJ valido do tomador antes de chamar
+  `POST /nfse/dps`;
+- remover ou flexibilizar essa exigencia depende de confirmar primeiro como o
+  IPM representa consumidor nao identificado e, se exigir alteracao no cliente,
+  requer autorizacao expressa antes da edicao.
+
 Essas regras valem especialmente para:
 
 - `g:\projetos\autoeletrica`
