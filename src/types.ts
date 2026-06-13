@@ -77,6 +77,12 @@ export type ServiceConfig = {
     nfseDefaultServiceItem?: string;
     nfseDefaultServiceSubItem?: string;
     nfseDefaultAliquotaIss?: number;
+    nfseTomCode?: string;
+    nfseEconomicRegistration?: string;
+    nfseDefaultActivityCode?: string;
+    nfseDefaultTaxSituation?: string;
+    nfseRequiresSignature?: boolean;
+    nfseTestMode?: boolean;
   };
   secretsEncrypted?: string | null;
   createdAt: string;

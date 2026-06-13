@@ -511,6 +511,7 @@ const page = String.raw`<!doctype html>
       companyTab: 'dados',
       service: 'nfce',
       environment: 'homologacao',
+      nfseProviderOverrides: {},
       listFilters: {
         company: '',
         type: '',
@@ -904,12 +905,21 @@ const page = String.raw`<!doctype html>
       const settings = serviceConfig && serviceConfig.settings ? serviceConfig.settings : {};
       const cert = certificateFor(company.cnpj);
       const production = state.environment === 'producao';
-      const provider = settings.nfseProvider || 'toledo-equiplano';
+      const storedProvider = settings.nfseProvider || '';
+      const guairaMunicipality = settings.nfseMunicipalityCode === '4108809';
+      const providerKey = company.cnpj + ':' + state.environment;
+      const provider = state.nfseProviderOverrides[providerKey] || (guairaMunicipality
+        ? 'guaira-ipm'
+        : storedProvider || 'toledo-equiplano');
       const isToledo = provider === 'toledo-equiplano';
+      const isIpm = provider === 'guaira-ipm';
+      const storedIpmConfig = storedProvider === 'guaira-ipm';
+      const ipmServiceCode = storedIpmConfig ? settings.nfseDefaultServiceCode : '140101';
+      const ipmIssRate = storedIpmConfig ? settings.nfseDefaultAliquotaIss : 2.01;
 
       return '<section class="service-box"><div class="eyebrow">Configuração municipal</div>' +
         '<h2>Nota Fiscal de Serviço Eletrônica</h2>' +
-        '<p class="small">Configuração específica da prefeitura e do provedor. Para Toledo, o conector usa Equiplano, XML assinado e certificado A1.</p>' +
+        '<p class="small">Escolha o conector do município. Guaíra usa IPM/Atende.Net; Toledo usa Equiplano. Os contratos não são intercambiáveis.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
             '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
@@ -921,22 +931,22 @@ const page = String.raw`<!doctype html>
           info('Certificado A1', cert ? 'Ativo' : 'Não cadastrado') +
           info('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha não configurada') +
           info('Próximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Não informado') +
-          info('Transmissão', production ? 'Produção bloqueada' : settings.autoTransmit === true ? 'Automática' : 'Dry-run / manual') +
+          info('Transmissão', production ? 'Produção bloqueada' : isIpm ? 'Desativada para IPM' : settings.autoTransmit === true ? 'Automática' : 'Dry-run / manual') +
           '</div><form id="nfseServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificação do município e credenciais do serviço municipal.</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Provedor<select name="provider">' +
+              '<label>Provedor<select name="provider" onchange="setNfseProvider(this.value)">' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
-                '<option value="outro"' + (!isToledo ? ' selected' : '') + '>Outro provedor</option>' +
+                '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
               '</select></label>' +
               '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
-                escapeHtml(settings.nfseMunicipalityCode || (isToledo ? '4127700' : '')) + '" required /></label>' +
+                escapeHtml(isIpm ? '4108809' : settings.nfseMunicipalityCode || '4127700') + '" required /></label>' +
             '</div><div class="two-col">' +
               '<label>Município<input name="municipalityName" value="' +
-                escapeHtml(settings.nfseMunicipalityName || (isToledo ? 'Toledo' : '')) + '" required /></label>' +
-              '<label>Inscrição municipal<input name="municipalRegistration" value="' +
+                escapeHtml(isIpm ? 'Guaíra' : settings.nfseMunicipalityName || 'Toledo') + '" required /></label>' +
+              '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
                 escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
             '</div><div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
@@ -945,7 +955,8 @@ const page = String.raw`<!doctype html>
                 (serviceConfig && serviceConfig.hasSecrets ? 'Já configurada. Preencha apenas para trocar.' : 'Informe a senha') +
                 '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
             '</div>' +
-            '<div class="section-head"><div><h3>Equiplano e RPS</h3><p>Contrato técnico usado na emissão e na consulta da NFS-e.</p></div></div>' +
+            (isToledo ?
+            '<div class="section-head"><div><h3>Equiplano</h3><p>Contrato SOAP/XML exclusivo de Toledo.</p></div></div>' +
             '<div class="two-col">' +
               '<label>ID da entidade<input name="entityId" value="' + escapeHtml(settings.nfseIdEntidade || '') + '" required /></label>' +
               '<label>Formato da requisição<select name="requestFormat">' +
@@ -955,28 +966,66 @@ const page = String.raw`<!doctype html>
             '</div><label>Endpoint<input type="url" name="endpoint" value="' +
               escapeHtml(settings.nfseEndpoint || (isToledo ? 'https://www.esnfs.com.br:9443//homologacaows/services/Enfs' : '')) + '" required /></label>' +
             '<label>SOAP Action<input name="soapAction" value="' +
-              escapeHtml(settings.nfseSoapAction || (isToledo ? 'http://services.enfsws.es/esRecepcionarLoteRps' : '')) + '" /></label>' +
+              escapeHtml(settings.nfseSoapAction || 'http://services.enfsws.es/esRecepcionarLoteRps') + '" /></label>' :
+            '<div class="section-head"><div><h3>IPM / Atende.Net</h3><p>Parâmetros municipais de Guaíra. Os valores sugeridos vieram de exportações locais e ainda devem ser confirmados no portal.</p></div></div>' +
+            '<label>Endpoint IPM<input type="url" name="endpoint" value="' +
+              escapeHtml(storedIpmConfig && settings.nfseEndpoint
+                ? settings.nfseEndpoint
+                : 'https://guaira.atende.net/atende.php?pg=rest&service=WNERestServiceNFSe&cidade=padrao') +
+              '" required /></label>' +
             '<div class="two-col">' +
-              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(settings.nfseRpsSerie || '1') + '" required /></label>' +
-              '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(settings.nfseRpsEmissor || '1') + '" required /></label>' +
+              '<label>Código TOM<input name="tomCode" inputmode="numeric" value="' +
+                escapeHtml(settings.nfseTomCode || '7571') + '" required /></label>' +
+              '<label>Cadastro econômico<input name="economicRegistration" value="' +
+                escapeHtml(settings.nfseEconomicRegistration || settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Atividade / CNAE<input name="activityCode" inputmode="numeric" value="' +
+                escapeHtml(settings.nfseDefaultActivityCode || '4520007') + '" required /></label>' +
+              '<label>Situação tributária<select name="taxSituation">' +
+                '<option value="0"' + (String(settings.nfseDefaultTaxSituation || '0') === '0' ? ' selected' : '') + '>0 - Tributada integralmente</option>' +
+                '<option value="1"' + (String(settings.nfseDefaultTaxSituation) === '1' ? ' selected' : '') + '>1 - Tributada com ISSRF público</option>' +
+                '<option value="2"' + (String(settings.nfseDefaultTaxSituation) === '2' ? ' selected' : '') + '>2 - Substituição tributária</option>' +
+                '<option value="6"' + (String(settings.nfseDefaultTaxSituation) === '6' ? ' selected' : '') + '>6 - Isenta</option>' +
+                '<option value="7"' + (String(settings.nfseDefaultTaxSituation) === '7' ? ' selected' : '') + '>7 - Imune</option>' +
+                '<option value="14"' + (String(settings.nfseDefaultTaxSituation) === '14' ? ' selected' : '') + '>14 - Não tributada</option>' +
+              '</select></label>' +
+            '</div><div class="two-col">' +
+              '<label>Assinatura digital<select name="requiresSignature">' +
+                '<option value="false"' + (settings.nfseRequiresSignature !== true ? ' selected' : '') + '>Não confirmada / não exigir</option>' +
+                '<option value="true"' + (settings.nfseRequiresSignature === true ? ' selected' : '') + '>Exigida pelo município</option>' +
+              '</select></label>' +
+              '<label>Modo do XML<select name="testMode">' +
+                '<option value="true"' + (settings.nfseTestMode !== false ? ' selected' : '') + '>Teste sem emissão (nfse_teste=1)</option>' +
+                '<option value="false"' + (settings.nfseTestMode === false ? ' selected' : '') + '>Emissão real</option>' +
+              '</select></label>' +
+            '</div><div class="empty">Nesta etapa mantenha “Teste sem emissão”. A Nuvem Local continuará bloqueando transmissão IPM mesmo se outro valor for salvo.</div>') +
+            '<div class="section-head"><div><h3>RPS</h3><p>' +
+              (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
+            '</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(settings.nfseRpsSerie || '1') + '" /></label>' +
+              '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(settings.nfseRpsEmissor || '1') + '" /></label>' +
             '</div><div class="two-col">' +
               '<label>Próximo número RPS<input type="number" min="1" name="nextRpsNumber" value="' +
-                escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" required /></label>' +
+                escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" /></label>' +
               '<label>Próximo lote<input type="number" min="1" name="nextLotNumber" value="' +
-                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '" required /></label>' +
+                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '"' + (isIpm ? ' disabled' : '') + ' /></label>' +
             '</div>' +
             '<div class="section-head"><div><h3>Serviço padrão</h3><p>Valores usados quando o sistema cliente não informar um detalhe opcional.</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Código do serviço<input name="serviceCode" value="' + escapeHtml(settings.nfseDefaultServiceCode || '') + '" required /></label>' +
+              '<label>Código do serviço<input name="serviceCode" value="' +
+                escapeHtml(isIpm ? ipmServiceCode : settings.nfseDefaultServiceCode || '') + '" required /></label>' +
               '<label>Alíquota ISS (%)<input type="number" min="0.01" max="100" step="0.0001" name="issRate" value="' +
-                escapeHtml(String(settings.nfseDefaultAliquotaIss || '')) + '" required /></label>' +
-            '</div><div class="two-col">' +
+                escapeHtml(String(isIpm ? ipmIssRate : settings.nfseDefaultAliquotaIss || '')) + '" required /></label>' +
+            '</div>' + (isToledo ? '<div class="two-col">' +
               '<label>Item do serviço<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
               '<label>Subitem do serviço<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
-            '</div><label>Transmissão<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
-              '<option value="false"' + (settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
-              '<option value="true"' + (!production && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
+            '</div>' : '') +
+            '<label>Transmissão<select name="autoTransmit"' + (production || isIpm ? ' disabled' : '') + '>' +
+              '<option value="false"' + (isIpm || settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
+              '<option value="true"' + (!production && !isIpm && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
             '</select></label>' +
+            (isIpm ? '<div class="empty">Transmissão IPM desabilitada até o primeiro teste controlado ser autorizado.</div>' : '') +
             (production ? '<div class="empty">A emissão NFS-e em produção permanece bloqueada por segurança.</div>' : '') +
             (!cert ? '<div class="empty">Você pode salvar a configuração agora, mas a emissão real exigirá um certificado A1 ativo deste CNPJ.</div>' : '') +
             '<div><button type="submit" class="btn">Salvar configuração NFS-e</button></div>' +
@@ -1412,6 +1461,12 @@ const page = String.raw`<!doctype html>
       render();
     }
 
+    function setNfseProvider(provider) {
+      if (!state.companyCnpj) return;
+      state.nfseProviderOverrides[state.companyCnpj + ':' + state.environment] = provider;
+      render();
+    }
+
     function toggleDocument(id) {
       const body = document.getElementById('doc-' + id);
       const button = document.querySelector('[data-doc-toggle="' + id + '"]');
@@ -1712,6 +1767,15 @@ const page = String.raw`<!doctype html>
             inscricao_municipal: form.get('municipalRegistration'),
             id_entidade: form.get('entityId')
           },
+          ipm: {
+            endpoint: form.get('endpoint'),
+            codigo_tom: form.get('tomCode'),
+            cadastro_economico: form.get('economicRegistration'),
+            codigo_atividade: form.get('activityCode'),
+            situacao_tributaria: form.get('taxSituation'),
+            exige_assinatura: String(form.get('requiresSignature')) === 'true',
+            modo_teste: String(form.get('testMode')) !== 'false'
+          },
           servico: {
             codigo: form.get('serviceCode'),
             item: form.get('serviceItem'),
@@ -1719,10 +1783,14 @@ const page = String.raw`<!doctype html>
             aliquota_iss: Number(form.get('issRate'))
           },
           transmissao_automatica: environment === 'homologacao' &&
+            String(form.get('provider')) !== 'guaira-ipm' &&
             String(form.get('autoTransmit')) === 'true'
         })
       });
       setResponse(await response.json());
+      if (response.ok) {
+        delete state.nfseProviderOverrides[cnpj + ':' + environment];
+      }
       await refreshSnapshot();
     }
 

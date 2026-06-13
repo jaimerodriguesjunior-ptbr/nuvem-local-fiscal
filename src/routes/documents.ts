@@ -15,10 +15,11 @@ import {
   processHomologationNfce
 } from "../lib/document-processing.js";
 import {
-  cancelToledoNfse,
-  consultToledoNfse,
-  processToledoNfse
-} from "../lib/nfse-toledo-equiplano.js";
+  cancelConfiguredNfse,
+  configuredNfseProvider,
+  consultConfiguredNfse,
+  processConfiguredNfse
+} from "../lib/nfse-provider.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
@@ -466,6 +467,16 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         inscricao_municipal: serviceConfig.settings.nfseInscricaoMunicipal ?? null,
         id_entidade: serviceConfig.settings.nfseIdEntidade ?? null,
         transmissao_automatica: serviceConfig.settings.autoTransmit === true
+      },
+      ipm: {
+        endpoint: serviceConfig.settings.nfseEndpoint ?? null,
+        codigo_tom: serviceConfig.settings.nfseTomCode ?? null,
+        cadastro_economico: serviceConfig.settings.nfseEconomicRegistration ?? null,
+        codigo_atividade: serviceConfig.settings.nfseDefaultActivityCode ?? null,
+        situacao_tributaria: serviceConfig.settings.nfseDefaultTaxSituation ?? null,
+        exige_assinatura: serviceConfig.settings.nfseRequiresSignature === true,
+        modo_teste: serviceConfig.settings.nfseTestMode !== false,
+        transmissao_automatica: serviceConfig.settings.autoTransmit === true
       }
     };
   });
@@ -487,6 +498,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       typeof body.equiplano === "object" && body.equiplano !== null
         ? (body.equiplano as Record<string, unknown>)
         : {};
+    const ipm =
+      typeof body.ipm === "object" && body.ipm !== null
+        ? (body.ipm as Record<string, unknown>)
+        : {};
     const municipio =
       typeof body.municipio === "object" && body.municipio !== null
         ? (body.municipio as Record<string, unknown>)
@@ -503,7 +518,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const normalizedProvider =
       provider.toLowerCase().includes("toledo") || provider.toLowerCase().includes("equiplano")
         ? "toledo-equiplano"
-        : provider;
+        : provider.toLowerCase().includes("guaira") ||
+            provider.toLowerCase().includes("ipm") ||
+            provider.toLowerCase().includes("atende")
+          ? "guaira-ipm"
+          : provider;
 
     if (cnpj.length !== 14) {
       return reply.code(400).send({ message: "Informe CNPJ valido." });
@@ -533,7 +552,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           municipio.nome ?? municipio.cidade ?? body.cidade ?? ""
         ).trim() || undefined,
         nfseEndpoint: String(
-          equiplano.endpoint ?? body.endpoint ?? ""
+          ipm.endpoint ?? equiplano.endpoint ?? body.endpoint ?? ""
         ).trim() || undefined,
         nfseSoapAction: String(
           equiplano.soap_action ?? equiplano.soapAction ?? body.soap_action ?? ""
@@ -576,6 +595,31 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           Number(servico.aliquota_iss ?? body.aliquota_iss) > 0
             ? Number(servico.aliquota_iss ?? body.aliquota_iss)
             : undefined,
+        nfseTomCode: String(
+          ipm.codigo_tom ?? ipm.tom_code ?? body.codigo_tom ?? ""
+        ).replace(/\D/g, "") || undefined,
+        nfseEconomicRegistration: String(
+          ipm.cadastro_economico ??
+            ipm.economic_registration ??
+            body.cadastro_economico ??
+            ""
+        ).trim() || undefined,
+        nfseDefaultActivityCode: String(
+          ipm.codigo_atividade ??
+            servico.codigo_atividade ??
+            body.codigo_atividade ??
+            ""
+        ).replace(/\D/g, "") || undefined,
+        nfseDefaultTaxSituation: String(
+          ipm.situacao_tributaria ??
+            servico.situacao_tributaria ??
+            body.situacao_tributaria ??
+            ""
+        ).trim() || undefined,
+        nfseRequiresSignature:
+          ipm.exige_assinatura === true || body.exige_assinatura === true,
+        nfseTestMode:
+          ipm.modo_teste === false || body.modo_teste === false ? false : true,
         autoTransmit: body.transmissao_automatica === true || body.autoTransmit === true
       },
       secretsEncrypted: password
@@ -1231,7 +1275,8 @@ async function handleCreateNfseDps(
   });
   await app.store.waitForPersistence();
 
-  const processed = await processToledoNfse(app.store, document.id);
+  const processed = await processConfiguredNfse(app.store, document.id);
+  const provider = configuredNfseProvider(app.store, processed.document);
   const statusCode = processed.error ? 422 : 202;
   return reply.code(statusCode).send({
     ...mapDocumentResponse(processed.document, requestBaseUrl(request)),
@@ -1240,7 +1285,7 @@ async function handleCreateNfseDps(
       processed.document.motivo ??
       "NFS-e recebida para processamento.",
     transmissao_municipal: processed.transmitted,
-    provedor: "toledo-equiplano"
+    provedor: provider
   });
 }
 
@@ -1260,7 +1305,7 @@ async function handleGetDocument(
     });
   }
   if (storedDocument.tipoDocumento === "NFSe" && storedDocument.status === "processamento") {
-    const consultation = await consultToledoNfse(app.store, storedDocument.id);
+    const consultation = await consultConfiguredNfse(app.store, storedDocument.id);
     storedDocument = consultation.document;
   }
 
@@ -1447,7 +1492,18 @@ async function handleCancelNfse(
     });
   }
 
-  const result = await cancelToledoNfse(app.store, document.id, reason);
+  let result;
+  try {
+    result = await cancelConfiguredNfse(app.store, document.id, reason);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return reply.code(422).send({
+      ...mapDocumentResponse(document, requestBaseUrl(request)),
+      message,
+      codigo_status: "NFSE_PROVIDER_CANCEL",
+      motivo_status: message
+    });
+  }
   const response = {
     ...mapDocumentResponse(result.document, requestBaseUrl(request)),
     message: result.error ?? result.document.cancellationReason,
