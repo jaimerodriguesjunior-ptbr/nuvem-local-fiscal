@@ -1318,6 +1318,13 @@ async function handleGetDocument(
   ) {
     const consultation = await consultConfiguredNfse(app.store, storedDocument.id);
     storedDocument = consultation.document;
+    if (refreshMunicipal && consultation.error) {
+      return reply.code(422).send({
+        ...mapDocumentResponse(storedDocument, requestBaseUrl(request)),
+        consulta_municipal: false,
+        message: consultation.error
+      });
+    }
   }
 
   return mapDocumentResponse(storedDocument, requestBaseUrl(request));

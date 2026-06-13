@@ -149,6 +149,21 @@ Limite da validacao: esta primeira nota usou CPF e endereco preenchidos. A regra
 de endereco de fallback continua obrigatoria, mas ainda precisa de um teste
 municipal proprio antes de ser considerada validada ponta a ponta.
 
+Consulta municipal implementada e testada em 13/06/2026:
+
+- `GET /nfse/:id?consultar_prefeitura=1` solicita atualizacao explicita;
+- primeiro tenta o codigo de autenticidade de 40 caracteres;
+- diante de "nao encontrada", tenta numero `184`, serie `1` e cadastro
+  economico/inscricao municipal `324743`;
+- a IPM respondeu que nenhuma NFS-e foi encontrada nas duas modalidades;
+- o registro local autorizado foi preservado, sem rebaixar status;
+- a evidencia indica que `nfse_teste=1` valida a emissao, mas nao persiste o
+  documento na base consultavel;
+- consulta ponta a ponta permanece pendente de confirmacao da IPM/Prefeitura ou
+  de um teste futuro que gere documento consultavel;
+- uma falha na atualizacao explicita passa a retornar HTTP `422`, sem mascarar o
+  erro municipal como se fosse uma consulta confirmada.
+
 ## Objetivo deste novo contexto
 
 Implementar NFS-e Guaira/PR em homologacao usando o provedor IPM/Atende.Net,

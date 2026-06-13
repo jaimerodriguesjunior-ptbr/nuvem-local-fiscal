@@ -183,6 +183,10 @@ Limites atuais:
 - producao permanece bloqueada por seguranca
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
 - NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; consulta municipal, cancelamento e estrategia definitiva de rede ainda precisam ser fechados
+- a consulta Guaira/IPM foi implementada por codigo de autenticidade, com
+  fallback por numero, serie e cadastro economico; a NFS-e `184` em
+  `nfse_teste=1` nao aparece na base consultavel da IPM em nenhuma das duas
+  modalidades, portanto esse retorno de teste nao valida consulta ponta a ponta
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -195,9 +199,10 @@ Limites atuais:
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-1. implementar consulta municipal Guaira/IPM sem retransmitir a NFS-e `184`
-2. definir uma estrategia de rede estavel para o IPM sem depender de tunel manual
-3. validar o endereco de fallback da Autoeletrica em um teste municipal proprio
+1. definir uma estrategia de rede estavel para o IPM sem depender de tunel manual
+2. validar o endereco de fallback da Autoeletrica em um teste municipal proprio
+3. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
+   emitidos com `nfse_teste=1`
 4. implementar cancelamento Guaira somente depois da consulta validada
 5. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
 6. manter producao bloqueada na Nuvem Local Fiscal
