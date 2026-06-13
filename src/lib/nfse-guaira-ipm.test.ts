@@ -6,6 +6,7 @@ import {
   buildGuairaIpmConsultationXml,
   buildGuairaIpmEmissionXml,
   buildGuairaIpmMultipartRequest,
+  buildGuairaIpmNumberConsultationXml,
   extractGuairaIpmSessionCookie,
   normalizeGuairaIpmDraft,
   parseGuairaIpmResponse,
@@ -118,6 +119,18 @@ test("builds an IPM consultation by 40-character authenticity code", () => {
   assert.throws(
     () => buildGuairaIpmConsultationXml("184"),
     /Codigo de autenticidade IPM invalido/
+  );
+});
+
+test("builds an IPM consultation by number, series and economic registration", () => {
+  const xml = buildGuairaIpmNumberConsultationXml("184", "1", "324743");
+
+  assert.match(xml, /<numero>184<\/numero>/);
+  assert.match(xml, /<serie_nfse>1<\/serie_nfse>/);
+  assert.match(xml, /<cadastro>324743<\/cadastro>/);
+  assert.throws(
+    () => buildGuairaIpmNumberConsultationXml("184", "12", "324743"),
+    /cadastro economico IPM invalidos/
   );
 });
 

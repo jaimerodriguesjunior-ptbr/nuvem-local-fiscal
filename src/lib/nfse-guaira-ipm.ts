@@ -331,6 +331,36 @@ export function buildGuairaIpmConsultationXml(verificationCode: string) {
 </nfse>`;
 }
 
+export function buildGuairaIpmNumberConsultationXml(
+  number: string,
+  series: string,
+  economicRegistration: string
+) {
+  const normalizedNumber = digitsOnly(number);
+  const normalizedSeries = digitsOnly(series);
+  const normalizedRegistration = digitsOnly(economicRegistration);
+  if (
+    !normalizedNumber ||
+    normalizedNumber.length > 9 ||
+    !normalizedSeries ||
+    normalizedSeries.length > 1 ||
+    !normalizedRegistration ||
+    normalizedRegistration.length > 9
+  ) {
+    throw new Error(
+      "Numero, serie ou cadastro economico IPM invalidos para consulta."
+    );
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<nfse>
+  <pesquisa>
+    <numero>${normalizedNumber}</numero>
+    <serie_nfse>${normalizedSeries}</serie_nfse>
+    <cadastro>${normalizedRegistration}</cadastro>
+  </pesquisa>
+</nfse>`;
+}
+
 function elementsByLocalName(xml: XmlDocument, name: string) {
   const result: XmlElement[] = [];
   const all = xml.getElementsByTagName("*");
@@ -685,15 +715,42 @@ export async function consultGuairaIpmNfse(
       throw new Error("Senha municipal IPM vazia.");
     }
 
-    const response = await postIpmRequest(
-      validateIpmEndpoint(settings.endpoint),
+    const endpoint = validateIpmEndpoint(settings.endpoint);
+    const authorization = buildGuairaIpmBasicAuthorization(settings.cnpj, password);
+    let response = await postIpmRequest(
+      endpoint,
       buildGuairaIpmMultipartRequest(requestXml),
-      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+      authorization
     );
     if (response.status < 200 || response.status >= 300) {
       throw new Error(`IPM respondeu HTTP ${response.status} na consulta.`);
     }
-    const parsed = parseGuairaIpmResponse(response.body);
+    let parsed = parseGuairaIpmResponse(response.body);
+    const notFoundByVerificationCode =
+      !parsed.number &&
+      parsed.messages.some((message) =>
+        /nenhuma nfse foi encontrada/i.test(message.descricao)
+      );
+    let consultationMode = "codigo_autenticidade";
+    if (notFoundByVerificationCode) {
+      requestXml = buildGuairaIpmNumberConsultationXml(
+        String(document.chave ?? ""),
+        String(document.serie ?? ""),
+        settings.economicRegistration
+      );
+      response = await postIpmRequest(
+        endpoint,
+        buildGuairaIpmMultipartRequest(requestXml),
+        authorization
+      );
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(
+          `IPM respondeu HTTP ${response.status} na consulta por numero.`
+        );
+      }
+      parsed = parseGuairaIpmResponse(response.body);
+      consultationMode = "numero_serie_cadastro";
+    }
     const issued = parsed.success && parsed.statusCode === "1";
     const cancelled =
       Boolean(parsed.number) &&
@@ -727,6 +784,7 @@ export async function consultGuairaIpmNfse(
       message: `Consulta IPM confirmou NFS-e ${reason.toLowerCase()}.`,
       payload: {
         provider: "guaira-ipm",
+        consultationMode,
         statusCode: parsed.statusCode,
         providerDocumentNumber: parsed.number || document.chave
       }
