@@ -361,6 +361,13 @@ function buildConsultarNfsePorRpsXml(input: {
 </es:esConsultarNfsePorRpsEnvio>`;
 }
 
+function toToledoTimestamp(value: string) {
+  if (!value) {
+    return "";
+  }
+  return /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}-03:00`;
+}
+
 export function buildCancelarNfseXml(input: {
   settings: ToledoConfig;
   nfseNumber: string;
@@ -941,6 +948,11 @@ export async function cancelToledoNfse(
     const businessXml = extractBusinessXml(response.body);
     const summary = summarizeXmlResponse(response.body);
     const nilReturn = /xsi:nil="true"/i.test(response.body ?? "");
+    const municipalSuccess =
+      firstMatch(businessXml ?? "", "sucesso").toLowerCase() === "true";
+    const municipalCancelledAt = toToledoTimestamp(
+      firstMatch(businessXml ?? "", "dtCancelamento")
+    );
     const hasBusinessError =
       Boolean(summary.cdMensagem) ||
       Boolean(summary.dsMensagem) ||
@@ -950,7 +962,8 @@ export async function cancelToledoNfse(
       response.status < 300 &&
       response.body !== null &&
       !nilReturn &&
-      !hasBusinessError;
+      !hasBusinessError &&
+      municipalSuccess;
     const statusCode = success
       ? "CANCELADA"
       : summary.cdMensagem || (nilReturn ? "RETORNO_NULO" : String(response.status));
@@ -974,7 +987,9 @@ export async function cancelToledoNfse(
       statusCode,
       reason: message,
       protocol,
-      cancelledAt: success ? new Date().toISOString() : "",
+      cancelledAt: success
+        ? municipalCancelledAt || new Date().toISOString()
+        : null,
       success
     });
     store.addDocumentEvent(document.id, {
@@ -986,6 +1001,7 @@ export async function cancelToledoNfse(
         httpStatus: response.status,
         responseSummary: summary,
         nfseNumber,
+        municipalCancelledAt,
         success
       }
     });
