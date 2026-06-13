@@ -176,6 +176,12 @@ Configuracoes persistidas:
     logradouro, numero, bairro, municipio ou CEP chegam vazios; CPF/CNPJ do
     tomador ainda permanece obrigatorio ate confirmar regra municipal para
     consumidor nao identificado
+  - a NFS-e local `#2` (`doc_955229b6`) validou dry-run com endereco informado
+    no XML IPM: `RUA TESTE`, `123`, `CENTRO`, TOM `7571`, CEP `85980113`;
+    ela continua sem transmissao municipal
+  - o polling normal de `GET /nfse/:id` ignora consulta municipal enquanto o
+    documento estiver em `NFSE_IPM_DRY_RUN`, evitando eventos de erro por codigo
+    de autenticidade inexistente antes da transmissao
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status

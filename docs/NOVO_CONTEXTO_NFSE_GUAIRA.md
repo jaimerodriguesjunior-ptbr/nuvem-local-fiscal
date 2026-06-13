@@ -165,6 +165,24 @@ Consulta municipal implementada e testada em 13/06/2026:
   de um teste futuro que gere documento consultavel;
 - uma falha na atualizacao explicita passa a retornar HTTP `422`, sem mascarar o
   erro municipal como se fosse uma consulta confirmada.
+- o polling normal de `GET /nfse/:id` nao deve consultar a prefeitura enquanto o
+  documento ainda estiver em `NFSE_IPM_DRY_RUN`; consulta municipal explicita
+  continua disponivel com `?consultar_prefeitura=1`.
+
+Segundo dry-run Guaira/IPM em 13/06/2026:
+
+- documento Nuvem Local: `doc_955229b6`
+- numero local: `2`
+- status: `processamento`
+- motivo_status: `NFSE_IPM_DRY_RUN`
+- tomador enviado no XML: CPF `08701600958`, nome `JOAO LUCAS PEREIRA`
+- endereco enviado no XML: `RUA TESTE`, numero `123`, bairro `CENTRO`, cidade
+  TOM `7571`, CEP `85980113`
+- servico: `140101`, atividade `4520007`, aliquota `2,01`, situacao tributaria
+  `0`, valor tributavel `200,00`
+- essa nota validou o payload com endereco informado em dry-run, mas ainda nao
+  validou o caso sem endereco/fallback perante a IPM;
+- nao houve transmissao municipal desta nota ate este registro.
 
 Estrategia de conectividade IPM:
 
