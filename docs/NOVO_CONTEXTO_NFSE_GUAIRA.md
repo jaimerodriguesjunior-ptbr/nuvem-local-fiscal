@@ -91,7 +91,7 @@ Essas regras valem especialmente para:
 7. A migracao abaixo ja foi aplicada manualmente no Supabase:
    - `supabase/migrations/20260613_001_nfse_provider_artifacts.sql`
 8. O codigo implantado na VPS esta no commit:
-   - `3e42884 fix: require municipal NFSe cancellation confirmation`
+   - `07ebc06 fix: recognize issued IPM NFSe responses`
 9. O marco Toledo esta registrado no commit local:
    - `e768c22 docs: record Toledo NFSe homologation milestone`
 
@@ -110,6 +110,44 @@ Essas regras valem especialmente para:
 O conector de Guaira deve ser separado do conector Toledo. Nao reutilizar
 layouts, regras SOAP ou campos Equiplano como se fossem regras genericas de
 NFS-e.
+
+## Marco Guaira/IPM validado em 13/06/2026
+
+A primeira emissao controlada em homologacao foi confirmada pela IPM:
+
+- documento Nuvem Local: `doc_19c69b1c`
+- NFS-e municipal: `184`
+- serie: `1`
+- situacao IPM: codigo `1`, descricao `Emitida`
+- protocolo/codigo de autenticidade:
+  `7571130626163527010351810692026067397875`
+- data e hora municipais: `13/06/2026 16:35:27`
+- mensagem: `NFS-e valida para emissao.`
+- XML recuperado pela API: HTTP `200`
+- PDF local recuperado pela API: HTTP `200`
+- status final persistido e confirmado pela API publica: `autorizado`
+
+O teste permaneceu com `nfse_teste=1`, em homologacao, e a transmissao
+automatica continuou desativada.
+
+Diagnostico de rede:
+
+- a VPS DigitalOcean resolve o host IPM, mas a conexao direta com
+  `177.11.20.179:443` expira;
+- a mesma conexao funciona pela internet local do usuario;
+- a primeira emissao foi feita por um tunel SSH temporario, mantendo
+  descriptografia e persistencia no VPS e usando apenas a saida de rede local;
+- endpoint, DNS e tunel temporarios foram removidos depois do teste;
+- o endpoint persistido voltou para
+  `https://guaira.atende.net/atende.php?pg=rest&service=WNERestServiceNFSe&cidade=padrao`.
+
+A resposta real IPM declarou `ISO-8859-1` e informou sucesso por
+`situacao_codigo_nfse=1`, mesmo sem prefixar a mensagem textual com `[1]`.
+Isso foi coberto no parser e em teste automatizado no commit `07ebc06`.
+
+Limite da validacao: esta primeira nota usou CPF e endereco preenchidos. A regra
+de endereco de fallback continua obrigatoria, mas ainda precisa de um teste
+municipal proprio antes de ser considerada validada ponta a ponta.
 
 ## Objetivo deste novo contexto
 

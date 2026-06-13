@@ -78,7 +78,7 @@ Marco VPS e multiplos clientes:
 - Nginx protege `/admin` com Basic Auth; `/admin/api/` fica sem Basic Auth do Nginx porque a propria aplicacao valida `ADMIN_USERNAME`/`ADMIN_PASSWORD`
 - arquivo ICP-Brasil obrigatorio na VPS: `/opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem`
 - certificados A1 e configuracoes de servico persistem no Supabase com UUID real; foram corrigidos bugs onde certificados/configuracoes podiam aparecer na memoria e sumir ao recarregar
-- o deploy atual da VPS esta no commit `3e42884 fix: require municipal NFSe cancellation confirmation`
+- o deploy atual da VPS esta no commit `07ebc06 fix: recognize issued IPM NFSe responses`
 - a Otica Prisma autorizou NF-e homologacao via VPS e gerou DANFE A4
 - a Autoeletrica/NHT Centro Automotivo autorizou NFC-e homologacao via VPS, usando certificado A1 e CSC persistidos no Supabase
 - NFC-e Autoeletrica validada:
@@ -112,6 +112,7 @@ Endpoints compativeis ja exercitados:
 - `GET /nfce/:id/pdf`
 - `GET /nfce/:id/cancelamento/xml`
 - `POST /nfse/dps`
+- `POST /nfse/:id/transmitir-teste`
 - `GET /nfse/:id`
 - `GET /nfse/:id/xml`
 - `GET /nfse/:id/pdf`
@@ -157,6 +158,20 @@ Configuracoes persistidas:
   - a NFS-e municipal numero `7`, RPS `12`, lote `14`, foi autorizada e teve XML/PDF recuperados
   - o cancelamento municipal da NFS-e `7` foi confirmado pela Equiplano com `sucesso=true` em `2026-06-13T15:05:46-03:00`
   - a confirmacao de cancelamento agora exige explicitamente `<sucesso>true</sucesso>` no retorno municipal
+- a primeira NFS-e Guaira/IPM foi emitida em homologacao em 2026-06-13:
+  - documento Nuvem Local `doc_19c69b1c`
+  - NFS-e municipal `184`, serie `1`
+  - situacao IPM `1 - Emitida`
+  - protocolo/codigo de autenticidade `7571130626163527010351810692026067397875`
+  - XML e PDF local recuperados com HTTP `200`
+  - o teste permaneceu com `nfse_teste=1` e transmissao automatica desativada
+  - a VPS DigitalOcean nao alcanca diretamente o IPM; a emissao controlada usou
+    tunel SSH temporario para sair pela internet local do usuario
+  - endpoint, override DNS e tunel temporarios foram removidos depois do teste
+  - a resposta IPM `ISO-8859-1` e o sucesso sem prefixo numerico na mensagem
+    foram cobertos pelo parser e por teste automatizado
+  - o endereco de fallback da Autoeletrica ainda precisa de teste municipal
+    proprio; esta primeira emissao usou CPF e endereco preenchidos
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
@@ -167,6 +182,7 @@ Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
+- NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; consulta municipal, cancelamento e estrategia definitiva de rede ainda precisam ser fechados
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -179,12 +195,13 @@ Limites atuais:
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-1. abrir o conector Guaira/IPM usando o fluxo e os payloads existentes na Autoeletrica
-2. confirmar endpoint, homologacao, autenticacao e contrato municipal de Guaira antes de transmitir
-3. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
-4. manter producao bloqueada na Nuvem Local Fiscal
-5. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
-6. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+1. implementar consulta municipal Guaira/IPM sem retransmitir a NFS-e `184`
+2. definir uma estrategia de rede estavel para o IPM sem depender de tunel manual
+3. validar o endereco de fallback da Autoeletrica em um teste municipal proprio
+4. implementar cancelamento Guaira somente depois da consulta validada
+5. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
+6. manter producao bloqueada na Nuvem Local Fiscal
+7. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
 
 ---
 
