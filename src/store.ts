@@ -382,7 +382,7 @@ export class InMemoryStore {
     }
 
     const serviceConfig: ServiceConfig = {
-      id: `svc_${randomUUID().slice(0, 8)}`,
+      id: randomUUID(),
       issuerId: issuer.id,
       cnpj,
       ambiente,
