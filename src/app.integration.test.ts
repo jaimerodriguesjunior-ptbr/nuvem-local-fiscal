@@ -850,12 +850,26 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(nfeViaLegacyNfceStatusRoute.json().status, "autorizado");
     assert.match(
       nfeViaLegacyNfceStatusRoute.json().pdf_url,
-      new RegExp(`/nfe/${nfeDocumentId}/pdf$`)
+      new RegExp(`/nfe/${nfeDocumentId}/pdf\\?token=`)
     );
     assert.match(
       nfeViaLegacyNfceStatusRoute.json().xml_url,
-      new RegExp(`/nfe/${nfeDocumentId}/xml$`)
+      new RegExp(`/nfe/${nfeDocumentId}/xml\\?token=`)
     );
+
+    const signedPdfUrl = new URL(nfeViaLegacyNfceStatusRoute.json().pdf_url);
+    const publicSignedPdf = await app.inject({
+      method: "GET",
+      url: `${signedPdfUrl.pathname}${signedPdfUrl.search}`
+    });
+    assert.equal(publicSignedPdf.statusCode, 200, publicSignedPdf.body);
+    assert.match(publicSignedPdf.body, /^%PDF-1\.4/);
+
+    const unsignedPdf = await app.inject({
+      method: "GET",
+      url: signedPdfUrl.pathname
+    });
+    assert.equal(unsignedPdf.statusCode, 401, unsignedPdf.body);
 
     const legacyNfeCancellation = await app.inject({
       method: "POST",

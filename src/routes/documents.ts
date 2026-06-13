@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
@@ -37,6 +38,38 @@ function requestBaseUrl(request: FastifyRequest) {
       ? forwardedProto.split(",")[0].trim()
       : request.protocol;
   return `${protocol}://${request.headers.host}`;
+}
+
+function artifactToken(documentId: string, artifact: "xml" | "pdf") {
+  return createHmac("sha256", config.jwtSecret)
+    .update(`${documentId}:${artifact}`)
+    .digest("base64url");
+}
+
+function artifactUrl(
+  baseUrl: string,
+  basePath: string,
+  documentId: string,
+  artifact: "xml" | "pdf"
+) {
+  const token = artifactToken(documentId, artifact);
+  return `${baseUrl}${basePath}/${documentId}/${artifact}?token=${token}`;
+}
+
+function isSignedArtifactRequest(request: FastifyRequest) {
+  const url = new URL(request.url, "http://local");
+  const match = url.pathname.match(/^\/(?:nfe|nfce|nfse)\/([^/]+)\/(xml|pdf)$/);
+  if (!match) return false;
+
+  const provided = url.searchParams.get("token");
+  if (!provided) return false;
+  const expected = artifactToken(match[1], match[2] as "xml" | "pdf");
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    providedBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(providedBuffer, expectedBuffer)
+  );
 }
 
 function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
@@ -79,8 +112,12 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
       : null,
     xml_autorizado_disponivel: artifactsAvailable && Boolean(document.xml),
     pdf_disponivel: artifactsAvailable,
-    xml_url: artifactsAvailable ? `${baseUrl}${basePath}/${document.id}/xml` : null,
-    pdf_url: artifactsAvailable ? `${baseUrl}${basePath}/${document.id}/pdf` : null,
+    xml_url: artifactsAvailable
+      ? artifactUrl(baseUrl, basePath, document.id, "xml")
+      : null,
+    pdf_url: artifactsAvailable
+      ? artifactUrl(baseUrl, basePath, document.id, "pdf")
+      : null,
     xml_gerado: Boolean(document.xmlGenerated),
     xml_assinado: Boolean(document.xmlSigned),
     assinatura_valida: Boolean(document.signatureValid),
@@ -189,6 +226,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       request.url === "/empresas" ||
       request.url.startsWith("/empresas/")
     ) {
+      if (isSignedArtifactRequest(request)) {
+        return;
+      }
       return ensureBearer(request, reply);
     }
   });
@@ -295,10 +335,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handlePdfDownload(app, request, reply, "NFCe");
   });
 
-  app.get("/nfse/:id/pdf", async (_request, reply) => {
-    return reply.code(501).send({
-      message: "PDF NFS-e municipal ainda nao foi implementado."
-    });
+  app.get("/nfse/:id/pdf", async (request, reply) => {
+    return handlePdfDownload(app, request, reply, "NFSe");
   });
 
   app.post("/empresas", async (request, reply) => {
@@ -1379,7 +1417,11 @@ async function handleXmlDownload(
   }
   if (tipoDocumento === "NFSe" && (document.xml || document.xmlSigned || document.xmlGenerated)) {
     reply.header("content-type", "application/xml; charset=utf-8");
-    return document.xmlSigned || document.xmlGenerated || document.xml;
+    const authorized =
+      document.status === "autorizado" || document.status === "cancelado";
+    return authorized
+      ? document.xml || document.xmlSigned || document.xmlGenerated
+      : document.xmlSigned || document.xmlGenerated || document.xml;
   }
   if (document.status !== "autorizado" && document.status !== "cancelado") {
     return reply.code(409).send({ message: "XML ainda nao disponivel para este status." });
@@ -1432,11 +1474,12 @@ async function handlePdfDownload(
 }
 
 function createLocalPdf(document: DocumentRecord) {
-  const danfe = parseDanfeData(document);
   const page =
-    document.tipoDocumento === "NFe"
-      ? nfeDanfeContentStream(danfe)
-      : nfceDanfeContentStream(danfe);
+    document.tipoDocumento === "NFSe"
+      ? nfseContentStream(document)
+      : document.tipoDocumento === "NFe"
+        ? nfeDanfeContentStream(parseDanfeData(document))
+        : nfceDanfeContentStream(parseDanfeData(document));
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -1461,6 +1504,63 @@ function createLocalPdf(document: DocumentRecord) {
   }
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
   return Buffer.from(pdf, "ascii");
+}
+
+function recordValue(value: unknown) {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function nfseContentStream(document: DocumentRecord) {
+  const payload = recordValue(document.payloadOriginal);
+  const infDps = recordValue(payload.infDPS);
+  const toma = recordValue(infDps.toma);
+  const serv = recordValue(infDps.serv);
+  const cServ = recordValue(serv.cServ);
+  const valores = recordValue(infDps.valores);
+  const vServPrest = recordValue(valores.vServPrest);
+  const trib = recordValue(valores.trib);
+  const tribMun = recordValue(trib.tribMun);
+  const authorizedXml = document.xml ?? "";
+  const authentication =
+    authorizedXml.match(/<cdAutenticacao>([^<]+)<\/cdAutenticacao>/i)?.[1] ?? "";
+  const providerNumber =
+    authorizedXml.match(/<nrNfse>([^<]+)<\/nrNfse>/i)?.[1] ??
+    document.chave ??
+    String(document.numero);
+  const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
+  const serviceValue = Number(vServPrest.vServ ?? 0).toFixed(2);
+  const aliquota = Number(tribMun.pAliq ?? 0).toFixed(2);
+  const lines = [
+    { text: "NOTA FISCAL DE SERVICOS ELETRONICA - NFS-e", size: 16, bold: true },
+    { text: "PREFEITURA MUNICIPAL DE TOLEDO - PR", size: 11, bold: true },
+    { text: `Ambiente: ${document.ambiente.toUpperCase()}`, size: 9, bold: false },
+    { text: `Numero da NFS-e: ${providerNumber}`, size: 12, bold: true },
+    { text: `RPS / Lote: ${document.providerReference ?? ""}`, size: 10, bold: false },
+    { text: `Prestador CNPJ: ${document.issuerCnpj}`, size: 10, bold: false },
+    { text: `Tomador: ${String(toma.xNome ?? "")}`, size: 10, bold: true },
+    { text: `Documento do tomador: ${recipientDocument}`, size: 10, bold: false },
+    { text: `Servico: ${String(cServ.cTribMun ?? cServ.cTribNac ?? "")}`, size: 10, bold: false },
+    { text: `Descricao: ${String(cServ.xDescServ ?? "")}`, size: 10, bold: false },
+    { text: `Valor dos servicos: R$ ${serviceValue}`, size: 11, bold: true },
+    { text: `Aliquota ISS: ${aliquota}%`, size: 10, bold: false },
+    { text: `Codigo de autenticacao: ${authentication}`, size: 9, bold: true },
+    { text: "Documento auxiliar gerado a partir da autorizacao municipal.", size: 8, bold: false }
+  ];
+  const commands = ["0.4 w", "40 40 515 762 re S"];
+  let y = 770;
+  for (const line of lines) {
+    const wrapped = wrapText(line.text, 82);
+    for (const text of wrapped) {
+      commands.push(
+        `BT /${line.bold ? "F2" : "F1"} ${line.size} Tf 55 ${y} Td (${escapePdf(text)}) Tj ET`
+      );
+      y -= line.size + 7;
+    }
+    y -= 5;
+  }
+  return { width: 595, height: 842, content: commands.join("\n") };
 }
 
 type DanfeItem = {
