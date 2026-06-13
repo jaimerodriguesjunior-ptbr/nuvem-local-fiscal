@@ -1534,6 +1534,9 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
     authorizedXml.match(/<nrNfse>([^<]+)<\/nrNfse>/i)?.[1] ??
     document.chave ??
     String(document.numero);
+  const [lotNumber = "", rpsNumber = ""] = String(
+    document.providerReference ?? ""
+  ).split(":");
   const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
   const serviceValue = Number(vServPrest.vServ ?? 0);
   const aliquota = Number(tribMun.pAliq ?? 0);
@@ -1552,6 +1555,21 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
     commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
   const rect = (x: number, y: number, w: number, h: number) =>
     commands.push(`${x} ${y} ${w} ${h} re S`);
+  const roundedRect = (x: number, y: number, w: number, h: number, radius = 4) => {
+    const k = 0.5522847498;
+    const c = radius * k;
+    commands.push(
+      `${x + radius} ${y} m`,
+      `${x + w - radius} ${y} l`,
+      `${x + w - radius + c} ${y} ${x + w} ${y + radius - c} ${x + w} ${y + radius} c`,
+      `${x + w} ${y + h - radius} l`,
+      `${x + w} ${y + h - radius + c} ${x + w - radius + c} ${y + h} ${x + w - radius} ${y + h} c`,
+      `${x + radius} ${y + h} l`,
+      `${x + radius - c} ${y + h} ${x} ${y + h - radius + c} ${x} ${y + h - radius} c`,
+      `${x} ${y + radius} l`,
+      `${x} ${y + radius - c} ${x + radius - c} ${y} ${x + radius} ${y} c S`
+    );
+  };
   const text = (
     x: number,
     y: number,
@@ -1569,6 +1587,18 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   ) => {
     const estimated = pdfText(value).length * size * 0.48;
     text(x + Math.max(2, (w - estimated) / 2), y, size, value, font);
+  };
+  const labelValue = (
+    x: number,
+    valueX: number,
+    y: number,
+    label: string,
+    value: string,
+    labelSize = 6.5,
+    valueSize = 7.5
+  ) => {
+    text(x, y, labelSize, label);
+    text(valueX, y, valueSize, value, "F2");
   };
   const money = (value: number) =>
     value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1590,41 +1620,51 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
     tomaEndNac.CEP
   ].filter(Boolean).join(" - ");
 
-  rect(left, 35, width, 780);
+  roundedRect(left, 35, width, 780, 5);
   line(left, 735, right, 735);
   line(left, 650, right, 650);
   line(left, 565, right, 565);
   line(left, 530, right, 530);
-  line(left, 190, right, 190);
-  line(left, 167, right, 167);
+  roundedRect(left, 115, width, 75, 4);
+  line(left, 175, right, 175);
+  line(left, 160, right, 160);
   line(left, 132, right, 132);
+  roundedRect(left, 35, width, 80, 4);
   line(left, 90, right, 90);
   line(465, 735, 465, 815);
+  line(465, 788.33, right, 788.33);
+  line(465, 761.67, right, 761.67);
 
-  center(left, 437, 795, 12, "MUNICIPIO DE TOLEDO", "F2");
-  center(left, 437, 780, 8, "Secretaria Municipal da Fazenda", "F2");
-  center(left, 437, 762, 10, "NOTA FISCAL DE SERVICOS ELETRONICA - NFS-e", "F2");
-  center(left, 437, 747, 7, "www.esnfs.com.br");
-  text(471, 800, 6, "Numero da Nota:", "F2");
-  center(465, 102, 785, 11, providerNumber, "F2");
-  text(471, 766, 6, "Data e Hora da Emissao:", "F2");
-  center(465, 102, 751, 7, dateTime);
+  center(left, 437, 792, 12, "MUNICIPIO DE TOLEDO", "F2");
+  center(left, 437, 777, 8, "Secretaria Municipal da Fazenda", "F2");
+  center(left, 437, 759, 10, "NOTA FISCAL DE SERVICOS ELETRONICA - NFS-e", "F2");
+  center(left, 437, 744, 7, "www.esnfs.com.br");
+  text(470, 806, 5.5, "Numero da Nota:");
+  center(465, 102, 793, 11, providerNumber, "F2");
+  text(470, 779, 5.5, "Data e Hora da Emissao:");
+  center(465, 102, 766, 6.5, dateTime, "F2");
+  text(470, 752, 5.5, "Operador Emissor:");
+  center(465, 102, 739, 6.5, "MB Solucoes Digitais", "F2");
   if (document.ambiente === "homologacao") {
     center(left, width, 724, 9, "HOMOLOGACAO - SEM VALOR FISCAL", "F2");
   }
 
   center(left, width, 712, 9, "PRESTADOR DE SERVICOS", "F2");
-  text(40, 694, 7, `CPF/CNPJ: ${formatCnpj(document.issuerCnpj)}`, "F2");
-  text(240, 694, 7, `I.M.: ${String(issuerMetadata.inscricao_municipal ?? "")}`, "F2");
-  text(40, 681, 7, `Nome/Razao: ${issuer?.razaoSocial ?? ""}`, "F2");
-  text(40, 668, 7, `Endereco: ${issuerAddressLine}`);
-  text(40, 655, 7, `Municipio: ${String(issuerAddress.cidade ?? "Toledo")}  UF: ${String(issuerAddress.uf ?? "PR")}  E-mail: ${String(issuerMetadata.email ?? "")}`);
+  labelValue(40, 82, 694, "CPF/CNPJ:", formatCnpj(document.issuerCnpj));
+  labelValue(280, 304, 694, "I.M.:", String(issuerMetadata.inscricao_municipal ?? ""));
+  labelValue(40, 98, 681, "Nome/Razao:", issuer?.razaoSocial ?? "");
+  labelValue(40, 82, 668, "Endereco:", issuerAddressLine);
+  labelValue(40, 86, 655, "Municipio:", String(issuerAddress.cidade ?? "Toledo"));
+  labelValue(220, 237, 655, "UF:", String(issuerAddress.uf ?? "PR"));
+  labelValue(280, 310, 655, "E-mail:", String(issuerMetadata.email ?? ""));
 
   center(left, width, 632, 9, "TOMADOR DE SERVICOS", "F2");
-  text(40, 614, 7, `CPF/CNPJ: ${recipientDocument}`, "F2");
-  text(40, 601, 7, `Nome/Razao: ${String(toma.xNome ?? "")}`, "F2");
-  text(40, 588, 7, `Endereco: ${recipientAddressLine}`);
-  text(40, 575, 7, `Municipio: Toledo  UF: PR  Telefone: ${String(toma.fone ?? "")}`);
+  labelValue(40, 82, 614, "CPF/CNPJ:", recipientDocument);
+  labelValue(40, 98, 601, "Nome/Razao:", String(toma.xNome ?? ""));
+  labelValue(40, 82, 588, "Endereco:", recipientAddressLine);
+  labelValue(40, 86, 575, "Municipio:", "Toledo");
+  labelValue(220, 237, 575, "UF:", "PR");
+  labelValue(280, 321, 575, "Telefone:", String(toma.fone ?? ""));
 
   const columns = [left, 70, 320, 382, 430, 474, 520, right];
   for (const x of columns.slice(1, -1)) line(x, 530, x, 565);
@@ -1639,13 +1679,37 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   text(529, 538, 6, aliquota.toFixed(2));
   text(73, 518, 5.5, `Discriminacao: ${String(cServ.xDescServ ?? "")}`);
 
-  text(310, 176, 7, `Total Servicos (R$) ${money(serviceValue)}`, "F2");
-  text(310, 153, 7, `Total ISS (R$) ${money(issValue)}`, "F2");
-  text(40, 143, 6, "COFINS Ret.     CSLL Ret.       INSS Ret.       IRRF Ret.       PIS Ret.        ISS Ret.");
-  text(40, 121, 7, `Total Liquido (R$) ${money(serviceValue)}`, "F2");
+  text(110, 180, 7, "Total Servicos (R$)", "F2");
+  text(220, 180, 8, money(serviceValue), "F2");
+  text(110, 165, 7, "Total ISS (R$)", "F2");
+  text(220, 165, 8, money(issValue), "F2");
+
+  const taxLabelWidth = 80;
+  const taxCellWidth = (width - taxLabelWidth) / 6;
+  const taxLeft = left + taxLabelWidth;
+  line(taxLeft, 132, taxLeft, 160);
+  for (let index = 1; index < 6; index += 1) {
+    const x = taxLeft + taxCellWidth * index;
+    line(x, 132, x, 160);
+  }
+  center(left, taxLabelWidth, 145, 6, "Impostos (R$)", "F2");
+  ["COFINS Ret.", "CSLL Ret.", "INSS Ret.", "IRRF Ret.", "PIS Ret.", "ISS Ret."]
+    .forEach((label, index) => {
+      const x = taxLeft + taxCellWidth * index;
+      text(x + 3, 149, 5.5, label, "F2");
+      text(x + 3, 137, 6, "0,00");
+    });
+
+  text(110, 120, 7, "Total Liquido (R$)", "F2");
+  text(220, 120, 8, money(serviceValue), "F2");
   center(left, width, 105, 8, "OUTRAS INFORMACOES", "F2");
   text(35, 76, 6, "Esta NFS-e foi emitida com respaldo na legislacao municipal de Toledo.");
-  text(35, 66, 6, `RPS/Lote: ${document.providerReference ?? ""}  CNAE: ${String(cServ.CNAE ?? "")}`);
+  text(
+    35,
+    66,
+    6,
+    `NFS-e municipal: ${providerNumber}  RPS: ${rpsNumber || "-"}  Lote: ${lotNumber || "-"}  CNAE: ${String(cServ.CNAE ?? "")}`
+  );
   text(35, 50, 6, `Autenticidade: ${authentication}`);
   text(35, 40, 5.5, `Consulte em: ${consultationUrl}`);
 
