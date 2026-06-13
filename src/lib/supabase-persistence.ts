@@ -483,9 +483,7 @@ export class SupabasePersistence {
       if (!companyId) {
         return [];
       }
-      const persistedId = certificate.id.startsWith("cert_")
-        ? existingIds.get(certificate.cnpj)
-        : certificate.id;
+      const persistedId = existingIds.get(certificate.cnpj) ?? certificate.id;
       return [
         {
           ...(persistedId ? { id: persistedId } : {}),
