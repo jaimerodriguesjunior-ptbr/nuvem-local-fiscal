@@ -62,6 +62,8 @@ export const config = {
   nfeResponsibleTechnicalCsrtHomologation: nfeHomologationCsrt,
   nfeResponsibleTechnicalCsrtIdProduction: nfeProductionCsrtId,
   nfeResponsibleTechnicalCsrtProduction: nfeProductionCsrt,
+  nfseIpmConnectHost: process.env.NFSE_IPM_CONNECT_HOST ?? "",
+  nfseIpmConnectPort: process.env.NFSE_IPM_CONNECT_PORT ?? "",
   autoTransmitHomologation:
     (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true"
 };

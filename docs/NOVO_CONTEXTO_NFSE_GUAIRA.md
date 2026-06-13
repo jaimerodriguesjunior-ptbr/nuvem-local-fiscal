@@ -164,6 +164,21 @@ Consulta municipal implementada e testada em 13/06/2026:
 - uma falha na atualizacao explicita passa a retornar HTTP `422`, sem mascarar o
   erro municipal como se fosse uma consulta confirmada.
 
+Estrategia de conectividade IPM:
+
+- a conexao direta da VPS DigitalOcean com a IPM continua considerada instavel
+  ou bloqueada;
+- o conector Guaira/IPM suporta `NFSE_IPM_CONNECT_HOST` e
+  `NFSE_IPM_CONNECT_PORT` para direcionar apenas a conexao TCP por uma rota
+  alternativa;
+- o endpoint cadastrado deve continuar como
+  `https://guaira.atende.net/atende.php?pg=rest&service=WNERestServiceNFSe&cidade=padrao`;
+- o TLS continua usando `servername` e cabecalho `Host` de `guaira.atende.net`;
+- `scripts/start-ipm-reverse-tunnel.ps1` abre um tunel reverso padrao para
+  testes, sem alterar banco, endpoint ou `/etc/hosts`;
+- ainda falta escolher a forma permanente: tunel monitorado, gateway fixo ou
+  servidor com saida aceita pela IPM.
+
 ## Objetivo deste novo contexto
 
 Implementar NFS-e Guaira/PR em homologacao usando o provedor IPM/Atende.Net,

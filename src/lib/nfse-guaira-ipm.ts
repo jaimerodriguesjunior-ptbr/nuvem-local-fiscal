@@ -478,19 +478,39 @@ function validateIpmEndpoint(endpoint: string) {
   return url.toString();
 }
 
+export function resolveGuairaIpmConnectionTarget(
+  url: URL,
+  overrideHost = config.nfseIpmConnectHost,
+  overridePort = config.nfseIpmConnectPort
+) {
+  const host = String(overrideHost ?? "").trim();
+  if (!host) {
+    return null;
+  }
+  const portText = String(overridePort ?? "").trim();
+  const port = Number(portText || url.port || 443);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("Porta alternativa IPM invalida.");
+  }
+  return { hostname: host, port };
+}
+
 async function postIpmRequest(
   endpoint: string,
   request: GuairaIpmMultipartRequest,
   authorization: string
 ) {
   const url = new URL(endpoint);
-  let address = "";
-  try {
-    address = (await lookup(url.hostname, { family: 4 })).address;
-  } catch {
-    const resolver = new Resolver();
-    resolver.setServers(["1.1.1.1", "8.8.8.8"]);
-    address = (await resolver.resolve4(url.hostname))[0] ?? "";
+  const overrideTarget = resolveGuairaIpmConnectionTarget(url);
+  let address = overrideTarget?.hostname ?? "";
+  if (!address) {
+    try {
+      address = (await lookup(url.hostname, { family: 4 })).address;
+    } catch {
+      const resolver = new Resolver();
+      resolver.setServers(["1.1.1.1", "8.8.8.8"]);
+      address = (await resolver.resolve4(url.hostname))[0] ?? "";
+    }
   }
   if (!address) {
     throw new Error(`DNS publico nao encontrou ${url.hostname}.`);
@@ -501,7 +521,7 @@ async function postIpmRequest(
       {
         protocol: "https:",
         hostname: address,
-        port: url.port ? Number(url.port) : 443,
+        port: overrideTarget?.port ?? (url.port ? Number(url.port) : 443),
         path: `${url.pathname}${url.search}`,
         method: "POST",
         servername: url.hostname,

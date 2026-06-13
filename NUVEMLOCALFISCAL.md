@@ -187,6 +187,10 @@ Limites atuais:
   fallback por numero, serie e cadastro economico; a NFS-e `184` em
   `nfse_teste=1` nao aparece na base consultavel da IPM em nenhuma das duas
   modalidades, portanto esse retorno de teste nao valida consulta ponta a ponta
+- a rota de rede IPM agora suporta `NFSE_IPM_CONNECT_HOST` e
+  `NFSE_IPM_CONNECT_PORT`, preservando o endpoint, SNI e `Host` originais; isso
+  permite usar um tunel reverso ou gateway fixo sem editar o cadastro municipal
+  nem `/etc/hosts`
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -199,7 +203,8 @@ Limites atuais:
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-1. definir uma estrategia de rede estavel para o IPM sem depender de tunel manual
+1. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
+   ou outro servidor com saida aceita pela IPM
 2. validar o endereco de fallback da Autoeletrica em um teste municipal proprio
 3. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
    emitidos com `nfse_teste=1`

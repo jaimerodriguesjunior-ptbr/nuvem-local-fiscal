@@ -10,6 +10,7 @@ import {
   extractGuairaIpmSessionCookie,
   normalizeGuairaIpmDraft,
   parseGuairaIpmResponse,
+  resolveGuairaIpmConnectionTarget,
   type GuairaIpmConfig
 } from "./nfse-guaira-ipm.js";
 
@@ -183,4 +184,24 @@ test("builds IPM Basic Auth, multipart body and reusable session cookie", () => 
   assert.match(request.body.toString("utf8"), /name="xml"; filename="nota_envio.xml"/);
   assert.match(request.body.toString("utf8"), /<nfse_teste>1<\/nfse_teste>/);
   assert.equal(cookie, "PHPSESSID=session123");
+});
+
+test("resolves optional IPM TCP connection override while preserving endpoint host", () => {
+  const url = new URL(
+    "https://guaira.atende.net/atende.php?pg=rest&service=WNERestServiceNFSe"
+  );
+
+  assert.equal(resolveGuairaIpmConnectionTarget(url), null);
+  assert.deepEqual(
+    resolveGuairaIpmConnectionTarget(url, "127.0.0.1", "9443"),
+    { hostname: "127.0.0.1", port: 9443 }
+  );
+  assert.deepEqual(resolveGuairaIpmConnectionTarget(url, "10.0.0.5", ""), {
+    hostname: "10.0.0.5",
+    port: 443
+  });
+  assert.throws(
+    () => resolveGuairaIpmConnectionTarget(url, "127.0.0.1", "99999"),
+    /Porta alternativa IPM invalida/
+  );
 });
