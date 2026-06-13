@@ -78,7 +78,7 @@ Marco VPS e multiplos clientes:
 - Nginx protege `/admin` com Basic Auth; `/admin/api/` fica sem Basic Auth do Nginx porque a propria aplicacao valida `ADMIN_USERNAME`/`ADMIN_PASSWORD`
 - arquivo ICP-Brasil obrigatorio na VPS: `/opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem`
 - certificados A1 e configuracoes de servico persistem no Supabase com UUID real; foram corrigidos bugs onde certificados/configuracoes podiam aparecer na memoria e sumir ao recarregar
-- o deploy atual da VPS esta no commit `afc2c56 fix: update existing active certificates`
+- o deploy atual da VPS esta no commit `3e42884 fix: require municipal NFSe cancellation confirmation`
 - a Otica Prisma autorizou NF-e homologacao via VPS e gerou DANFE A4
 - a Autoeletrica/NHT Centro Automotivo autorizou NFC-e homologacao via VPS, usando certificado A1 e CSC persistidos no Supabase
 - NFC-e Autoeletrica validada:
@@ -111,6 +111,13 @@ Endpoints compativeis ja exercitados:
 - `GET /nfce/:id/xml`
 - `GET /nfce/:id/pdf`
 - `GET /nfce/:id/cancelamento/xml`
+- `POST /nfse/dps`
+- `GET /nfse/:id`
+- `GET /nfse/:id/xml`
+- `GET /nfse/:id/pdf`
+- `POST /nfse/:id/cancelamento`
+- `POST /nfse/:id/cancelar`
+- `GET /nfse/:id/cancelamento/xml`
 - `POST /empresas`
 - `PUT /empresas/:cnpj`
 - `GET /empresas/:cnpj`
@@ -135,14 +142,21 @@ Configuracoes persistidas:
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - configuracao NFS-e por ambiente: login e senha da prefeitura criptografada, provedor/municipio, dados Equiplano e sequencia de RPS/lote
-- a base NFS-e Toledo/Equiplano foi iniciada no backend em 2026-06-13:
+- a NFS-e Toledo/Equiplano foi validada ponta a ponta em homologacao em 2026-06-13:
   - `POST /nfse/dps` aceita payload estilo Nuvem Fiscal
-  - `GET /nfse/:id` consulta o documento e, quando habilitado, consulta o RPS no Equiplano
-  - `GET /nfse/:id/xml` disponibiliza o XML municipal gerado/assinado
+  - `GET /nfse/:id` consulta o documento e o RPS no Equiplano
+  - `GET /nfse/:id/xml` disponibiliza o XML municipal autorizado
+  - `GET /nfse/:id/pdf` gera o PDF local da NFS-e com dados municipais, prestador, tomador, servico e impostos
+  - `POST /nfse/:id/cancelamento` e o alias `/nfse/:id/cancelar` transmitem cancelamento municipal
+  - `GET /nfse/:id/cancelamento/xml` disponibiliza o XML de cancelamento
   - producao NFS-e permanece bloqueada
   - o conector gera `enviarLoteRpsEnvio`, assina com o A1 salvo, suporta SOAP 1.1 e persiste request/response municipal
-  - a transmissao municipal fica desligada por padrao e exige configuracao Toledo completa mais `autoTransmit=true`
+  - a transmissao municipal exige configuracao Toledo completa mais `autoTransmit=true`
   - a UI admin NFS-e foi liberada apos aprovacao explicita, com configuracao Toledo/Equiplano por ambiente, credenciais, RPS/lote, servico padrao e transmissao segura
+  - a Amplotec Contabilidade emitiu NFS-e usando o Apoio Contabil apontado para a Nuvem Local Fiscal
+  - a NFS-e municipal numero `7`, RPS `12`, lote `14`, foi autorizada e teve XML/PDF recuperados
+  - o cancelamento municipal da NFS-e `7` foi confirmado pela Equiplano com `sucesso=true` em `2026-06-13T15:05:46-03:00`
+  - a confirmacao de cancelamento agora exige explicitamente `<sucesso>true</sucesso>` no retorno municipal
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
@@ -152,7 +166,7 @@ Configuracoes persistidas:
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
-- NFS-e possui formulario no admin para Toledo/Equiplano; o backend gera XML em dry-run e possui transmissao/consulta, mas ainda depende de configuracao real e teste homologado
+- NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -162,16 +176,15 @@ Limites atuais:
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
-- para persistir artefatos e referencias do provedor NFS-e, aplicar a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql`
+- a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-1. validar em homologacao real o conector Toledo/Equiplano ja iniciado no backend
-2. aplicar a migracao de artefatos NFS-e no Supabase antes do deploy da nova versao
-3. depois abrir o conector Guaira/IPM usando o endpoint direto ja identificado
-4. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
-5. manter producao bloqueada na Nuvem Local Fiscal
-6. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
-7. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
+1. abrir o conector Guaira/IPM usando o fluxo e os payloads existentes na Autoeletrica
+2. confirmar endpoint, homologacao, autenticacao e contrato municipal de Guaira antes de transmitir
+3. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
+4. manter producao bloqueada na Nuvem Local Fiscal
+5. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
+6. manter a checagem de saude fiscal como passo obrigatorio antes de novos testes
 
 ---
 
