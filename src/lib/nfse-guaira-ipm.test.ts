@@ -86,6 +86,49 @@ test("normalizes Nuvem Fiscal DPS and builds IPM test XML", () => {
   assert.doesNotMatch(xml, /<email><\/email>/);
 });
 
+test("keeps Autoeletrica fallback address from becoming a local blocker", () => {
+  const document = {
+    providerLikeId: "nfse_fallback_address",
+    payloadOriginal: {
+      infDPS: {
+        dhEmi: "2026-06-13T10:20:30-03:00",
+        toma: {
+          CPF: "58212043134",
+          xNome: "CLIENTE BALCAO",
+          end: {}
+        },
+        serv: {
+          cServ: {
+            cTribMun: "140101",
+            CNAE: "4520007",
+            cSitTrib: "0",
+            xDescServ: "Manutencao eletrica automotiva"
+          },
+          locPrest: { cLocPrestacao: "4108809" }
+        },
+        valores: {
+          vServPrest: { vServ: 80 },
+          trib: { tribMun: { pAliq: 2.01, cLocIncid: "4108809" } }
+        }
+      }
+    }
+  };
+
+  const draft = normalizeGuairaIpmDraft(document, config);
+  const xml = buildGuairaIpmEmissionXml(config, draft);
+
+  assert.equal(draft.customerStreet, "Nao Informado");
+  assert.equal(draft.customerNumber, "SN");
+  assert.equal(draft.customerDistrict, "Centro");
+  assert.equal(draft.customerCityCode, "7571");
+  assert.equal(draft.customerPostalCode, "85980000");
+  assert.match(xml, /<logradouro>Nao Informado<\/logradouro>/);
+  assert.match(xml, /<numero_residencia>SN<\/numero_residencia>/);
+  assert.match(xml, /<bairro>Centro<\/bairro>/);
+  assert.match(xml, /<cidade>7571<\/cidade>/);
+  assert.match(xml, /<cep>85980000<\/cep>/);
+});
+
 test("parses a successful reduced IPM response", () => {
   const result = parseGuairaIpmResponse(`<?xml version="1.0"?>
     <retorno>

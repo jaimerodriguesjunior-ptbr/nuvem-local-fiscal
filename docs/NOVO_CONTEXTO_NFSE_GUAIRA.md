@@ -56,6 +56,8 @@ Requisitos:
 Estado observado em 13/06/2026:
 
 - o endereco ja recebe o fallback acima antes do envio;
+- o conector Guaira/IPM tambem aplica fallback local para logradouro, numero,
+  bairro, municipio e CEP quando esses campos chegam vazios;
 - a Autoeletrica ainda valida e exige CPF/CNPJ valido do tomador antes de chamar
   `POST /nfse/dps`;
 - remover ou flexibilizar essa exigencia depende de confirmar primeiro como o

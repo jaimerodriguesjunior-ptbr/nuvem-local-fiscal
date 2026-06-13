@@ -172,6 +172,10 @@ Configuracoes persistidas:
     foram cobertos pelo parser e por teste automatizado
   - o endereco de fallback da Autoeletrica ainda precisa de teste municipal
     proprio; esta primeira emissao usou CPF e endereco preenchidos
+  - o conector Guaira/IPM aplica fallback local para endereco do tomador quando
+    logradouro, numero, bairro, municipio ou CEP chegam vazios; CPF/CNPJ do
+    tomador ainda permanece obrigatorio ate confirmar regra municipal para
+    consumidor nao identificado
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
