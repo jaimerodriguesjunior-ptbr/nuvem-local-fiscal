@@ -352,12 +352,16 @@ export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
     });
   const number = firstElementText(document, "numero_nfse");
   const statusCode = firstElementText(document, "situacao_codigo_nfse");
+  const explicitlyIssued = statusCode === "1";
   const nonSuccessMessages = messages.filter(
-    (message) => message.codigo !== "1" && message.codigo !== "01"
+    (message) =>
+      message.codigo !== "1" &&
+      message.codigo !== "01" &&
+      !(explicitlyIssued && message.codigo === "IPM")
   );
 
   return {
-    success: Boolean(number) && nonSuccessMessages.length === 0,
+    success: Boolean(number) && explicitlyIssued && nonSuccessMessages.length === 0,
     number,
     series: firstElementText(document, "serie_nfse"),
     verificationCode: firstElementText(document, "cod_verificador_autenticidade"),
@@ -471,9 +475,14 @@ async function postIpmRequest(
         const chunks: Buffer[] = [];
         response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
         response.on("end", () => {
+          const body = Buffer.concat(chunks);
+          const xmlHeader = body.subarray(0, 160).toString("ascii");
+          const encoding = /encoding=["']ISO-8859-1["']/i.test(xmlHeader)
+            ? "latin1"
+            : "utf8";
           resolve({
             status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString("utf8")
+            body: body.toString(encoding)
           });
         });
       }

@@ -103,6 +103,23 @@ test("parses a successful reduced IPM response", () => {
   assert.equal(result.messages[0]?.codigo, "1");
 });
 
+test("accepts Guaira IPM issued response without a numeric message prefix", () => {
+  const result = parseGuairaIpmResponse(`<?xml version="1.0" encoding="ISO-8859-1"?>
+    <retorno>
+      <mensagem><codigo>NFS-e válida para emissão.</codigo></mensagem>
+      <numero_nfse>184</numero_nfse>
+      <serie_nfse>1</serie_nfse>
+      <situacao_codigo_nfse>1</situacao_codigo_nfse>
+      <situacao_descricao_nfse>Emitida</situacao_descricao_nfse>
+      <cod_verificador_autenticidade>PROTOCOLO184</cod_verificador_autenticidade>
+    </retorno>`);
+
+  assert.equal(result.success, true);
+  assert.equal(result.number, "184");
+  assert.equal(result.statusCode, "1");
+  assert.equal(result.messages[0]?.codigo, "IPM");
+});
+
 test("does not authorize an IPM error response", () => {
   const result = parseGuairaIpmResponse(
     "<retorno><mensagem><codigo>[129] Aliquota divergente.</codigo></mensagem></retorno>"
