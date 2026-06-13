@@ -267,7 +267,7 @@ export class InMemoryStore {
 
     this.certificates = this.certificates.filter((item) => item.cnpj !== cnpj);
     const certificate: Certificate = {
-      id: `cert_${randomUUID().slice(0, 8)}`,
+      id: randomUUID(),
       issuerId: issuer.id,
       cnpj,
       fileName: input.fileName,
