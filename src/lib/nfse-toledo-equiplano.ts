@@ -361,6 +361,25 @@ function buildConsultarNfsePorRpsXml(input: {
 </es:esConsultarNfsePorRpsEnvio>`;
 }
 
+export function buildCancelarNfseXml(input: {
+  settings: ToledoConfig;
+  nfseNumber: string;
+  reason: string;
+}) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<es:esCancelarNfseEnvio xmlns:es="http://www.equiplano.com.br/esnfs"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.equiplano.com.br/enfs esCancelarNfseEnvio_v01.xsd">
+  <prestador>
+    <nrInscricaoMunicipal>${escapeXml(input.settings.inscricaoMunicipal)}</nrInscricaoMunicipal>
+    <cnpj>${digitsOnly(input.settings.cnpj)}</cnpj>
+    <idEntidade>${escapeXml(input.settings.idEntidade)}</idEntidade>
+  </prestador>
+  <nrNfse>${escapeXml(input.nfseNumber)}</nrNfse>
+  <dsMotivoCancelamento>${escapeXml(input.reason)}</dsMotivoCancelamento>
+</es:esCancelarNfseEnvio>`;
+}
+
 function wrapRequestBody(xml: string, requestFormat: RequestFormat, operation = "esRecepcionarLoteRps") {
   if (requestFormat === "xml") {
     return xml;
@@ -846,6 +865,143 @@ export async function consultToledoNfse(
       level: "error",
       message,
       payload: { provider: "toledo-equiplano", rpsNumber }
+    });
+    await store.waitForPersistence();
+    return { document, transmitted: true, error: message };
+  }
+}
+
+export async function cancelToledoNfse(
+  store: InMemoryStore,
+  documentId: string,
+  reason: string
+): Promise<ToledoNfseProcessingResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) {
+    throw new Error("Documento NFS-e nao encontrado para cancelamento.");
+  }
+  if (document.status === "cancelado") {
+    return { document, transmitted: false, error: null };
+  }
+  if (document.status !== "autorizado") {
+    throw new Error("Somente uma NFS-e autorizada pode ser cancelada.");
+  }
+  if (document.ambiente !== "homologacao") {
+    throw new Error("Cancelamento NFS-e em producao permanece bloqueado.");
+  }
+
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(
+    document.issuerCnpj,
+    document.ambiente,
+    "NFSE"
+  );
+  const certificate = store.findActiveCertificate(document.issuerCnpj);
+  if (!issuer || !serviceConfig?.active || !isToledoNfseConfig(issuer, serviceConfig)) {
+    throw new Error("Configuracao NFS-e Toledo/Equiplano nao encontrada.");
+  }
+  if (!certificate?.encryptedBundle) {
+    throw new Error("Cadastre um certificado A1 ativo para cancelar NFS-e Toledo.");
+  }
+
+  const nfseNumber =
+    firstMatch(document.xml, "nrNfse") || String(document.chave ?? "").trim();
+  if (!nfseNumber) {
+    throw new Error("Numero municipal da NFS-e nao encontrado.");
+  }
+
+  try {
+    const settings = resolveToledoConfig(issuer, serviceConfig);
+    validateConfig(settings);
+    const unsignedXml = buildCancelarNfseXml({
+      settings,
+      nfseNumber,
+      reason
+    });
+    const opened = openEncryptedCertificate(
+      certificate.encryptedBundle,
+      config.certificateEncryptionKey
+    );
+    const signedXml = signXml(
+      unsignedXml,
+      opened.privateKeyPem,
+      opened.certificatePem
+    );
+    const requestBody = wrapRequestBody(
+      signedXml,
+      settings.requestFormat,
+      "esCancelarNfse"
+    );
+    const response = await postRawRequest({
+      settings,
+      requestBody,
+      operation: "esCancelarNfse",
+      encryptedCertificateBundle: certificate.encryptedBundle
+    });
+    const businessXml = extractBusinessXml(response.body);
+    const summary = summarizeXmlResponse(response.body);
+    const nilReturn = /xsi:nil="true"/i.test(response.body ?? "");
+    const hasBusinessError =
+      Boolean(summary.cdMensagem) ||
+      Boolean(summary.dsMensagem) ||
+      /<listaErros>/i.test(businessXml ?? "");
+    const success =
+      response.status >= 200 &&
+      response.status < 300 &&
+      response.body !== null &&
+      !nilReturn &&
+      !hasBusinessError;
+    const statusCode = success
+      ? "CANCELADA"
+      : summary.cdMensagem || (nilReturn ? "RETORNO_NULO" : String(response.status));
+    const message = success
+      ? "NFS-e Toledo cancelada."
+      : summary.dsMensagem ||
+        summary.mensagemRetorno ||
+        (nilReturn
+          ? "Equiplano retornou cancelamento sem confirmacao."
+          : `Cancelamento rejeitado (HTTP ${response.status}).`);
+    const protocol =
+      summary.protocolo ||
+      firstMatch(businessXml ?? "", "nrProtocolo") ||
+      "";
+    const updated = store.saveCancellationResult(document.id, {
+      justification: reason,
+      requestXml: requestBody,
+      signedXml,
+      responseXml: response.body ?? "",
+      processedXml: businessXml ?? response.body ?? "",
+      statusCode,
+      reason: message,
+      protocol,
+      cancelledAt: success ? new Date().toISOString() : "",
+      success
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_toledo_cancellation_completed",
+      level: success ? "info" : "warn",
+      message,
+      payload: {
+        provider: "toledo-equiplano",
+        httpStatus: response.status,
+        responseSummary: summary,
+        nfseNumber,
+        success
+      }
+    });
+    await store.waitForPersistence();
+    return {
+      document: updated ?? document,
+      transmitted: true,
+      error: success ? null : message
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_toledo_cancellation_failed",
+      level: "error",
+      message,
+      payload: { provider: "toledo-equiplano", nfseNumber }
     });
     await store.waitForPersistence();
     return { document, transmitted: true, error: message };

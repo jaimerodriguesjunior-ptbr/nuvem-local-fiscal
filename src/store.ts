@@ -794,7 +794,8 @@ export class InMemoryStore {
       statusCode: string;
       reason: string;
       protocol: string;
-      cancelledAt: string;
+      cancelledAt?: string | null;
+      success?: boolean;
     }
   ) {
     const document = this.findDocument(id);
@@ -810,8 +811,10 @@ export class InMemoryStore {
     document.cancellationResponseXml = input.responseXml;
     document.cancellationProcessedXml = input.processedXml;
     document.cancellationProtocol = input.protocol || null;
-    document.cancelledAt = input.cancelledAt || nowIso();
-    if (["135", "136", "155"].includes(input.statusCode)) {
+    const successful =
+      input.success === true || ["135", "136", "155"].includes(input.statusCode);
+    if (successful) {
+      document.cancelledAt = input.cancelledAt || nowIso();
       document.status = "cancelado";
     }
     document.mensagens = [

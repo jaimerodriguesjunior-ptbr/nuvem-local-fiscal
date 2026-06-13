@@ -15,6 +15,7 @@ import {
   processHomologationNfce
 } from "../lib/document-processing.js";
 import {
+  cancelToledoNfse,
   consultToledoNfse,
   processToledoNfse
 } from "../lib/nfse-toledo-equiplano.js";
@@ -300,11 +301,15 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   app.post("/nfse/:id/cancelar", async (request, reply) => {
     const params = request.params as { id: string };
     if (app.store.findDocument(params.id, "NFSe")) {
-      return reply.code(501).send({
-        message: "Cancelamento NFS-e municipal ainda nao foi implementado."
-      });
+      return handleCancelNfse(app, request, reply);
     }
+
+    // Compatibilidade com clientes antigos que usavam /nfse para cancelar NF-e.
     return handleCancelDocument(app, request, reply, "NFe");
+  });
+
+  app.post("/nfse/:id/cancelamento", async (request, reply) => {
+    return handleCancelNfse(app, request, reply);
   });
 
   app.get("/nfe/:id/xml", async (request, reply) => {
@@ -325,6 +330,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.get("/nfce/:id/cancelamento/xml", async (request, reply) => {
     return handleCancellationXmlDownload(app, request, reply, "NFCe");
+  });
+
+  app.get("/nfse/:id/cancelamento/xml", async (request, reply) => {
+    return handleCancellationXmlDownload(app, request, reply, "NFSe");
   });
 
   app.get("/nfe/:id/pdf", async (request, reply) => {
@@ -1402,6 +1411,52 @@ async function handleCancelDocument(
       }
     });
   }
+}
+
+async function handleCancelNfse(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const params = request.params as { id: string };
+  const document = app.store.findDocument(params.id, "NFSe");
+  if (!document) {
+    return reply.code(404).send({ message: "NFS-e nao encontrada." });
+  }
+  if (document.status === "cancelado") {
+    return mapDocumentResponse(document, requestBaseUrl(request));
+  }
+  if (document.status !== "autorizado") {
+    return reply.code(409).send({
+      message: "Somente uma NFS-e autorizada pode ser cancelada."
+    });
+  }
+  if (document.ambiente !== "homologacao") {
+    return reply.code(403).send({
+      message: "Cancelamento NFS-e em producao permanece bloqueado."
+    });
+  }
+
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const reason = String(
+    body.motivo ?? body.justificativa ?? body.justification ?? ""
+  ).trim();
+  if (reason.length < 15 || reason.length > 255) {
+    return reply.code(400).send({
+      message: "O motivo do cancelamento deve ter entre 15 e 255 caracteres."
+    });
+  }
+
+  const result = await cancelToledoNfse(app.store, document.id, reason);
+  const response = {
+    ...mapDocumentResponse(result.document, requestBaseUrl(request)),
+    message: result.error ?? result.document.cancellationReason,
+    codigo_status: result.document.cancellationStatusCode,
+    motivo_status: result.document.cancellationReason
+  };
+  return reply
+    .code(result.document.status === "cancelado" ? 200 : result.error ? 422 : 200)
+    .send(response);
 }
 
 async function handleXmlDownload(
