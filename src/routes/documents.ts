@@ -1312,9 +1312,13 @@ async function handleGetDocument(
   const query = (request.query as Record<string, unknown> | undefined) ?? {};
   const refreshMunicipal =
     query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
+  const shouldAutoConsult =
+    storedDocument.tipoDocumento === "NFSe" &&
+    storedDocument.status === "processamento" &&
+    storedDocument.motivoStatus !== "NFSE_IPM_DRY_RUN";
   if (
     storedDocument.tipoDocumento === "NFSe" &&
-    (storedDocument.status === "processamento" || refreshMunicipal)
+    (shouldAutoConsult || refreshMunicipal)
   ) {
     const consultation = await consultConfiguredNfse(app.store, storedDocument.id);
     storedDocument = consultation.document;
