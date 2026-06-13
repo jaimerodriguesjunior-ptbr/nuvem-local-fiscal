@@ -136,6 +136,15 @@ function deriveSoapAction(configured: string, operation: string) {
   return trimmed ? trimmed.replace(/\/[^/]+$/, `/${operation}`) : "";
 }
 
+export function allowsLegacyEquiplanoHomologationTls(url: URL) {
+  return (
+    url.protocol === "https:" &&
+    url.hostname.toLowerCase() === "www.esnfs.com.br" &&
+    url.port === "9443" &&
+    url.pathname.toLowerCase().includes("/homologacaows/")
+  );
+}
+
 function providerFrom(serviceConfig: ServiceConfig | null) {
   return String(serviceConfig?.settings.nfseProvider ?? "").trim().toLowerCase();
 }
@@ -442,7 +451,10 @@ async function postRawRequest(input: {
         headers,
         pfx: isHttps ? pfx : undefined,
         passphrase: bundle.password || undefined,
-        rejectUnauthorized: true
+        // Equiplano's legacy homologation endpoint does not provide a complete
+        // public certificate chain. Keep this exception pinned to that exact
+        // host/port/path instead of weakening TLS globally.
+        rejectUnauthorized: !allowsLegacyEquiplanoHomologationTls(url)
       },
       (response) => {
         const chunks: Buffer[] = [];
