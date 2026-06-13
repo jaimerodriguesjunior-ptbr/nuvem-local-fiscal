@@ -3,7 +3,7 @@ import {
   type Document as XmlDocument,
   type Element as XmlElement
 } from "@xmldom/xmldom";
-import { Resolver } from "node:dns/promises";
+import { lookup, Resolver } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 
 import { config } from "../config.js";
@@ -437,10 +437,14 @@ async function postIpmRequest(
   authorization: string
 ) {
   const url = new URL(endpoint);
-  const resolver = new Resolver();
-  resolver.setServers(["1.1.1.1", "8.8.8.8"]);
-  const addresses = await resolver.resolve4(url.hostname);
-  const address = addresses[0];
+  let address = "";
+  try {
+    address = (await lookup(url.hostname, { family: 4 })).address;
+  } catch {
+    const resolver = new Resolver();
+    resolver.setServers(["1.1.1.1", "8.8.8.8"]);
+    address = (await resolver.resolve4(url.hostname))[0] ?? "";
+  }
   if (!address) {
     throw new Error(`DNS publico nao encontrou ${url.hostname}.`);
   }
@@ -455,7 +459,7 @@ async function postIpmRequest(
         method: "POST",
         servername: url.hostname,
         headers: {
-          Host: url.host,
+          Host: url.hostname,
           Authorization: authorization,
           "Content-Type": request.contentType,
           "Content-Length": String(request.contentLength),
