@@ -1,6 +1,7 @@
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
+  cancelGuairaIpmNfse,
   consultGuairaIpmNfse,
   isGuairaIpmConfig,
   processGuairaIpmNfse,
@@ -101,9 +102,7 @@ export async function cancelConfiguredNfse(
     return cancelToledoNfse(store, documentId, reason);
   }
   if (provider === "guaira-ipm") {
-    throw new Error(
-      "Cancelamento Guaira/IPM sera habilitado somente depois da emissao homologada."
-    );
+    return cancelGuairaIpmNfse(store, documentId, reason);
   }
   throw new Error("Provedor NFS-e nao configurado para este emitente.");
 }

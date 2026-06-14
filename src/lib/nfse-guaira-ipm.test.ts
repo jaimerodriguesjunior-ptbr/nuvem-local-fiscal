@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildGuairaIpmBasicAuthorization,
+  buildGuairaIpmCancellationXml,
   buildGuairaIpmConsultationXml,
   buildGuairaIpmEmissionXml,
   buildGuairaIpmMultipartRequest,
@@ -176,6 +177,37 @@ test("builds an IPM consultation by number, series and economic registration", (
     () => buildGuairaIpmNumberConsultationXml("184", "12", "324743"),
     /cadastro economico IPM invalidos/
   );
+});
+
+test("builds Guaira IPM cancellation XML", () => {
+  const xml = buildGuairaIpmCancellationXml({
+    cnpj: "35181069000143",
+    tomCode: "7571",
+    number: "184",
+    series: "1",
+    reason: "Cancelamento de teste de homologacao."
+  });
+
+  assert.match(xml, /<numero>184<\/numero>/);
+  assert.match(xml, /<serie_nfse>1<\/serie_nfse>/);
+  assert.match(xml, /<situacao>C<\/situacao>/);
+  assert.match(xml, /<observacao>Cancelamento de teste de homologacao\.<\/observacao>/);
+  assert.match(xml, /<cpfcnpj>35181069000143<\/cpfcnpj>/);
+  assert.match(xml, /<cidade>7571<\/cidade>/);
+});
+
+test("parses Guaira IPM cancellation success response", () => {
+  const result = parseGuairaIpmResponse(`<?xml version="1.0" encoding="ISO-8859-1"?>
+    <retorno>
+      <mensagem>
+        <codigo>01</codigo>
+        <descricao>Sucesso.</descricao>
+      </mensagem>
+    </retorno>`);
+
+  assert.deepEqual(result.messages, [
+    { codigo: "1", descricao: "Sucesso." }
+  ]);
 });
 
 test("accepts Guaira IPM issued response without a numeric message prefix", () => {

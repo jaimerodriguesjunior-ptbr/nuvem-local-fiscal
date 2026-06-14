@@ -361,6 +361,46 @@ export function buildGuairaIpmNumberConsultationXml(
 </nfse>`;
 }
 
+export function buildGuairaIpmCancellationXml(input: {
+  cnpj: string;
+  tomCode: string;
+  number: string;
+  series: string;
+  reason: string;
+  requiresSignature?: boolean;
+}) {
+  const cnpj = digitsOnly(input.cnpj);
+  const number = digitsOnly(input.number);
+  const series = digitsOnly(input.series);
+  const tomCode = digitsOnly(input.tomCode);
+  const reason = input.reason.trim();
+  if (
+    cnpj.length !== 14 ||
+    !number ||
+    number.length > 9 ||
+    !series ||
+    !tomCode ||
+    reason.length < 15 ||
+    reason.length > 1000
+  ) {
+    throw new Error("Dados invalidos para cancelamento NFS-e Guaira/IPM.");
+  }
+  const signatureId = input.requiresSignature ? ' id="nota"' : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<nfse${signatureId}>
+  <nf>
+    <numero>${number}</numero>
+    <serie_nfse>${series}</serie_nfse>
+    <situacao>C</situacao>
+    <observacao>${escapeXml(reason)}</observacao>
+  </nf>
+  <prestador>
+    <cpfcnpj>${cnpj}</cpfcnpj>
+    <cidade>${tomCode}</cidade>
+  </prestador>
+</nfse>`;
+}
+
 function elementsByLocalName(xml: XmlDocument, name: string) {
   const result: XmlElement[] = [];
   const all = xml.getElementsByTagName("*");
@@ -377,6 +417,21 @@ function firstElementText(xml: XmlDocument, name: string) {
   return elementsByLocalName(xml, name)[0]?.textContent?.trim() ?? "";
 }
 
+function siblingElementText(element: XmlElement, name: string) {
+  const siblings = element.parentNode?.childNodes;
+  if (!siblings) return "";
+  for (let index = 0; index < siblings.length; index += 1) {
+    const sibling = siblings.item(index);
+    if (
+      sibling?.nodeType === 1 &&
+      (sibling.localName || sibling.nodeName.split(":").pop()) === name
+    ) {
+      return sibling.textContent?.trim() ?? "";
+    }
+  }
+  return "";
+}
+
 export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
   const document = new DOMParser().parseFromString(xml, "application/xml");
   if (elementsByLocalName(document, "parsererror").length > 0) {
@@ -386,11 +441,15 @@ export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
   const messages = elementsByLocalName(document, "codigo")
     .map((element) => element.textContent?.trim() ?? "")
     .filter(Boolean)
-    .map((message) => {
+    .map((message, index) => {
       const match = message.match(/^\[?0*(\d+)\]?\s*[-:]?\s*(.*)$/);
+      const description =
+        siblingElementText(elementsByLocalName(document, "codigo")[index], "descricao") ||
+        match?.[2] ||
+        message;
       return {
         codigo: match?.[1] || "IPM",
-        descricao: match?.[2] || message
+        descricao: description
       };
     });
   const number = firstElementText(document, "numero_nfse");
@@ -821,6 +880,134 @@ export async function consultGuairaIpmNfse(
     });
     await store.waitForPersistence();
     return { document, transmitted: false, error: message };
+  }
+}
+
+export async function cancelGuairaIpmNfse(
+  store: InMemoryStore,
+  documentId: string,
+  reason: string
+): Promise<GuairaNfseProcessingResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) {
+    throw new Error("Documento NFS-e nao encontrado para cancelamento.");
+  }
+  if (document.status === "cancelado") {
+    return { document, transmitted: false, error: null };
+  }
+  if (document.status !== "autorizado") {
+    throw new Error("Somente uma NFS-e autorizada pode ser cancelada.");
+  }
+  if (document.ambiente !== "homologacao") {
+    throw new Error("Cancelamento IPM esta liberado somente em homologacao.");
+  }
+
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(
+    document.issuerCnpj,
+    document.ambiente,
+    "NFSE"
+  );
+  if (!issuer || !serviceConfig?.active || !isGuairaIpmConfig(issuer, serviceConfig)) {
+    throw new Error("Configuracao NFS-e Guaira/IPM nao encontrada.");
+  }
+  if (!serviceConfig.secretsEncrypted) {
+    throw new Error("Senha municipal IPM nao configurada.");
+  }
+
+  const settings = resolveConfig(issuer, serviceConfig);
+  validateConfig(settings);
+  if (settings.requiresSignature) {
+    throw new Error("Cancelamento IPM com assinatura digital ainda nao implementado.");
+  }
+  const number = String(document.chave ?? "").trim();
+  const series = String(document.serie ?? settings.rpsSeries).trim();
+  const cancellationXml = buildGuairaIpmCancellationXml({
+    cnpj: settings.cnpj,
+    tomCode: settings.tomCode,
+    number,
+    series,
+    reason,
+    requiresSignature: settings.requiresSignature
+  });
+  const secret = decryptSecretPayload<{ senha?: string }>(
+    serviceConfig.secretsEncrypted,
+    config.certificateEncryptionKey
+  );
+  const password = String(secret.senha ?? "");
+  if (!password) {
+    throw new Error("Senha municipal IPM vazia.");
+  }
+
+  try {
+    const endpoint = validateIpmEndpoint(settings.endpoint);
+    const response = await postIpmRequest(
+      endpoint,
+      buildGuairaIpmMultipartRequest(cancellationXml),
+      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+    );
+    const parsed = parseGuairaIpmResponse(response.body);
+    const successMessage = parsed.messages.some(
+      (message) =>
+        message.codigo === "1" && /sucesso/i.test(message.descricao)
+    );
+    const explicitlyCancelled =
+      parsed.statusCode === "2" && /cancelad/i.test(parsed.statusDescription);
+    const success =
+      response.status >= 200 &&
+      response.status < 300 &&
+      (successMessage || explicitlyCancelled);
+    const message =
+      parsed.statusDescription ||
+      parsed.messages.map((item) => `${item.codigo} - ${item.descricao}`).join("; ") ||
+      `IPM respondeu HTTP ${response.status} no cancelamento.`;
+    const statusCode =
+      parsed.statusCode ||
+      parsed.messages[0]?.codigo ||
+      `HTTP_${response.status}`;
+    const updated = store.saveCancellationResult(document.id, {
+      justification: reason,
+      requestXml: cancellationXml,
+      signedXml: cancellationXml,
+      responseXml: response.body,
+      processedXml: response.body,
+      statusCode,
+      reason: success ? "NFS-e Guaira/IPM cancelada." : message,
+      protocol: parsed.verificationCode || "",
+      cancelledAt: success ? new Date().toISOString() : null,
+      success
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_guaira_ipm_cancellation_completed",
+      level: success ? "info" : "warn",
+      message: success ? "NFS-e Guaira/IPM cancelada." : message,
+      payload: {
+        provider: "guaira-ipm",
+        httpStatus: response.status,
+        statusCode,
+        providerDocumentNumber: number,
+        success
+      }
+    });
+    await store.waitForPersistence();
+    return {
+      document: updated ?? document,
+      transmitted: true,
+      error: success ? null : message
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_guaira_ipm_cancellation_failed",
+      level: "error",
+      message,
+      payload: {
+        provider: "guaira-ipm",
+        providerDocumentNumber: number
+      }
+    });
+    await store.waitForPersistence();
+    return { document, transmitted: true, error: message };
   }
 }
 
