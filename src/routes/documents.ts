@@ -1712,10 +1712,17 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const issuerMetadata = recordValue(issuer?.metadata);
   const issuerAddress = recordValue(issuerMetadata.endereco);
   const authorizedXml = document.xml ?? "";
+  const isGuairaIpm = document.providerName === "guaira-ipm";
   const authentication =
-    authorizedXml.match(/<cdAutenticacao>([^<]+)<\/cdAutenticacao>/i)?.[1] ?? "";
+    authorizedXml.match(/<cdAutenticacao>([^<]+)<\/cdAutenticacao>/i)?.[1] ??
+    authorizedXml.match(
+      /<cod_verificador_autenticidade>([^<]+)<\/cod_verificador_autenticidade>/i
+    )?.[1] ??
+    document.protocolo ??
+    "";
   const providerNumber =
     authorizedXml.match(/<nrNfse>([^<]+)<\/nrNfse>/i)?.[1] ??
+    authorizedXml.match(/<numero_nfse>([^<]+)<\/numero_nfse>/i)?.[1] ??
     document.chave ??
     String(document.numero);
   const [lotNumber = "", rpsNumber = ""] = String(
@@ -1728,9 +1735,27 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const issueDate =
     authorizedXml.match(/<dtEmissaoNfs>([^<]+)<\/dtEmissaoNfs>/i)?.[1] ??
     String(infDps.dhEmi ?? document.createdAt);
-  const consultationUrl = authentication
-    ? `https://www.esnfs.com.br/esenfs.view.logic?aut=${authentication}`
-    : "https://www.esnfs.com.br";
+  const providerLink =
+    authorizedXml.match(/<link_nfse>([^<]+)<\/link_nfse>/i)?.[1] ?? "";
+  const consultationUrl = isGuairaIpm
+    ? providerLink || "https://guaira.atende.net"
+    : authentication
+      ? `https://www.esnfs.com.br/esenfs.view.logic?aut=${authentication}`
+      : "https://www.esnfs.com.br";
+  const issuerMunicipality = isGuairaIpm
+    ? "Guaira"
+    : String(issuerAddress.cidade ?? issuerMetadata.cidade ?? "Toledo");
+  const recipientMunicipalityCode = String(
+    tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? ""
+  ).replace(/\D/g, "");
+  const recipientMunicipality =
+    recipientMunicipalityCode === "4108809" || recipientMunicipalityCode === "7571"
+      ? "Guaira"
+      : recipientMunicipalityCode === "4127700"
+        ? "Toledo"
+        : issuerMunicipality;
+  const recipientUf = String(tomaEnd.UF ?? issuerAddress.uf ?? "PR");
+  const portalHost = isGuairaIpm ? "guaira.atende.net" : "www.esnfs.com.br";
   const commands: string[] = ["0.45 w"];
   const left = 28;
   const right = 567;
@@ -1819,10 +1844,10 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   line(465, 788.33, right, 788.33);
   line(465, 761.67, right, 761.67);
 
-  center(left, 437, 792, 12, "MUNICIPIO DE TOLEDO", "F2");
+  center(left, 437, 792, 12, `MUNICIPIO DE ${issuerMunicipality.toUpperCase()}`, "F2");
   center(left, 437, 777, 8, "Secretaria Municipal da Fazenda", "F2");
   center(left, 437, 759, 10, "NOTA FISCAL DE SERVICOS ELETRONICA - NFS-e", "F2");
-  center(left, 437, 744, 7, "www.esnfs.com.br");
+  center(left, 437, 744, 7, portalHost);
   text(470, 806, 5.5, "Numero da Nota:");
   center(465, 102, 793, 11, providerNumber, "F2");
   text(470, 779, 5.5, "Data e Hora da Emissao:");
@@ -1838,7 +1863,7 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   labelValue(280, 304, 694, "I.M.:", String(issuerMetadata.inscricao_municipal ?? ""));
   labelValue(40, 98, 681, "Nome/Razao:", issuer?.razaoSocial ?? "");
   labelValue(40, 82, 668, "Endereco:", issuerAddressLine);
-  labelValue(40, 86, 655, "Municipio:", String(issuerAddress.cidade ?? "Toledo"));
+  labelValue(40, 86, 655, "Municipio:", issuerMunicipality);
   labelValue(220, 237, 655, "UF:", String(issuerAddress.uf ?? "PR"));
   labelValue(280, 310, 655, "E-mail:", String(issuerMetadata.email ?? ""));
 
@@ -1846,8 +1871,8 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   labelValue(40, 82, 614, "CPF/CNPJ:", recipientDocument);
   labelValue(40, 98, 601, "Nome/Razao:", String(toma.xNome ?? ""));
   labelValue(40, 82, 588, "Endereco:", recipientAddressLine);
-  labelValue(40, 86, 575, "Municipio:", "Toledo");
-  labelValue(220, 237, 575, "UF:", "PR");
+  labelValue(40, 86, 575, "Municipio:", recipientMunicipality);
+  labelValue(220, 237, 575, "UF:", recipientUf);
   labelValue(280, 321, 575, "Telefone:", String(toma.fone ?? ""));
 
   const columns = [left, 70, 320, 382, 430, 474, 520, right];
@@ -1887,7 +1912,12 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   text(110, 120, 7, "Total Liquido (R$)", "F2");
   text(220, 120, 8, money(serviceValue), "F2");
   center(left, width, 105, 8, "OUTRAS INFORMACOES", "F2");
-  text(35, 76, 6, "Esta NFS-e foi emitida com respaldo na legislacao municipal de Toledo.");
+  text(
+    35,
+    76,
+    6,
+    `Esta NFS-e foi emitida com respaldo na legislacao municipal de ${issuerMunicipality}.`
+  );
   text(
     35,
     66,

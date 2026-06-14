@@ -250,6 +250,66 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(guairaIpmAutoConfig.json().ipm.modo_teste, true);
     assert.equal(guairaIpmAutoConfig.json().ipm.transmissao_automatica, true);
 
+    const guairaPdfDocument = app.store.createDocument({
+      tipoDocumento: "NFSe",
+      issuerCnpj: cnpj,
+      ambiente: "homologacao",
+      payloadOriginal: {
+        infDPS: {
+          dhEmi: "2026-06-13T23:04:19-03:00",
+          toma: {
+            CPF: "58212043134",
+            xNome: "Anderson",
+            end: {
+              xLgr: "RUA TESTE",
+              nro: "123",
+              xBairro: "CENTRO",
+              endNac: { cMun: "4108809", CEP: "85980113" },
+              UF: "PR"
+            }
+          },
+          serv: {
+            cServ: {
+              cTribMun: "140101",
+              CNAE: "4520007",
+              xDescServ: "SERVICO"
+            }
+          },
+          valores: {
+            vServPrest: { vServ: 680 },
+            trib: { tribMun: { pAliq: 2.01 } }
+          }
+        }
+      },
+      payloadNormalizado: {}
+    });
+    app.store.saveMunicipalProcessingResult(guairaPdfDocument.id, {
+      providerName: "guaira-ipm",
+      status: "autorizado",
+      reason: "Emitida",
+      reasonCode: "1",
+      protocol: "7571130626230419840351810692026067397875",
+      providerDocumentNumber: "184",
+      processedXml: `<?xml version="1.0"?>
+        <retorno>
+          <numero_nfse>184</numero_nfse>
+          <cod_verificador_autenticidade>7571130626230419840351810692026067397875</cod_verificador_autenticidade>
+          <link_nfse>https://guaira.atende.net/consulta/184</link_nfse>
+        </retorno>`
+    });
+
+    const guairaPdf = await app.inject({
+      method: "GET",
+      url: `/nfse/${guairaPdfDocument.providerLikeId}/pdf`,
+      headers: bearer
+    });
+    assert.equal(guairaPdf.statusCode, 200, guairaPdf.body);
+    const guairaPdfText = guairaPdf.rawPayload.toString("ascii");
+    assert.match(guairaPdfText, /MUNICIPIO DE GUAIRA/);
+    assert.match(guairaPdfText, /Municipio:\)[\s\S]*?\(Guaira\)/);
+    assert.match(guairaPdfText, /guaira\.atende\.net/);
+    assert.doesNotMatch(guairaPdfText, /MUNICIPIO DE TOLEDO|www\.esnfs\.com\.br/);
+
     const saveToledoNfseConfig = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,
