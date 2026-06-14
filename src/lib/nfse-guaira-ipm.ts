@@ -920,14 +920,16 @@ export async function cancelGuairaIpmNfse(
   if (settings.requiresSignature) {
     throw new Error("Cancelamento IPM com assinatura digital ainda nao implementado.");
   }
+  const number = String(document.chave ?? "").trim();
   const series = String(document.serie ?? settings.rpsSeries).trim();
-  const cancellationNumbers = Array.from(
-    new Set(
-      [document.chave, document.numero]
-        .map((value) => String(value ?? "").trim())
-        .filter(Boolean)
-    )
-  );
+  const cancellationXml = buildGuairaIpmCancellationXml({
+    cnpj: settings.cnpj,
+    tomCode: settings.tomCode,
+    number,
+    series,
+    reason,
+    requiresSignature: settings.requiresSignature
+  });
   const secret = decryptSecretPayload<{ senha?: string }>(
     serviceConfig.secretsEncrypted,
     config.certificateEncryptionKey
@@ -939,93 +941,59 @@ export async function cancelGuairaIpmNfse(
 
   try {
     const endpoint = validateIpmEndpoint(settings.endpoint);
-    let lastAttempt: {
-      number: string;
-      cancellationXml: string;
-      response: { status: number; body: string };
-      parsed: GuairaIpmResponse;
-      success: boolean;
-      message: string;
-      statusCode: string;
-    } | null = null;
-    for (const number of cancellationNumbers) {
-      const cancellationXml = buildGuairaIpmCancellationXml({
-        cnpj: settings.cnpj,
-        tomCode: settings.tomCode,
-        number,
-        series,
-        reason,
-        requiresSignature: settings.requiresSignature
-      });
-      const response = await postIpmRequest(
-        endpoint,
-        buildGuairaIpmMultipartRequest(cancellationXml),
-        buildGuairaIpmBasicAuthorization(settings.cnpj, password)
-      );
-      const parsed = parseGuairaIpmResponse(response.body);
-      const successMessage = parsed.messages.some(
-        (message) =>
-          message.codigo === "1" && /sucesso/i.test(message.descricao)
-      );
-      const explicitlyCancelled =
-        parsed.statusCode === "2" && /cancelad/i.test(parsed.statusDescription);
-      const success =
-        response.status >= 200 &&
-        response.status < 300 &&
-        (successMessage || explicitlyCancelled);
-      const message =
-        parsed.statusDescription ||
-        parsed.messages.map((item) => `${item.codigo} - ${item.descricao}`).join("; ") ||
-        `IPM respondeu HTTP ${response.status} no cancelamento.`;
-      const statusCode =
-        parsed.statusCode ||
-        parsed.messages[0]?.codigo ||
-        `HTTP_${response.status}`;
-      lastAttempt = {
-        number,
-        cancellationXml,
-        response,
-        parsed,
-        success,
-        message,
-        statusCode
-      };
-      if (success || statusCode !== "206") {
-        break;
-      }
-    }
-    if (!lastAttempt) {
-      throw new Error("Numero da NFS-e nao encontrado para cancelamento.");
-    }
+    const response = await postIpmRequest(
+      endpoint,
+      buildGuairaIpmMultipartRequest(cancellationXml),
+      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+    );
+    const parsed = parseGuairaIpmResponse(response.body);
+    const successMessage = parsed.messages.some(
+      (message) =>
+        message.codigo === "1" && /sucesso/i.test(message.descricao)
+    );
+    const explicitlyCancelled =
+      parsed.statusCode === "2" && /cancelad/i.test(parsed.statusDescription);
+    const success =
+      response.status >= 200 &&
+      response.status < 300 &&
+      (successMessage || explicitlyCancelled);
+    const message =
+      parsed.statusDescription ||
+      parsed.messages.map((item) => `${item.codigo} - ${item.descricao}`).join("; ") ||
+      `IPM respondeu HTTP ${response.status} no cancelamento.`;
+    const statusCode =
+      parsed.statusCode ||
+      parsed.messages[0]?.codigo ||
+      `HTTP_${response.status}`;
     const updated = store.saveCancellationResult(document.id, {
       justification: reason,
-      requestXml: lastAttempt.cancellationXml,
-      signedXml: lastAttempt.cancellationXml,
-      responseXml: lastAttempt.response.body,
-      processedXml: lastAttempt.response.body,
-      statusCode: lastAttempt.statusCode,
-      reason: lastAttempt.success ? "NFS-e Guaira/IPM cancelada." : lastAttempt.message,
-      protocol: lastAttempt.parsed.verificationCode || "",
-      cancelledAt: lastAttempt.success ? new Date().toISOString() : null,
-      success: lastAttempt.success
+      requestXml: cancellationXml,
+      signedXml: cancellationXml,
+      responseXml: response.body,
+      processedXml: response.body,
+      statusCode,
+      reason: success ? "NFS-e Guaira/IPM cancelada." : message,
+      protocol: parsed.verificationCode || "",
+      cancelledAt: success ? new Date().toISOString() : null,
+      success
     });
     store.addDocumentEvent(document.id, {
       eventType: "nfse_guaira_ipm_cancellation_completed",
-      level: lastAttempt.success ? "info" : "warn",
-      message: lastAttempt.success ? "NFS-e Guaira/IPM cancelada." : lastAttempt.message,
+      level: success ? "info" : "warn",
+      message: success ? "NFS-e Guaira/IPM cancelada." : message,
       payload: {
         provider: "guaira-ipm",
-        httpStatus: lastAttempt.response.status,
-        statusCode: lastAttempt.statusCode,
-        providerDocumentNumber: lastAttempt.number,
-        success: lastAttempt.success
+        httpStatus: response.status,
+        statusCode,
+        providerDocumentNumber: number,
+        success
       }
     });
     await store.waitForPersistence();
     return {
       document: updated ?? document,
       transmitted: true,
-      error: lastAttempt.success ? null : lastAttempt.message
+      error: success ? null : message
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -1035,7 +1003,7 @@ export async function cancelGuairaIpmNfse(
       message,
       payload: {
         provider: "guaira-ipm",
-        providerDocumentNumbers: cancellationNumbers
+        providerDocumentNumber: number
       }
     });
     await store.waitForPersistence();
