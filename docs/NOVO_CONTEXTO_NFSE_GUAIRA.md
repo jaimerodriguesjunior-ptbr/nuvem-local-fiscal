@@ -229,6 +229,27 @@ Terceiro teste Guaira/IPM em 13/06/2026:
 - a Nuvem Local foi reiniciada depois da autorizacao e voltou saudavel com
   persistencia Supabase e producao bloqueada.
 
+Transmissao automatica habilitada em 13/06/2026:
+
+- o commit `40c05a1` foi publicado na DigitalOcean;
+- o fluxo Guaira/IPM agora gera e persiste o XML de auditoria e, quando
+  `autoTransmit=true`, chama automaticamente o mesmo transmissor de teste
+  validado nas notas controladas;
+- a resposta autorizada de `POST /nfse/dps` ja retorna status `autorizado`,
+  numero, protocolo e URLs assinadas de XML/PDF para a Autoeletrica;
+- o cadastro do Norberto em homologacao foi confirmado depois de reiniciar a
+  API com:
+  - provedor `guaira-ipm`;
+  - `nfse_teste=1`;
+  - transmissao automatica ativa;
+  - senha municipal preservada;
+  - TOM `7571`;
+  - atividade `4520007`;
+  - situacao tributaria `0`;
+- a API, o listener privado `127.0.0.1:9443` e o servico AWS
+  `ipm-gateway.service` permaneceram ativos;
+- producao continua bloqueada pela API.
+
 Estrategia de conectividade IPM:
 
 - a conexao direta da VPS DigitalOcean com a IPM continua considerada instavel
