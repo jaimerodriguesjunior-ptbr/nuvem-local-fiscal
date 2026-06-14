@@ -250,6 +250,23 @@ Transmissao automatica habilitada em 13/06/2026:
   `ipm-gateway.service` permaneceram ativos;
 - producao continua bloqueada pela API.
 
+Correcao do PDF local em 13/06/2026:
+
+- a nota autorizada `doc_15999b30` confirmou que o XML transmitido estava
+  correto: prestador, tomador, local da prestacao e incidencia foram enviados
+  como Guaira/TOM `7571`;
+- o PDF exibido pela Autoeletrica era gerado localmente pela Nuvem Local e
+  ainda continha textos fixos de Toledo/Equiplano;
+- o commit `f7d0bfc` tornou o DANFSe sensivel ao provedor IPM;
+- o PDF passou a usar:
+  - cabecalho `MUNICIPIO DE GUAIRA`;
+  - municipio Guaira para prestador e tomador quando `cMun=4108809`;
+  - portal `guaira.atende.net`;
+  - numero, autenticidade e link oficial retornados pela IPM;
+  - legislacao municipal de Guaira;
+- o PDF da propria `doc_15999b30` foi regenerado e validado na VPS sem emitir
+  outra nota, sem referencias residuais a Toledo ou `www.esnfs.com.br`.
+
 Estrategia de conectividade IPM:
 
 - a conexao direta da VPS DigitalOcean com a IPM continua considerada instavel
