@@ -841,3 +841,9 @@ Ele sera:
 - um orquestrador de emissao e consulta
 - uma trilha de auditoria fiscal
 - a base para no futuro plugar `NFS-e` por prefeitura sem reescrever todos os sistemas clientes
+
+Nota operacional Guaira/IPM:
+- cancelamento autonomo em homologacao esta implementado pelo numero municipal
+  da NFS-e
+- nao usar numero interno/RPS como fallback automatico, porque pode colidir com
+  outra NFS-e municipal

@@ -551,6 +551,50 @@ Se o IPM usar conceitos diferentes, traduzir internamente para esse contrato.
 13. Correcao de rejeicoes uma a uma.
 14. Cancelamento somente depois da emissao validada.
 
+## Resultado do teste de cancelamento IPM
+
+Em 2026-06-14 foi implementado e publicado o cancelamento autonomo Guaira/IPM,
+usando o XML documentado pela IPM:
+
+- `nf/numero`: numero municipal da NFS-e gravado em `document.chave`
+- `nf/serie_nfse`: serie da NFS-e
+- `nf/situacao`: `C`
+- `nf/observacao`: justificativa do cancelamento
+- `prestador/cpfcnpj`: CNPJ do prestador
+- `prestador/cidade`: codigo TOM `7571`
+
+O teste real em homologacao foi feito na `doc_15999b30`, numero interno `6`,
+NFS-e municipal `184`, serie `1`. A comunicacao com a IPM passou pelo gateway
+EC2 e chegou ao provedor, mas a IPM retornou:
+
+- codigo `206`
+- mensagem: `Nenhuma NFSe foi encontrada na base de dados utilizando os
+  parametros para pesquisa informados.`
+
+Foi feita uma investigacao controlada tentando o numero interno `6` no lugar do
+numero municipal `184`. A IPM retornou:
+
+- codigo `194`
+- mensagem: `Ultrapassou a quantidade de dias da emissao para o cancelamento da
+  NFSe.`
+
+Conclusao: nao usar o numero interno/RPS como fallback automatico, porque ele
+pode localizar outra NFS-e municipal antiga. O codigo definitivo permaneceu
+cancelando somente pelo numero municipal salvo em `chave`.
+
+O que ficou provado:
+
+- a rota `POST /nfse/:id/cancelar` aciona o cancelamento Guaira/IPM
+- o XML de cancelamento e montado e transmitido
+- a EC2/gateway conversa com a IPM tambem no cancelamento
+- respostas negativas da IPM ficam persistidas sem marcar a nota como cancelada
+
+Pendente:
+
+- descobrir com IPM/prefeitura se notas de homologacao geradas como `nfse_teste=1`
+  sao persistidas em base cancelavel
+- repetir o cancelamento em uma NFS-e que a IPM reconheca pelo numero municipal
+
 ## Comandos uteis
 
 - `git status --short`
