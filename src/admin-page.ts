@@ -931,7 +931,7 @@ const page = String.raw`<!doctype html>
           info('Certificado A1', cert ? 'Ativo' : 'Não cadastrado') +
           info('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha não configurada') +
           info('Próximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Não informado') +
-          info('Transmissão', production ? 'Produção bloqueada' : isIpm ? 'Desativada para IPM' : settings.autoTransmit === true ? 'Automática' : 'Dry-run / manual') +
+          info('Transmissão', production ? 'Produção bloqueada' : settings.autoTransmit === true ? 'Automática em homologação' : 'Dry-run / manual') +
           '</div><form id="nfseServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -998,7 +998,7 @@ const page = String.raw`<!doctype html>
                 '<option value="true"' + (settings.nfseTestMode !== false ? ' selected' : '') + '>Teste sem emissão (nfse_teste=1)</option>' +
                 '<option value="false"' + (settings.nfseTestMode === false ? ' selected' : '') + '>Emissão real</option>' +
               '</select></label>' +
-            '</div><div class="empty">Nesta etapa mantenha “Teste sem emissão”. A Nuvem Local continuará bloqueando transmissão IPM mesmo se outro valor for salvo.</div>') +
+            '</div><div class="empty">Para transmissão automática em homologação, mantenha “Teste sem emissão (nfse_teste=1)”. A produção continua bloqueada pela API.</div>') +
             '<div class="section-head"><div><h3>RPS</h3><p>' +
               (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
@@ -1021,11 +1021,11 @@ const page = String.raw`<!doctype html>
               '<label>Item do serviço<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
               '<label>Subitem do serviço<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
             '</div>' : '') +
-            '<label>Transmissão<select name="autoTransmit"' + (production || isIpm ? ' disabled' : '') + '>' +
-              '<option value="false"' + (isIpm || settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
-              '<option value="true"' + (!production && !isIpm && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
+            '<label>Transmissão<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
+              '<option value="false"' + (settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
+              '<option value="true"' + (!production && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
             '</select></label>' +
-            (isIpm ? '<div class="empty">Transmissão IPM desabilitada até o primeiro teste controlado ser autorizado.</div>' : '') +
+            (isIpm ? '<div class="empty">No IPM, a opção automática transmite somente em homologação e exige XML com nfse_teste=1.</div>' : '') +
             (production ? '<div class="empty">A emissão NFS-e em produção permanece bloqueada por segurança.</div>' : '') +
             (!cert ? '<div class="empty">Você pode salvar a configuração agora, mas a emissão real exigirá um certificado A1 ativo deste CNPJ.</div>' : '') +
             '<div><button type="submit" class="btn">Salvar configuração NFS-e</button></div>' +
@@ -1783,7 +1783,6 @@ const page = String.raw`<!doctype html>
             aliquota_iss: Number(form.get('issRate'))
           },
           transmissao_automatica: environment === 'homologacao' &&
-            String(form.get('provider')) !== 'guaira-ipm' &&
             String(form.get('autoTransmit')) === 'true'
         })
       });

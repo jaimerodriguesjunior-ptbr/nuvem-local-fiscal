@@ -176,9 +176,16 @@ Configuracoes persistidas:
     logradouro, numero, bairro, municipio ou CEP chegam vazios; CPF/CNPJ do
     tomador ainda permanece obrigatorio ate confirmar regra municipal para
     consumidor nao identificado
-  - a NFS-e local `#2` (`doc_955229b6`) validou dry-run com endereco informado
-    no XML IPM: `RUA TESTE`, `123`, `CENTRO`, TOM `7571`, CEP `85980113`;
-    ela continua sem transmissao municipal
+  - a NFS-e local `#2` (`doc_955229b6`) validou emissao IPM em homologacao com
+    endereco informado no XML: `RUA TESTE`, `123`, `CENTRO`, TOM `7571`, CEP
+    `85980113`; a IPM retornou NFS-e municipal `184`, situacao `1 - Emitida`,
+    protocolo `7571130626174259080351810692026067397875`, XML HTTP `200` e PDF
+    local HTTP `200`
+  - a NFS-e local `#3` (`doc_3e7f0efd`) validou o endereco operacional enviado
+    pela Autoeletrica no fluxo sem endereco real; pela rota persistente da AWS,
+    a IPM retornou NFS-e municipal `184`, situacao `1 - Emitida`, protocolo
+    `7571130626223056030351810692026067397875`, XML publico HTTP `200` e PDF
+    publico HTTP `200`
   - o polling normal de `GET /nfse/:id` ignora consulta municipal enquanto o
     documento estiver em `NFSE_IPM_DRY_RUN`, evitando eventos de erro por codigo
     de autenticidade inexistente antes da transmissao
@@ -192,7 +199,10 @@ Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
-- NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; consulta municipal, cancelamento e estrategia definitiva de rede ainda precisam ser fechados
+- NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; a
+  estrategia de rede usa uma EC2 AWS Sao Paulo como gateway IPM persistente por
+  tunel reverso `autossh`, enquanto consulta municipal e cancelamento ainda
+  precisam ser fechados
 - a consulta Guaira/IPM foi implementada por codigo de autenticidade, com
   fallback por numero, serie e cadastro economico; a NFS-e `184` em
   `nfse_teste=1` nao aparece na base consultavel da IPM em nenhuma das duas
@@ -201,6 +211,9 @@ Limites atuais:
   `NFSE_IPM_CONNECT_PORT`, preservando o endpoint, SNI e `Host` originais; isso
   permite usar um tunel reverso ou gateway fixo sem editar o cadastro municipal
   nem `/etc/hosts`
+- a EC2 AWS mantem `ipm-gateway.service` habilitado e cria somente o listener
+  local `127.0.0.1:9443` na DigitalOcean; a Nuvem Local usa esse listener por
+  `NFSE_IPM_CONNECT_HOST=127.0.0.1` e `NFSE_IPM_CONNECT_PORT=9443`
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados

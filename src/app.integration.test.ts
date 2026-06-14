@@ -201,6 +201,55 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(saveOfficialNfseConfig.statusCode, 200, saveOfficialNfseConfig.body);
     assert.doesNotMatch(saveOfficialNfseConfig.body, /SENHA-FICTICIA-NFSE|secretsEncrypted/);
 
+    const saveGuairaIpmAutoConfig = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        provedor: "guaira-ipm",
+        municipio: {
+          codigo_ibge: "4108809",
+          nome: "Guaira"
+        },
+        prefeitura: {
+          login: "usuario-prefeitura"
+        },
+        ipm: {
+          endpoint:
+            "https://guaira.atende.net/atende.php?pg=rest&service=WNERestServiceNFSe&cidade=padrao",
+          codigo_tom: "7571",
+          cadastro_economico: "324743",
+          codigo_atividade: "4520007",
+          situacao_tributaria: "0",
+          modo_teste: true
+        },
+        servico: {
+          codigo: "140101",
+          aliquota_iss: 2.01
+        },
+        transmissao_automatica: true
+      }
+    });
+    assert.equal(
+      saveGuairaIpmAutoConfig.statusCode,
+      200,
+      saveGuairaIpmAutoConfig.body
+    );
+
+    const guairaIpmAutoConfig = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=homologacao`,
+      headers: bearer
+    });
+    assert.equal(guairaIpmAutoConfig.statusCode, 200, guairaIpmAutoConfig.body);
+    assert.equal(guairaIpmAutoConfig.json().provedor, "guaira-ipm");
+    assert.equal(guairaIpmAutoConfig.json().ipm.modo_teste, true);
+    assert.equal(guairaIpmAutoConfig.json().ipm.transmissao_automatica, true);
+
     const saveToledoNfseConfig = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,

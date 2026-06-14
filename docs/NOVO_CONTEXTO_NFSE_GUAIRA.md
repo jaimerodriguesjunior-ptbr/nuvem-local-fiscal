@@ -169,20 +169,65 @@ Consulta municipal implementada e testada em 13/06/2026:
   documento ainda estiver em `NFSE_IPM_DRY_RUN`; consulta municipal explicita
   continua disponivel com `?consultar_prefeitura=1`.
 
-Segundo dry-run Guaira/IPM em 13/06/2026:
+Segundo teste Guaira/IPM em 13/06/2026:
 
 - documento Nuvem Local: `doc_955229b6`
 - numero local: `2`
-- status: `processamento`
-- motivo_status: `NFSE_IPM_DRY_RUN`
+- status final: `autorizado`
+- NFS-e municipal: `184`
+- serie: `1`
+- situacao IPM: codigo `1`, descricao `Emitida`
+- protocolo/codigo de autenticidade:
+  `7571130626174259080351810692026067397875`
+- mensagem IPM: `NFS-e valida para emissao.`
 - tomador enviado no XML: CPF `08701600958`, nome `JOAO LUCAS PEREIRA`
 - endereco enviado no XML: `RUA TESTE`, numero `123`, bairro `CENTRO`, cidade
   TOM `7571`, CEP `85980113`
 - servico: `140101`, atividade `4520007`, aliquota `2,01`, situacao tributaria
   `0`, valor tributavel `200,00`
-- essa nota validou o payload com endereco informado em dry-run, mas ainda nao
-  validou o caso sem endereco/fallback perante a IPM;
-- nao houve transmissao municipal desta nota ate este registro.
+- XML autorizado recuperado pela API: HTTP `200`
+- PDF local recuperado pela API: HTTP `200`
+- essa nota validou o payload com endereco informado tambem perante a IPM, mas
+  ainda nao validou o caso sem endereco/fallback perante a IPM;
+- o teste usou `nfse_teste=1`, transmissao manual e tunel reverso temporario;
+- depois do teste, `NFSE_IPM_CONNECT_HOST`/`NFSE_IPM_CONNECT_PORT` foram
+  removidos da VPS, a API foi reiniciada saudavel e o tunel foi encerrado.
+
+Terceiro teste Guaira/IPM em 13/06/2026:
+
+- documento Nuvem Local: `doc_3e7f0efd`
+- numero local: `3`
+- status final: `autorizado`
+- NFS-e municipal: `184`
+- serie: `1`
+- situacao IPM: codigo `1`, descricao `Emitida`
+- protocolo/codigo de autenticidade:
+  `7571130626223056030351810692026067397875`
+- mensagem IPM: `NFS-e valida para emissao.`
+- tomador enviado no XML: CPF `91807220168`, nome `CLEBERTON SELAN SANCHES`
+- endereco enviado no XML: `RUA TESTE`, numero `123`, bairro `CENTRO`, cidade
+  TOM `7571`, CEP `85980113`
+- esse caso confirmou que o fluxo "sem endereco real" da Autoeletrica nao envia
+  campos vazios: ele envia o endereco operacional/padrao que o usuario ja usa
+  ha meses em Guaira;
+- a primeira tentativa autorizada de transmissao manual usou um tunel
+  reverso temporario e override `NFSE_IPM_CONNECT_HOST=127.0.0.1` /
+  `NFSE_IPM_CONNECT_PORT=9443`;
+- a chamada retornou HTTP `422` pela Nuvem Local, sem autorizacao municipal,
+  com a mensagem `Falha de conexao com IPM: Tempo esgotado ao conectar ao IPM.`;
+- o documento permaneceu em `NFSE_IPM_DRY_RUN` depois dessa falha, sem efeito
+  municipal;
+- uma EC2 AWS em Sao Paulo (`54.233.2.22`) foi criada e validou acesso direto a
+  `guaira.atende.net:443`, com DNS, TCP, TLS e HTTP `200`;
+- a EC2 passou a manter um tunel reverso persistente por `autossh`/`systemd`,
+  expondo apenas `127.0.0.1:9443` na DigitalOcean;
+- a segunda transmissao manual da mesma nota, pela rota AWS persistente,
+  retornou HTTP `200` e foi autorizada pela IPM;
+- XML autorizado recuperado pelo dominio publico: HTTP `200`, `677` bytes;
+- PDF local recuperado pelo dominio publico: HTTP `200`, `5625` bytes, PDF 1.4
+  com uma pagina;
+- a Nuvem Local foi reiniciada depois da autorizacao e voltou saudavel com
+  persistencia Supabase e producao bloqueada.
 
 Estrategia de conectividade IPM:
 
@@ -196,8 +241,22 @@ Estrategia de conectividade IPM:
 - o TLS continua usando `servername` e cabecalho `Host` de `guaira.atende.net`;
 - `scripts/start-ipm-reverse-tunnel.ps1` abre um tunel reverso padrao para
   testes, sem alterar banco, endpoint ou `/etc/hosts`;
-- ainda falta escolher a forma permanente: tunel monitorado, gateway fixo ou
-  servidor com saida aceita pela IPM.
+- a estrategia permanente escolhida nesta etapa usa a EC2 AWS Sao Paulo como
+  gateway de saida para a IPM;
+- a EC2 inicia `ipm-gateway.service`, baseado em `autossh`, e cria na
+  DigitalOcean o listener local `127.0.0.1:9443`;
+- o servico esta `enabled` e `active`, com `Restart=always`,
+  `ServerAliveInterval=30` e `ServerAliveCountMax=3`;
+- a DigitalOcean usa:
+  - `NFSE_IPM_CONNECT_HOST=127.0.0.1`
+  - `NFSE_IPM_CONNECT_PORT=9443`
+- o usuario tecnico `ipmgateway` da DigitalOcean nao possui shell interativo e
+  tem encaminhamento SSH restrito a modo remoto e `127.0.0.1:9443`;
+- nenhuma porta adicional foi aberta publicamente na EC2;
+- a EC2 tambem validou conectividade basica com:
+  - Equiplano homologacao em `www.esnfs.com.br:9443`;
+  - SEFAZ-PR NF-e homologacao em `homologacao.nfe.sefa.pr.gov.br:443`;
+  - SEFAZ-PR NFC-e homologacao em `homologacao.nfce.sefa.pr.gov.br:443`.
 
 ## Objetivo deste novo contexto
 

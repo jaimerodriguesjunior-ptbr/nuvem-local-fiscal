@@ -1282,7 +1282,11 @@ async function handleCreateNfseDps(
 
   const processed = await processConfiguredNfse(app.store, document.id);
   const provider = configuredNfseProvider(app.store, processed.document);
-  const statusCode = processed.error ? 422 : 202;
+  const statusCode = processed.error
+    ? 422
+    : processed.document.status === "autorizado"
+      ? 200
+      : 202;
   return reply.code(statusCode).send({
     ...mapDocumentResponse(processed.document, requestBaseUrl(request)),
     message:

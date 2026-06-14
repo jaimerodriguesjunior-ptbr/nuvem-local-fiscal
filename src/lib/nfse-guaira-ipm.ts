@@ -875,7 +875,7 @@ export async function processGuairaIpmNfse(
     validateDraft(draft);
     const generatedXml = buildGuairaIpmEmissionXml(settings, draft);
     const reason = settings.autoTransmit
-      ? "XML NFS-e Guaira/IPM gerado, mas a transmissao permanece bloqueada ate autorizacao explicita."
+      ? "XML NFS-e Guaira/IPM validado; transmissao automatica de teste iniciada."
       : "XML NFS-e Guaira/IPM gerado em dry-run.";
     const updated = store.saveMunicipalProcessingResult(document.id, {
       providerName: "guaira-ipm",
@@ -885,7 +885,7 @@ export async function processGuairaIpmNfse(
       status: "processamento",
       reason,
       reasonCode: settings.autoTransmit
-        ? "NFSE_IPM_TRANSMISSION_BLOCKED"
+        ? "NFSE_IPM_AUTO_TRANSMISSION_PENDING"
         : "NFSE_IPM_DRY_RUN",
       signatureValid: false,
       xsdValid: false,
@@ -907,6 +907,9 @@ export async function processGuairaIpmNfse(
       }
     });
     await store.waitForPersistence();
+    if (settings.autoTransmit) {
+      return transmitGuairaIpmTest(store, document.id);
+    }
     return { document: updated ?? document, transmitted: false, error: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
