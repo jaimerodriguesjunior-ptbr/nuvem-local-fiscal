@@ -1,43 +1,76 @@
-# Arquitetura v0
+# Arquitetura atual
 
 ## Objetivo
 
-Validar contrato externo e fluxo operacional antes de construir:
+`nuvem-local-fiscal` nao e mais um prototipo apenas de mock local. Hoje ele ja
+atua como uma camada de compatibilidade fiscal homologada para:
 
-- persistencia real
-- fila
-- assinatura de XML
-- transmissao SEFAZ
+- `NF-e`
+- `NFC-e`
+- `NFS-e` por provedor municipal
 
-## Estrutura
+O objetivo continua sendo absorver as diferencas entre os sistemas clientes e os
+provedores fiscais reais dentro deste repo.
+
+## Estrutura principal
 
 - `src/server.ts`: bootstrap HTTP
 - `src/app.ts`: composicao da aplicacao Fastify
-- `src/routes/`: endpoints da API e admin
-- `src/store.ts`: armazenamento em memoria
-- `public admin`: embutido pela rota `/admin`
+- `src/routes/`: rotas publicas e rotas administrativas
+- `src/store.ts`: camada de estado local com espelho para persistencia
+- `src/lib/supabase-persistence.ts`: persistencia principal no `Supabase`
+- `src/lib/document-processing.ts`: assinatura, validacao e transmissao NF-e/NFC-e
+- `src/lib/nfe-xml.ts`: geracao e assinatura XML da NF-e/NFC-e
+- `src/lib/sefaz-*.ts`: autorizacao, consulta, inutilizacao e cancelamento SEFAZ
+- `src/lib/nfse-provider.ts`: despacho por provedor municipal
+- `src/lib/nfse-toledo-equiplano.ts`: conector NFS-e Toledo/Equiplano
+- `src/lib/nfse-guaira-ipm.ts`: conector NFS-e Guaira/IPM
+- `src/admin-page.ts`: UI administrativa embutida
 
-## Escolha do v0
+## Fluxo estadual atual
 
-O foco inicial nao e fidelidade fiscal real. O foco e:
+Para `NF-e` e `NFC-e`, o fluxo real atual e:
 
-- aceitar chamadas parecidas com as atuais
-- devolver respostas compativeis
-- expor rastreabilidade visivel
-- permitir plugar um sistema cliente real cedo
+1. receber payload compativel na borda
+2. localizar emitente, ambiente e certificado
+3. gerar XML fiscal
+4. assinar com certificado `A1`
+5. validar no XSD local
+6. consultar chave na SEFAZ antes de retransmitir
+7. transmitir em homologacao
+8. persistir XML, retorno, protocolo e eventos
+9. disponibilizar XML/PDF por rotas compativeis
 
-## Assinatura local
+## Fluxo municipal atual
 
-O fluxo tecnico atual e:
+Para `NFS-e`, a arquitetura ja separa provedores por conector.
 
-1. validar e abrir o PFX
-2. conferir validade e CNPJ quando presente no certificado
-3. criptografar PFX e senha para persistencia local
-4. montar `NFe/infNFe` a partir do payload original
-5. calcular chave de acesso e `cDV`
-6. assinar `infNFe` com XMLDSig
-7. verificar a assinatura com o certificado publico
-8. salvar XML gerado e XML assinado separadamente
+Hoje existem dois caminhos concretos:
 
-A autorizacao mock e independente da assinatura. A integracao SEFAZ ainda nao
-existe.
+- `toledo-equiplano`
+- `guaira-ipm`
+
+O contrato externo continua unico para os clientes, mas a traducao para XML,
+autenticacao, consulta e cancelamento fica isolada por provedor.
+
+Essa separacao e importante para permitir novos caminhos futuros, inclusive um
+canal nacional de NFS-e, sem quebrar as rotas publicas atuais.
+
+## Persistencia
+
+Persistencia principal atual:
+
+- `Supabase` para emitentes, certificados, configuracoes, documentos e eventos
+
+Persistencia auxiliar local:
+
+- estado local para desenvolvimento e contingencia controlada
+
+## Limites assumidos hoje
+
+- producao continua bloqueada neste servico
+- homologacao e o foco operacional atual
+- filas, retries distribuidos e endurecimento operacional ainda nao estao
+  fechados como etapa final
+- reforma fiscal de julho de 2026 ainda nao foi tratada aqui como frente
+  concluida

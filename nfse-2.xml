@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<es:esConsultarNfsePorRpsResposta xmlns:es="http://www.equiplano.com.br/esnfs" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.equiplano.com.br/esnfs consultarNfsePorRpsResposta_v01.xsd">
+  <nfse>
+    <nrNfse>3</nrNfse>
+    <cdAutenticacao>33D8F4ECF38A7B326EE420EAC927C0AC</cdAutenticacao>
+    <dtEmissaoNfs>2026-06-15T11:36:24</dtEmissaoNfs>
+    <nrRps>8</nrRps>
+    <nrEmissorRps>1</nrEmissorRps>
+  </nfse>
+</es:esConsultarNfsePorRpsResposta>

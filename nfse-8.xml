@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<retorno>
+	<mensagem>
+		<codigo>NFS-e válida para emissão.</codigo>
+	</mensagem>
+		<numero_nfse>185</numero_nfse>
+	<serie_nfse>1</serie_nfse>
+	<data_nfse>15/06/2026</data_nfse>
+	<hora_nfse>10:43:50</hora_nfse>
+	<situacao_codigo_nfse>1</situacao_codigo_nfse>
+	<situacao_descricao_nfse>Emitida</situacao_descricao_nfse>
+	<link_nfse>https://guaira.atende.net/autoatendimento/servicos/consulta-de-autenticidade-de-nota-fiscal-eletronica-nfse/detalhar/1/identificador/7571150626104350130351810692026067397996</link_nfse>
+	<cod_verificador_autenticidade>7571150626104350130351810692026067397996</cod_verificador_autenticidade>
+</retorno>

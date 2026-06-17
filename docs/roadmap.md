@@ -1,35 +1,46 @@
-# Roadmap sugerido
+# Roadmap atual
 
-## Fase 0
+## Estado consolidado ate 17/06/2026
 
-- validar contrato com 1 sistema cliente real
-- mapear campos realmente usados
-- ajustar respostas mock
+- [x] autenticacao compativel via `POST /oauth/token`
+- [x] persistencia principal em `Supabase`
+- [x] upload real e criptografia de certificado `A1`
+- [x] geracao de XML `NF-e` e `NFC-e`
+- [x] assinatura digital e verificacao local
+- [x] validacao pelos XSD oficiais `PL_010c`
+- [x] homologacao `NFC-e` ponta a ponta
+- [x] homologacao `NF-e` ponta a ponta
+- [x] inutilizacao real `NFC-e`
+- [x] inutilizacao real `NF-e`
+- [x] cancelamento real `NFC-e`
+- [x] cancelamento real `NF-e`
+- [x] `NFS-e` Toledo/Equiplano com emissao, consulta, XML, PDF e cancelamento
+- [x] `NFS-e` Guaira/IPM com emissao homologada, XML/PDF local e cancelamento
+  municipal implementado
+- [x] VPS homologada com HTTPS, Nginx, `systemd` e admin protegido
 
-## Fase 1
+## Pendencias ainda abertas
 
-- PostgreSQL
-- hash de `client_secret`
-- persistencia de documentos e eventos
-- login admin de verdade
+- [ ] fechar retries agendados e processamento distribuido
+- [ ] endurecer conciliacao operacional de eventos e falhas intermitentes
+- [ ] concluir consulta/cancelamento Guaira em cenarios municipais de teste que
+  a IPM efetivamente reconheca como consultaveis/cancelaveis
+- [ ] revisar documentacao operacional sempre que novos marcos forem fechados
 
-## Fase 2
+## Frente propositalmente adiada
 
-- [x] upload real e criptografia de certificado
-- [x] XML fiscal inicial
-- [x] assinatura e verificacao local
-- [x] validacao pelos XSD oficiais da NF-e 4.00 (`PL_010c`)
-- [ ] normalizacao fiscal completa por CST/CSOSN e grupos opcionais
+Itens conscientemente adiados para a proxima etapa:
 
-## Fase 3
+- [ ] adequacao completa as reformas fiscais exigidas a partir de `01/07/2026`
+- [ ] liberacao de producao neste servico
+- [ ] novo caminho alternativo para eventual canal nacional de `NFS-e`
 
-- [x] homologacao NFC-e ponta a ponta
-- [x] polling/status real
-- [x] XML autorizado e DANFE
-- [x] inutilizacao real em homologacao
-- [x] cancelamento real em homologacao
+## Direcao para o proximo ciclo
 
-## Fase 4
+Quando voltar a mexer no projeto, a ordem recomendada e:
 
-- homologacao NF-e
-- filas, retries e conciliacao de eventos
+1. revisar impacto real das regras de julho de 2026 no contrato atual
+2. decidir o menor recorte seguro para `NF-e` e `NFC-e`
+3. so depois tocar codigo fiscal
+4. manter producao dos sistemas clientes na Nuvem Fiscal ate a etapa nova estar
+   segura

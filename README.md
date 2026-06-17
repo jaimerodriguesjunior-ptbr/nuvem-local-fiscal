@@ -1,21 +1,76 @@
 # nuvem-local-fiscal
 
-V0 local para validar a ideia do `nuvemlocalfiscal` antes da integracao real com SEFAZ.
+API fiscal propria para substituir a dependencia da Nuvem Fiscal nos sistemas
+atuais, preservando o contrato externo sempre que isso for seguro.
 
-## O que existe neste v0
+## Estado atual
 
-- `POST /oauth/token` com `client_credentials`
-- `POST /nfe` e `POST /nfce`
-- `GET /nfe/:id` e `GET /nfce/:id`
-- `POST /nfe/:id/cancelar` e `POST /nfce/:id/cancelar`
-- `GET /nfe/:id/xml`, `GET /nfce/:id/xml`
-- `GET /nfe/:id/pdf`, `GET /nfce/:id/pdf`
+Em `17/06/2026`, o estado real deste repo e:
+
+- `NFC-e` em homologacao funcionando ponta a ponta
+- `NF-e` em homologacao funcionando ponta a ponta
+- `NFS-e` Toledo/Equiplano funcionando ponta a ponta em homologacao
+- `NFS-e` Guaira/IPM com emissao homologada, XML/PDF locais e cancelamento
+  municipal implementado, ainda com pendencias especificas de consulta
+  municipal/cancelamento em notas de teste
+- persistencia principal em `Supabase`
+- certificados A1 e configuracoes por empresa/ambiente persistidos
+- VPS homologada com HTTPS, `systemd`, Nginx e admin protegido
+- producao fiscal ainda bloqueada neste servico
+
+O documento principal do projeto e [`NUVEMLOCALFISCAL.md`](NUVEMLOCALFISCAL.md).
+Ele deve ser tratado como a fonte mais completa do estado operacional.
+
+## Objetivo pratico
+
+Os sistemas clientes devem continuar chamando rotas e payloads proximos dos que
+ja usam hoje. A mudanca desejada no cliente continua sendo, em regra:
+
+- URL
+- `CLIENT_ID`
+- `CLIENT_SECRET`
+
+As adaptacoes de compatibilidade devem acontecer dentro da Nuvem Local Fiscal,
+nao nos programas clientes, salvo autorizacao explicita.
+
+## Endpoints ja exercitados
+
+- `POST /oauth/token`
+- `POST /nfe`
+- `GET /nfe/:id`
+- `GET /nfe/:id/xml`
+- `GET /nfe/:id/pdf`
+- `GET /nfe/:id/cancelamento/xml`
+- `POST /nfce`
+- `GET /nfce/:id`
+- `POST /nfce/:id/cancelar`
+- `GET /nfce/:id/xml`
+- `GET /nfce/:id/pdf`
+- `GET /nfce/:id/cancelamento/xml`
+- `POST /nfse/dps`
+- `GET /nfse/:id`
+- `GET /nfse/:id/xml`
+- `GET /nfse/:id/pdf`
+- `POST /nfse/:id/cancelamento`
+- `POST /nfse/:id/cancelar`
+- `GET /nfse/:id/cancelamento/xml`
+- `POST /empresas`
+- `PUT /empresas/:cnpj`
+- `GET /empresas/:cnpj`
 - `PUT /empresas/:cnpj/certificado`
-- `GET /admin` com tela local para inspecao de clients, emitentes, certificados e documentos
-- geracao de XML NF-e/NFC-e 4.00 a partir de `infNFe`
-- assinatura XMLDSig com certificado A1/PFX
-- verificacao local da assinatura antes de salvar o XML
-- validacao contra os XSD oficiais NF-e/NFC-e `PL_010c`
+- `PUT /empresas/:cnpj/nfce`
+- `GET /empresas/:cnpj/nfce`
+- `PUT /empresas/:cnpj/nfse`
+- `POST /empresas/:cnpj/nfse`
+- `GET /empresas/:cnpj/nfse`
+- `POST /nfce/inutilizacoes`
+- `GET /nfce/inutilizacoes/:id`
+- `GET /nfce/inutilizacoes/:id/xml`
+- `GET /nfce/inutilizacoes/:id/resposta/xml`
+- `POST /nfe/inutilizacoes`
+- `GET /nfe/inutilizacoes/:id`
+- `GET /nfe/inutilizacoes/:id/xml`
+- `GET /nfe/inutilizacoes/:id/resposta/xml`
 
 ## Como rodar
 
@@ -38,40 +93,36 @@ npm run dev
 - Healthcheck: `http://localhost:3001/health`
 - Readiness: `http://localhost:3001/ready`
 
+## Validacoes locais
+
+Comandos uteis:
+
+```powershell
+npm run typecheck
+npm test
+npm run build
+```
+
+No estado atual, esses tres comandos devem passar antes de qualquer deploy ou
+teste fiscal mais sensivel.
+
 ## Deploy
 
-O roteiro para VPS com `systemd`, Nginx, HTTPS e backup esta em
+O roteiro de VPS com `systemd`, Nginx, HTTPS e backup esta em
 [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
 
-## Credenciais padrao
+## Observacoes operacionais
 
-- API client:
-  - `client_id`: `local-client`
-  - `client_secret`: `local-secret`
-- Admin:
-  - `usuario`: `admin`
-  - `senha`: `admin`
+- este repo e homologado; producao continua bloqueada por seguranca
+- os sistemas clientes ainda podem permanecer na Nuvem Fiscal em producao
+- a atualizacao para regras novas de julho de 2026 ainda nao foi tratada neste
+  repo como trabalho fechado; isso fica para a proxima etapa
+- o pacote XSD local da NF-e/NFC-e e `PL_010c`, publicado em `26/03/2026`, mas
+  isso nao deve ser lido sozinho como garantia de aderencia completa a todas as
+  reformas fiscais novas
 
-## Observacao
+## Schemas
 
-Este v0 persiste emitentes, certificados e documentos em `storage/mock-state.json`.
-Tokens sao assinados e continuam validos durante seu prazo mesmo apos reiniciar o processo.
-
-O PFX e a senha ficam dentro de um bundle AES-256-GCM protegido por
-`CERTIFICATE_ENCRYPTION_KEY`. O arquivo de estado e certificados locais estao
-ignorados pelo Git, mas ainda devem ser tratados como dados sensiveis.
-
-## Teste de XML assinado
-
-1. Emita uma NFC-e para o documento aparecer no painel.
-2. No emitente correspondente, envie o arquivo `.pfx` e a senha.
-3. No documento, clique em `Gerar e assinar XML`.
-4. Confirme `assinatura valida` e `XSD oficial valido`.
-5. Use `Baixar XML assinado` para inspecionar o artefato antes da autorizacao mock.
-
-Assinar o XML nao significa autorizar a nota. A autorizacao continua sendo uma
-acao mock separada no painel, e nenhuma chamada a SEFAZ e feita nesta versao.
-
-Os schemas foram obtidos do Portal Nacional da NF-e, pacote `PL_010c`,
-publicado em 26/03/2026. A origem esta registrada em
-`schemas/nfe/official-010c/README.md`.
+Os schemas locais foram obtidos do Portal Nacional da NF-e, pacote `PL_010c`,
+com origem registrada em
+[`schemas/nfe/official-010c/README.md`](schemas/nfe/official-010c/README.md).
