@@ -370,6 +370,35 @@ const page = String.raw`<!doctype html>
     }
     .info span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
     .info strong { display: block; margin-top: 8px; font-size: 14px; }
+    .compact-info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px 14px;
+      margin-top: 16px;
+    }
+    .compact-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(16, 42, 46, .08);
+    }
+    .compact-info span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .compact-info strong {
+      overflow: hidden;
+      min-width: 0;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+    }
     .certificate-card {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -500,6 +529,38 @@ const page = String.raw`<!doctype html>
       justify-content: flex-end;
       gap: 7px;
     }
+    .recent-document-actions .btn {
+      min-height: 28px;
+      padding: 4px 9px;
+      font-size: 10px;
+    }
+    .recent-document-actions .btn.process {
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid rgba(16, 42, 46, .14);
+      font-weight: 700;
+    }
+    .recent-document-actions .btn.process:hover {
+      color: var(--forest-dark);
+      background: rgba(229, 238, 232, .75);
+    }
+    .document-status-text {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .document-status-item {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .document-status-item strong {
+      color: var(--ink);
+      font-weight: 800;
+    }
     .document-status {
       display: flex;
       flex-wrap: wrap;
@@ -526,10 +587,6 @@ const page = String.raw`<!doctype html>
     }
     .recent-document .document-summary {
       padding: 9px 0;
-    }
-    .recent-document .badge {
-      flex: 0 0 auto;
-      align-self: center;
     }
     .recent-document .document-body {
       padding: 10px 0 16px;
@@ -607,7 +664,7 @@ const page = String.raw`<!doctype html>
       .metrics { grid-template-columns: 1fr 1fr; }
       .company-line { grid-template-columns: 1fr; gap: 6px; }
       .company-heading, .environment-stack { justify-content: flex-start; }
-      .two-col, .info-grid { grid-template-columns: 1fr; }
+      .two-col, .info-grid, .compact-info-grid { grid-template-columns: 1fr; }
       .filters { grid-template-columns: 1fr 1fr; }
       .document-head, .document-line { grid-template-columns: 1fr; gap: 6px; }
       .document-tail, .document-status, .document-quick-actions { justify-content: flex-start; }
@@ -822,6 +879,32 @@ const page = String.raw`<!doctype html>
       '</article>';
     }
 
+    function compactCompanyCardFixed(company) {
+      const cert = certificateFor(company.cnpj);
+      const docs = documentsFor(company.cnpj);
+      const hom = company.environments.homologacao;
+      const prod = company.environments.producao;
+      return '<article class="company">' +
+        '<div class="company-line">' +
+          '<div class="company-heading"><div class="company-name">' + escapeHtml(company.nomeFantasia) +
+          '</div><div class="company-legal">' + escapeHtml(company.razaoSocial) + '</div></div>' +
+          '<div class="environment-stack">' +
+            badge('Homologação', hom ? 'ok' : '') +
+            badge('Produção', prod ? 'ok' : '') +
+          '</div>' +
+          '<button type="button" class="btn secondary" onclick="openCompany(\'' +
+            escapeHtml(company.cnpj) + '\')">Abrir empresa</button>' +
+        '</div>' +
+        '<div class="company-line">' +
+          '<div class="company-meta">' +
+            '<span class="company-meta-item"><strong>CNPJ:</strong> ' + escapeHtml(formatCnpj(company.cnpj)) + '</span>' +
+            '<span class="company-meta-item"><strong>Certificado:</strong> ' + escapeHtml(cert ? 'ativo' : 'ausente') + '</span>' +
+            '<span class="company-meta-item"><strong>Documentos:</strong> ' + escapeHtml(String(docs.length)) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }
+
     function renderHome() {
       const companies = groupedCompanies();
       const recent = state.snapshot.documents.slice(0, 3);
@@ -833,9 +916,9 @@ const page = String.raw`<!doctype html>
       metrics(companies) +
       '<section class="section-head"><div><h2>Empresas</h2><p>Cadastro único por CNPJ, com ambientes separados internamente.</p></div>' +
         '<button type="button" class="btn ghost" onclick="navigate(\'companies\')">Ver todas</button></section>' +
-      '<div class="company-list">' + companies.slice(0, 4).map(compactCompanyCard).join('') + '</div>' +
+      '<div class="company-list">' + companies.slice(0, 4).map(compactCompanyCardFixed).join('') + '</div>' +
       '<section class="section-head"><div><h2>Movimento recente</h2><p>Últimos documentos recebidos pelo motor local.</p></div></section>' +
-      (recent.length ? '<div class="recent-list">' + recent.map(compactRecentDocumentRow).join('') + '</div>' :
+      (recent.length ? '<div class="recent-list">' + recent.map(compactRecentDocumentRowFixed).join('') + '</div>' :
         '<div class="empty">Ainda não há documentos recebidos.</div>');
     }
 
@@ -848,7 +931,7 @@ const page = String.raw`<!doctype html>
         '<button type="button" class="btn" onclick="navigate(\'new-company\')">Nova empresa</button>'
       ) +
       (companies.length
-        ? '<div class="company-list">' + companies.map(compactCompanyCard).join('') + '</div>'
+        ? '<div class="company-list">' + companies.map(compactCompanyCardFixed).join('') + '</div>'
         : '<div class="empty">Nenhuma empresa cadastrada. Use "Nova empresa" para iniciar.</div>');
     }
 
@@ -932,6 +1015,11 @@ const page = String.raw`<!doctype html>
         escapeHtml(value) + '</strong></div>';
     }
 
+    function compactInfo(label, value) {
+      return '<div class="compact-info"><span>' + escapeHtml(label) + '</span><strong>' +
+        escapeHtml(value) + '</strong></div>';
+    }
+
     function environmentSummary(issuer, label) {
       if (!issuer) {
         return '<div class="info"><span>' + label + '</span><strong>Ambiente ainda não cadastrado</strong></div>';
@@ -1009,13 +1097,13 @@ const page = String.raw`<!doctype html>
       return '<section class="surface"><h2>Dados cadastrais</h2>' +
         '<p class="small">Informacoes compartilhadas pela empresa e registros disponiveis por ambiente.</p>' +
         '<div class="actions"><button type="button" class="btn secondary" onclick="openNfceSettings()">Configurar NFC-e e CSC</button></div>' +
-        '<div class="info-grid">' +
-          info('CNPJ', formatCnpj(company.cnpj)) +
-          info('Razao social', company.razaoSocial) +
-          info('Nome fantasia', company.nomeFantasia) +
-          info('UF', base ? base.uf : 'Nao informado') +
-          info('Inscricao estadual', base ? base.ie || 'Nao informada' : 'Nao informada') +
-          info('Regime tributario', base ? 'CRT ' + (base.crt || 'nao informado') : 'Nao informado') +
+        '<div class="compact-info-grid">' +
+          compactInfo('CNPJ', formatCnpj(company.cnpj)) +
+          compactInfo('Razao social', company.razaoSocial) +
+          compactInfo('Nome fantasia', company.nomeFantasia) +
+          compactInfo('UF', base ? base.uf : 'Nao informado') +
+          compactInfo('Inscricao estadual', base ? base.ie || 'Nao informada' : 'Nao informada') +
+          compactInfo('Regime tributario', base ? 'CRT ' + (base.crt || 'nao informado') : 'Nao informado') +
         '</div><div class="section-head"><div><h3>Ambientes</h3><p>Um cadastro, duas configuracoes fiscais independentes.</p></div></div>' +
         '<div class="two-col">' +
           environmentEditor(company, hom, 'Homologacao', 'homologacao') +
@@ -1342,19 +1430,17 @@ const page = String.raw`<!doctype html>
       const hasCertificate = Boolean(cert);
       const canAutoProcess = doc.ambiente === 'homologacao' &&
         doc.status !== 'autorizado' && doc.status !== 'cancelado';
-      const tone = doc.status === 'autorizado' ? 'ok' :
-        doc.status === 'processamento' ? 'warn' :
-        doc.status === 'rejeitado' || doc.status === 'erro' ? 'bad' : '';
       return '<article class="document recent-document"><div class="document-summary">' +
         '<div class="document-head">' +
           '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
             '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
             escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
-          '<div class="environment-stack">' +
-            badge(doc.status, tone) + badge(doc.ambiente, 'info') + '</div>' +
+          '<div class="document-status-text">' +
+            '<span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+            '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span></div>' +
           '<div class="recent-document-actions">' +
             (canAutoProcess && hasCertificate
-              ? '<button type="button" class="btn" onclick="processDocumentAutomatically(\'' +
+              ? '<button type="button" class="btn process" onclick="processDocumentAutomatically(\'' +
                   doc.id + '\')">Processar</button>'
               : '') +
             '<button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
@@ -1375,6 +1461,53 @@ const page = String.raw`<!doctype html>
             badge(doc.xmlGenerated ? 'XML gerado' : 'XML pendente', doc.xmlGenerated ? 'ok' : 'warn') +
             badge(doc.signatureValid ? 'Assinatura vÃ¡lida' : 'Sem assinatura', doc.signatureValid ? 'ok' : 'warn') +
             badge(doc.xsdValid ? 'XSD vÃ¡lido' : 'XSD pendente/invÃ¡lido', doc.xsdValid ? 'ok' : 'warn') +
+          '</div><div class="actions">' +
+            '<button type="button" class="btn" ' + (canAutoProcess && hasCertificate ? '' : 'disabled') +
+              ' onclick="processDocumentAutomatically(\'' + doc.id + '\')">Processar agora</button>' +
+            '<button type="button" class="btn blue" ' + (hasCertificate ? '' : 'disabled') +
+              ' onclick="signDocument(\'' + doc.id + '\')">Gerar e assinar XML</button>' +
+            '<button type="button" class="btn ghost" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Fechar nota</button>' +
+          '</div></div></article>';
+    }
+
+    function compactRecentDocumentRowFixed(doc) {
+      const cert = certificateFor(doc.issuerCnpj);
+      const company = companyByCnpj(doc.issuerCnpj);
+      const hasCertificate = Boolean(cert);
+      const canAutoProcess = doc.ambiente === 'homologacao' &&
+        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      return '<article class="document recent-document"><div class="document-summary">' +
+        '<div class="document-head">' +
+          '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
+            '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
+            escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
+          '<div class="document-status-text">' +
+            '<span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+            '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span></div>' +
+          '<div class="recent-document-actions">' +
+            (canAutoProcess && hasCertificate
+              ? '<button type="button" class="btn process" onclick="processDocumentAutomatically(\'' +
+                  doc.id + '\')">Processar</button>'
+              : '') +
+            '<button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="document-line">' +
+          '<div class="document-meta">' +
+            '<span class="document-meta-item"><strong>Série:</strong> ' + escapeHtml(String(doc.serie)) + '</span>' +
+            '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
+            '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span>' +
+          '</div>' +
+        '</div></div>' +
+        '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
+          (doc.motivo ? '<p><strong>' + escapeHtml(doc.motivoStatus || '') + '</strong> ' +
+            escapeHtml(doc.motivo) + '</p>' : '') +
+          '<div class="company-meta">' +
+            badge(doc.xmlGenerated ? 'XML gerado' : 'XML pendente', doc.xmlGenerated ? 'ok' : 'warn') +
+            badge(doc.signatureValid ? 'Assinatura válida' : 'Sem assinatura', doc.signatureValid ? 'ok' : 'warn') +
+            badge(doc.xsdValid ? 'XSD válido' : 'XSD pendente/inválido', doc.xsdValid ? 'ok' : 'warn') +
           '</div><div class="actions">' +
             '<button type="button" class="btn" ' + (canAutoProcess && hasCertificate ? '' : 'disabled') +
               ' onclick="processDocumentAutomatically(\'' + doc.id + '\')">Processar agora</button>' +
@@ -1458,6 +1591,164 @@ const page = String.raw`<!doctype html>
         '</div></article>';
     }
 
+    function compactDocumentsTabRow(doc) {
+      const cert = certificateFor(doc.issuerCnpj);
+      const company = companyByCnpj(doc.issuerCnpj);
+      const hasCertificate = Boolean(cert);
+      const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
+      const canAutoProcess = doc.ambiente === 'homologacao' &&
+        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      return '<article class="document recent-document"><div class="document-summary">' +
+        '<div class="document-head">' +
+          '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
+            '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' Â· ' +
+            escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
+          '<div class="document-status-text">' +
+            '<span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+            '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span></div>' +
+          '<div class="recent-document-actions">' +
+            (canAutoProcess && hasCertificate
+              ? '<button type="button" class="btn process" onclick="processDocumentAutomatically(\'' +
+                  doc.id + '\')">Processar</button>'
+              : '') +
+            '<button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="document-line">' +
+          '<div class="document-meta">' +
+            '<span class="document-meta-item"><strong>SÃ©rie:</strong> ' + escapeHtml(String(doc.serie)) + '</span>' +
+            '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
+            '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span>' +
+          '</div>' +
+        '</div></div>' +
+        '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
+          (doc.motivo ? '<p><strong>' + escapeHtml(doc.motivoStatus || '') + '</strong> ' +
+            escapeHtml(doc.motivo) + '</p>' : '') +
+          '<div class="company-meta">' +
+            badge(doc.xmlGenerated ? 'XML gerado' : 'XML pendente', doc.xmlGenerated ? 'ok' : 'warn') +
+            badge(doc.signatureValid ? 'Assinatura vÃ¡lida' : 'Sem assinatura', doc.signatureValid ? 'ok' : 'warn') +
+            badge(doc.xsdValid ? 'XSD vÃ¡lido' : 'XSD pendente/invÃ¡lido', doc.xsdValid ? 'ok' : 'warn') +
+          '</div><div class="actions">' +
+            '<button type="button" class="btn" ' + (canAutoProcess && hasCertificate ? '' : 'disabled') +
+              ' onclick="processDocumentAutomatically(\'' + doc.id + '\')">Processar agora</button>' +
+            '<button type="button" class="btn blue" ' + (hasCertificate ? '' : 'disabled') +
+              ' onclick="signDocument(\'' + doc.id + '\')">Gerar e assinar XML</button>' +
+            '<button type="button" class="btn secondary" ' + (canTransmit ? '' : 'disabled') +
+              ' onclick="prepareSefazAuthorization(\'' + doc.id + '\')">Validar lote</button>' +
+            '<button type="button" class="btn danger" ' + (canTransmit ? '' : 'disabled') +
+              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir homologaÃ§Ã£o</button>' +
+            '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeiÃ§Ã£o</button>' +
+            (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
+              doc.id + '\')">Baixar XML assinado</button>' : '') +
+            ((doc.status === 'autorizado' || doc.status === 'cancelado')
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/xml\', \'' + doc.id + '-autorizado.xml\')">XML autorizado</button>' +
+                '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/pdf\', \'' + doc.id + '-danfe.pdf\')">DANFE</button>'
+              : '') +
+            (doc.cancellationProcessedXml
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/cancelamento/xml\', \'' + doc.id + '-cancelamento.xml\')">XML cancelamento</button>'
+              : '') +
+          '</div>' +
+          (doc.xsdErrors && doc.xsdErrors.length ? '<details><summary>Erros de validaÃ§Ã£o XSD</summary><pre>' +
+            escapeHtml(doc.xsdErrors.join('\\n')) + '</pre></details>' : '') +
+          (eventsFor(doc.id).length
+            ? '<details><summary>Historico de processamento (' + eventsFor(doc.id).length +
+              ')</summary><div class="log-list">' + eventsFor(doc.id).map(function(event) {
+                return '<article class="log"><strong>' + formatDate(event.createdAt, true) +
+                  '</strong><span>' + badge(event.level, eventTone(event.level)) +
+                  '</span><span>' + escapeHtml(event.message) + '</span></article>';
+              }).join('') + '</div></details>'
+            : '') +
+          '<details><summary>Payload normalizado</summary><pre>' +
+            escapeHtml(JSON.stringify(doc.payloadNormalizado, null, 2)) + '</pre></details>' +
+        '</div></article>';
+    }
+
+    function compactDocumentsTabRowFixed(doc) {
+      const cert = certificateFor(doc.issuerCnpj);
+      const company = companyByCnpj(doc.issuerCnpj);
+      const hasCertificate = Boolean(cert);
+      const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
+      const canAutoProcess = doc.ambiente === 'homologacao' &&
+        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      return '<article class="document recent-document"><div class="document-summary">' +
+        '<div class="document-head">' +
+          '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
+            '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
+            escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
+          '<div class="document-status-text">' +
+            '<span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+            '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span></div>' +
+          '<div class="recent-document-actions">' +
+            (canAutoProcess && hasCertificate
+              ? '<button type="button" class="btn process" onclick="processDocumentAutomatically(\'' +
+                  doc.id + '\')">Processar</button>'
+              : '') +
+            '<button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="document-line">' +
+          '<div class="document-meta">' +
+            '<span class="document-meta-item"><strong>Série:</strong> ' + escapeHtml(String(doc.serie)) + '</span>' +
+            '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
+            '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span>' +
+          '</div>' +
+        '</div></div>' +
+        '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
+          (doc.motivo ? '<p><strong>' + escapeHtml(doc.motivoStatus || '') + '</strong> ' +
+            escapeHtml(doc.motivo) + '</p>' : '') +
+          '<div class="company-meta">' +
+            badge(doc.xmlGenerated ? 'XML gerado' : 'XML pendente', doc.xmlGenerated ? 'ok' : 'warn') +
+            badge(doc.signatureValid ? 'Assinatura válida' : 'Sem assinatura', doc.signatureValid ? 'ok' : 'warn') +
+            badge(doc.xsdValid ? 'XSD válido' : 'XSD pendente/inválido', doc.xsdValid ? 'ok' : 'warn') +
+          '</div><div class="actions">' +
+            '<button type="button" class="btn" ' + (canAutoProcess && hasCertificate ? '' : 'disabled') +
+              ' onclick="processDocumentAutomatically(\'' + doc.id + '\')">Processar agora</button>' +
+            '<button type="button" class="btn blue" ' + (hasCertificate ? '' : 'disabled') +
+              ' onclick="signDocument(\'' + doc.id + '\')">Gerar e assinar XML</button>' +
+            '<button type="button" class="btn secondary" ' + (canTransmit ? '' : 'disabled') +
+              ' onclick="prepareSefazAuthorization(\'' + doc.id + '\')">Validar lote</button>' +
+            '<button type="button" class="btn danger" ' + (canTransmit ? '' : 'disabled') +
+              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir homologação</button>' +
+            '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeição</button>' +
+            (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
+              doc.id + '\')">Baixar XML assinado</button>' : '') +
+            ((doc.status === 'autorizado' || doc.status === 'cancelado')
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/xml\', \'' + doc.id + '-autorizado.xml\')">XML autorizado</button>' +
+                '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/pdf\', \'' + doc.id + '-danfe.pdf\')">DANFE</button>'
+              : '') +
+            (doc.cancellationProcessedXml
+              ? '<button type="button" class="btn ghost" onclick="downloadFiscalArtifact(\'/' +
+                (doc.tipoDocumento === 'NFe' ? 'nfe' : 'nfce') + '/' + doc.id +
+                '/cancelamento/xml\', \'' + doc.id + '-cancelamento.xml\')">XML cancelamento</button>'
+              : '') +
+          '</div>' +
+          (doc.xsdErrors && doc.xsdErrors.length ? '<details><summary>Erros de validação XSD</summary><pre>' +
+            escapeHtml(doc.xsdErrors.join('\\n')) + '</pre></details>' : '') +
+          (eventsFor(doc.id).length
+            ? '<details><summary>Historico de processamento (' + eventsFor(doc.id).length +
+              ')</summary><div class="log-list">' + eventsFor(doc.id).map(function(event) {
+                return '<article class="log"><strong>' + formatDate(event.createdAt, true) +
+                  '</strong><span>' + badge(event.level, eventTone(event.level)) +
+                  '</span><span>' + escapeHtml(event.message) + '</span></article>';
+              }).join('') + '</div></details>'
+            : '') +
+          '<details><summary>Payload normalizado</summary><pre>' +
+            escapeHtml(JSON.stringify(doc.payloadNormalizado, null, 2)) + '</pre></details>' +
+        '</div></article>';
+    }
+
     function renderDocuments() {
       let docs = state.snapshot.documents;
       if (state.companyCnpj) {
@@ -1471,8 +1762,8 @@ const page = String.raw`<!doctype html>
         ? '<button type="button" class="btn ghost" onclick="clearCompanyFilter()">Limpar filtro</button>'
         : '';
       return pageHead('Operação', 'Documentos', subtitle, clear) +
-        renderListFilters() +
-        (docs.length ? '<div class="document-list">' + docs.map(documentRow).join('') + '</div>' :
+        renderListFiltersFixed() +
+        (docs.length ? '<div class="recent-list">' + docs.map(compactDocumentsTabRowFixed).join('') + '</div>' :
           '<div class="empty">Nenhum documento encontrado para este filtro.</div>') +
         responseConsole();
     }
@@ -1496,7 +1787,7 @@ const page = String.raw`<!doctype html>
         'Logs e debug',
         'Uma leitura técnica do que entrou, do que foi validado e da última resposta conhecida da SEFAZ.'
       ) +
-      renderListFilters() +
+      renderListFiltersFixed() +
       '<div class="log-list">' + (eventRows || (docs.length ? docs.map(function(doc) {
         const event = doc.sefazResponseXml ? 'Resposta SEFAZ' :
           doc.xmlSigned ? 'XML assinado' : 'Documento recebido';
@@ -1544,7 +1835,40 @@ const page = String.raw`<!doctype html>
           }).join('') + '</select></label>' +
         '<label>Documento<select onchange="setListFilter(\'type\', this.value)">' +
           '<option value="">Todos</option><option value="NFe"' + (filters.type === 'NFe' ? ' selected' : '') +
-          '>NF-e</option><option value="NFCe"' + (filters.type === 'NFCe' ? ' selected' : '') + '>NFC-e</option></select></label>' +
+          '>NF-e</option><option value="NFCe"' + (filters.type === 'NFCe' ? ' selected' : '') +
+          '>NFC-e</option><option value="NFSe"' + (filters.type === 'NFSe' ? ' selected' : '') +
+          '>NFS-e</option></select></label>' +
+        '<label>Status<select onchange="setListFilter(\'status\', this.value)"><option value="">Todos</option>' +
+          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro'].map(function(status) {
+            return '<option value="' + status + '"' + (filters.status === status ? ' selected' : '') + '>' +
+              status + '</option>';
+          }).join('') + '</select></label>' +
+        '<label>Ambiente<select onchange="setListFilter(\'environment\', this.value)"><option value="">Todos</option>' +
+          '<option value="homologacao"' + (filters.environment === 'homologacao' ? ' selected' : '') +
+          '>Homologação</option><option value="producao"' + (filters.environment === 'producao' ? ' selected' : '') +
+          '>Produção</option></select></label>' +
+        '<label>De<input type="date" value="' + escapeHtml(filters.from) +
+          '" onchange="setListFilter(\'from\', this.value)" /></label>' +
+        '<label>Até<input type="date" value="' + escapeHtml(filters.to) +
+          '" onchange="setListFilter(\'to\', this.value)" /></label>' +
+        '<button type="button" class="btn ghost" onclick="clearListFilters()">Limpar</button>' +
+      '</section>';
+    }
+
+    function renderListFiltersFixed() {
+      const filters = state.listFilters;
+      return '<section class="filters">' +
+        '<label>Empresa<select onchange="setListFilter(\'company\', this.value)"><option value="">Todas</option>' +
+          groupedCompanies().map(function(company) {
+            return '<option value="' + escapeHtml(company.cnpj) + '"' +
+              (filters.company === company.cnpj ? ' selected' : '') + '>' +
+              escapeHtml(company.nomeFantasia) + '</option>';
+          }).join('') + '</select></label>' +
+        '<label>Documento<select onchange="setListFilter(\'type\', this.value)">' +
+          '<option value="">Todos</option><option value="NFe"' + (filters.type === 'NFe' ? ' selected' : '') +
+          '>NF-e</option><option value="NFCe"' + (filters.type === 'NFCe' ? ' selected' : '') +
+          '>NFC-e</option><option value="NFSe"' + (filters.type === 'NFSe' ? ' selected' : '') +
+          '>NFS-e</option></select></label>' +
         '<label>Status<select onchange="setListFilter(\'status\', this.value)"><option value="">Todos</option>' +
           ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro'].map(function(status) {
             return '<option value="' + status + '"' + (filters.status === status ? ' selected' : '') + '>' +
