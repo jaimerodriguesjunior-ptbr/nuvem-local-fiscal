@@ -210,6 +210,11 @@ const page = String.raw`<!doctype html>
     }
     .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
     .company-list, .document-list, .log-list { display: grid; gap: 12px; }
+    .recent-list {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid rgba(16, 42, 46, .12);
+    }
     .filters {
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
@@ -223,10 +228,8 @@ const page = String.raw`<!doctype html>
     }
     .company {
       display: grid;
-      grid-template-columns: 1fr auto auto;
-      align-items: center;
-      gap: 28px;
-      padding: 20px 22px;
+      gap: 6px;
+      padding: 10px 16px;
       border: 1px solid var(--line);
       border-radius: 16px;
       background: var(--paper);
@@ -234,21 +237,70 @@ const page = String.raw`<!doctype html>
       transition: transform .18s ease, box-shadow .18s ease;
     }
     .company:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-    .company-name { font-family: Georgia, serif; font-size: 19px; font-weight: 700; }
-    .company-legal { margin-top: 4px; color: var(--muted); font-size: 13px; }
-    .company-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
-    .environment-stack { display: flex; gap: 7px; }
+    .company-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .company-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .company-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: Georgia, serif;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .company-legal {
+      overflow: hidden;
+      color: var(--muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+    .company-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .company-meta-item {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .company-meta-item strong {
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .environment-stack {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
     .badge {
       display: inline-flex;
       align-items: center;
+      align-self: center;
       gap: 6px;
       width: fit-content;
-      padding: 5px 9px;
+      padding: 4px 8px;
       border-radius: 999px;
       color: #4d5c5e;
       background: #edf0ec;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
+      white-space: nowrap;
     }
     .badge:before {
       width: 6px;
@@ -267,8 +319,8 @@ const page = String.raw`<!doctype html>
     .badge.info:before { background: var(--blue); }
     .btn {
       width: auto;
-      min-height: 40px;
-      padding: 10px 15px;
+      min-height: 32px;
+      padding: 6px 11px;
       border: 0;
       border-radius: 11px;
       color: white;
@@ -387,17 +439,102 @@ const page = String.raw`<!doctype html>
     }
     .document-summary {
       display: grid;
-      grid-template-columns: 90px 1fr 160px auto;
-      align-items: center;
-      gap: 18px;
-      padding: 17px 20px;
+      gap: 6px;
+      padding: 10px 16px;
     }
-    .document-number { font-family: Georgia, serif; font-size: 18px; font-weight: 700; }
-    .document-sub { margin-top: 4px; color: var(--muted); font-size: 12px; }
-    .document-quick-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
-    .document-quick-actions .btn { min-height: 36px; padding: 8px 12px; font-size: 11px; }
+    .document-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .document-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .document-number { font-family: Georgia, serif; font-size: 16px; font-weight: 700; white-space: nowrap; }
+    .document-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .document-sub { color: var(--muted); font-size: 11px; }
+    .document-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .document-meta-item {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .document-meta-item strong {
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .document-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .document-tail {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+    .recent-document-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+    .document-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+    .document-quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+    .document-quick-actions .btn { min-height: 32px; padding: 6px 11px; font-size: 11px; }
     .document-body { padding: 0 20px 20px; border-top: 1px solid var(--line); }
     .document-body[hidden] { display: none; }
+    .recent-document {
+      overflow: visible;
+      border: 0;
+      border-bottom: 1px solid rgba(16, 42, 46, .12);
+      border-radius: 0;
+      background: transparent;
+    }
+    .recent-document .document-summary {
+      padding: 9px 0;
+    }
+    .recent-document .badge {
+      flex: 0 0 auto;
+      align-self: center;
+    }
+    .recent-document .document-body {
+      padding: 10px 0 16px;
+      border-top: 1px solid rgba(16, 42, 46, .12);
+    }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
     .actions .btn { font-size: 12px; }
     details { margin-top: 14px; }
@@ -468,12 +605,13 @@ const page = String.raw`<!doctype html>
       .nav { grid-column: 1 / -1; order: 3; overflow-x: auto; justify-content: flex-start; }
       main { width: min(100% - 24px, 1220px); padding-top: 26px; }
       .metrics { grid-template-columns: 1fr 1fr; }
-      .company { grid-template-columns: 1fr; gap: 14px; }
+      .company-line { grid-template-columns: 1fr; gap: 6px; }
+      .company-heading, .environment-stack { justify-content: flex-start; }
       .two-col, .info-grid { grid-template-columns: 1fr; }
       .filters { grid-template-columns: 1fr 1fr; }
-      .document-summary { grid-template-columns: 80px 1fr auto; }
-      .document-summary > :nth-child(3) { display: none; }
-      .document-quick-actions { grid-column: 1 / -1; justify-content: flex-start; }
+      .document-head, .document-line { grid-template-columns: 1fr; gap: 6px; }
+      .document-tail, .document-status, .document-quick-actions { justify-content: flex-start; }
+      .recent-document-actions { justify-content: flex-start; }
       .log { grid-template-columns: 1fr auto; }
       .log > :nth-child(2), .log > :nth-child(3) { grid-column: 1 / -1; }
     }
@@ -658,6 +796,32 @@ const page = String.raw`<!doctype html>
       '</article>';
     }
 
+    function compactCompanyCard(company) {
+      const cert = certificateFor(company.cnpj);
+      const docs = documentsFor(company.cnpj);
+      const hom = company.environments.homologacao;
+      const prod = company.environments.producao;
+      return '<article class="company">' +
+        '<div class="company-line">' +
+          '<div class="company-heading"><div class="company-name">' + escapeHtml(company.nomeFantasia) +
+          '</div><div class="company-legal">' + escapeHtml(company.razaoSocial) + '</div></div>' +
+          '<div class="environment-stack">' +
+            badge('HomologaÃ§Ã£o', hom ? 'ok' : '') +
+            badge('ProduÃ§Ã£o', prod ? 'ok' : '') +
+          '</div>' +
+          '<button type="button" class="btn secondary" onclick="openCompany(\'' +
+            escapeHtml(company.cnpj) + '\')">Abrir empresa</button>' +
+        '</div>' +
+        '<div class="company-line">' +
+          '<div class="company-meta">' +
+            '<span class="company-meta-item"><strong>CNPJ:</strong> ' + escapeHtml(formatCnpj(company.cnpj)) + '</span>' +
+            '<span class="company-meta-item"><strong>Certificado:</strong> ' + escapeHtml(cert ? 'ativo' : 'ausente') + '</span>' +
+            '<span class="company-meta-item"><strong>Documentos:</strong> ' + escapeHtml(String(docs.length)) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }
+
     function renderHome() {
       const companies = groupedCompanies();
       const recent = state.snapshot.documents.slice(0, 3);
@@ -669,9 +833,9 @@ const page = String.raw`<!doctype html>
       metrics(companies) +
       '<section class="section-head"><div><h2>Empresas</h2><p>Cadastro único por CNPJ, com ambientes separados internamente.</p></div>' +
         '<button type="button" class="btn ghost" onclick="navigate(\'companies\')">Ver todas</button></section>' +
-      '<div class="company-list">' + companies.slice(0, 4).map(companyCard).join('') + '</div>' +
+      '<div class="company-list">' + companies.slice(0, 4).map(compactCompanyCard).join('') + '</div>' +
       '<section class="section-head"><div><h2>Movimento recente</h2><p>Últimos documentos recebidos pelo motor local.</p></div></section>' +
-      (recent.length ? '<div class="document-list">' + recent.map(documentRow).join('') + '</div>' :
+      (recent.length ? '<div class="recent-list">' + recent.map(compactRecentDocumentRow).join('') + '</div>' :
         '<div class="empty">Ainda não há documentos recebidos.</div>');
     }
 
@@ -684,7 +848,7 @@ const page = String.raw`<!doctype html>
         '<button type="button" class="btn" onclick="navigate(\'new-company\')">Nova empresa</button>'
       ) +
       (companies.length
-        ? '<div class="company-list">' + companies.map(companyCard).join('') + '</div>'
+        ? '<div class="company-list">' + companies.map(compactCompanyCard).join('') + '</div>'
         : '<div class="empty">Nenhuma empresa cadastrada. Use "Nova empresa" para iniciar.</div>');
     }
 
@@ -1170,6 +1334,55 @@ const page = String.raw`<!doctype html>
         '<strong>' + name + ' ainda não configurada</strong>' +
         '<p>A estrutura da área já está reservada. O serviço será ativado quando fecharmos o fluxo fiscal e as configurações necessárias.</p>' +
         badge('Placeholder', 'warn') + '</div></section>';
+    }
+
+    function compactRecentDocumentRow(doc) {
+      const cert = certificateFor(doc.issuerCnpj);
+      const company = companyByCnpj(doc.issuerCnpj);
+      const hasCertificate = Boolean(cert);
+      const canAutoProcess = doc.ambiente === 'homologacao' &&
+        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const tone = doc.status === 'autorizado' ? 'ok' :
+        doc.status === 'processamento' ? 'warn' :
+        doc.status === 'rejeitado' || doc.status === 'erro' ? 'bad' : '';
+      return '<article class="document recent-document"><div class="document-summary">' +
+        '<div class="document-head">' +
+          '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
+            '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
+            escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
+          '<div class="environment-stack">' +
+            badge(doc.status, tone) + badge(doc.ambiente, 'info') + '</div>' +
+          '<div class="recent-document-actions">' +
+            (canAutoProcess && hasCertificate
+              ? '<button type="button" class="btn" onclick="processDocumentAutomatically(\'' +
+                  doc.id + '\')">Processar</button>'
+              : '') +
+            '<button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="document-line">' +
+          '<div class="document-meta">' +
+            '<span class="document-meta-item"><strong>SÃ©rie:</strong> ' + escapeHtml(String(doc.serie)) + '</span>' +
+            '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
+            '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span>' +
+          '</div>' +
+        '</div></div>' +
+        '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
+          (doc.motivo ? '<p><strong>' + escapeHtml(doc.motivoStatus || '') + '</strong> ' +
+            escapeHtml(doc.motivo) + '</p>' : '') +
+          '<div class="company-meta">' +
+            badge(doc.xmlGenerated ? 'XML gerado' : 'XML pendente', doc.xmlGenerated ? 'ok' : 'warn') +
+            badge(doc.signatureValid ? 'Assinatura vÃ¡lida' : 'Sem assinatura', doc.signatureValid ? 'ok' : 'warn') +
+            badge(doc.xsdValid ? 'XSD vÃ¡lido' : 'XSD pendente/invÃ¡lido', doc.xsdValid ? 'ok' : 'warn') +
+          '</div><div class="actions">' +
+            '<button type="button" class="btn" ' + (canAutoProcess && hasCertificate ? '' : 'disabled') +
+              ' onclick="processDocumentAutomatically(\'' + doc.id + '\')">Processar agora</button>' +
+            '<button type="button" class="btn blue" ' + (hasCertificate ? '' : 'disabled') +
+              ' onclick="signDocument(\'' + doc.id + '\')">Gerar e assinar XML</button>' +
+            '<button type="button" class="btn ghost" data-doc-toggle="' + escapeHtml(doc.id) +
+              '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Fechar nota</button>' +
+          '</div></div></article>';
     }
 
     function documentRow(doc) {
