@@ -426,10 +426,11 @@ function buildNfceSupplement(
   }
 
   const environment = String(ide.tpAmb);
-  const tokenId = String(Number(config.cscId));
-  if (!/^[1-9]\d{0,5}$/.test(tokenId)) {
+  const rawTokenId = String(config.cscId).trim();
+  if (!/^\d{1,6}$/.test(rawTokenId) || Number(rawTokenId) <= 0) {
     throw new Error("O ID do CSC deve ser numerico e ter de 1 a 6 digitos.");
   }
+  const tokenId = String(Number(rawTokenId));
   if (!config.csc.trim()) {
     throw new Error("O CSC da NFC-e nao foi informado.");
   }
