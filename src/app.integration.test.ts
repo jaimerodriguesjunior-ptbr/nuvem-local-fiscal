@@ -655,6 +655,99 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       true
     );
 
+    const documentsBeforeInterstateNfce = app.store.documents.length;
+    const interstateNfce = await app.inject({
+      method: "POST",
+      url: "/nfce",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          versao: "4.00",
+          ide: {
+            cUF: 41,
+            natOp: "VENDA",
+            mod: 65,
+            serie: 1,
+            nNF: 320,
+            dhEmi: "2026-06-11T10:00:00-03:00",
+            tpNF: 1,
+            idDest: 2,
+            cMunFG: 4106902,
+            tpImp: 4,
+            tpEmis: 1,
+            tpAmb: 2,
+            finNFe: 1,
+            indFinal: 1,
+            indPres: 1,
+            procEmi: 0,
+            verProc: "NuvemLocalFiscal"
+          },
+          emit: {
+            CNPJ: cnpj,
+            xNome: "Empresa Integracao",
+            enderEmit: {
+              UF: "PR"
+            },
+            IE: "1234567890",
+            CRT: 1
+          },
+          dest: {
+            CPF: "12345678909",
+            xNome: "Cliente Interestadual",
+            enderDest: {
+              UF: "SP"
+            }
+          },
+          det: [
+            {
+              nItem: 1,
+              prod: {
+                cProd: "1",
+                cEAN: "SEM GTIN",
+                xProd: "Produto de teste",
+                NCM: "00000000",
+                CFOP: "5102",
+                uCom: "UN",
+                qCom: 1,
+                vUnCom: 10,
+                vProd: 10,
+                cEANTrib: "SEM GTIN",
+                uTrib: "UN",
+                qTrib: 1,
+                vUnTrib: 10,
+                indTot: 1
+              },
+              imposto: {
+                ICMS: { ICMSSN102: { orig: 0, CSOSN: "102" } },
+                PIS: { PISOutr: { CST: "99", vBC: 0, pPIS: 0, vPIS: 0 } },
+                COFINS: { COFINSOutr: { CST: "99", vBC: 0, pCOFINS: 0, vCOFINS: 0 } }
+              }
+            }
+          ],
+          total: {
+            ICMSTot: {
+              vNF: 10
+            }
+          },
+          pag: {
+            detPag: [{ tPag: "01", vPag: 10 }]
+          }
+        }
+      }
+    });
+    assert.equal(interstateNfce.statusCode, 400, interstateNfce.body);
+    assert.equal(
+      interstateNfce
+        .json()
+        .issues.some((issue: { code: string }) => issue.code === "interstate_nfce_not_allowed"),
+      true
+    );
+    assert.equal(app.store.documents.length, documentsBeforeInterstateNfce);
+
     const emission = await app.inject({
       method: "POST",
       url: "/nfce",

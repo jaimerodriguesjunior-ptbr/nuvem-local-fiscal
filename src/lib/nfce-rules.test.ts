@@ -97,6 +97,40 @@ test("bloqueia NFC-e em contingencia offline ate existir QR Code v3 offline", ()
   assert.equal(result.issues.some((issue) => issue.code === "offline_contingency_not_supported"), true);
 });
 
+test("bloqueia NFC-e interestadual antes de assinar ou consumir numeracao", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe as Record<string, unknown>).dest = {
+    CPF: "12345678909",
+    xNome: "Cliente fora do estado",
+    enderDest: {
+      UF: "SP"
+    }
+  };
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143",
+    expectedIssuerUf: "PR"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "interstate_nfce_not_allowed"), true);
+});
+
+test("bloqueia NFC-e quando idDest declara operacao nao interna", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.ide as Record<string, unknown>).idDest = 2;
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143",
+    expectedIssuerUf: "PR"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "interstate_nfce_not_allowed"), true);
+});
+
 test("bloqueia CNPJ alfanumerico em NFC-e enquanto o fluxo nao suporta NT 2026.004", () => {
   const payload = validNfcePayload();
   (payload.infNFe.emit as Record<string, unknown>).CNPJ = "12ABC34501DE67";

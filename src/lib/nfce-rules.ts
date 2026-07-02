@@ -39,6 +39,11 @@ function hasNumberLike(value: unknown) {
   return normalized !== "" && Number.isFinite(Number(normalized));
 }
 
+function normalizeUf(value: unknown) {
+  const uf = text(value).toUpperCase();
+  return /^[A-Z]{2}$/.test(uf) ? uf : "";
+}
+
 function pushIssue(
   issues: NfceValidationIssue[],
   code: string,
@@ -57,6 +62,7 @@ export function validateNfceEmissionPayload(
   options: {
     expectedEnvironment?: Environment;
     expectedIssuerCnpj?: string;
+    expectedIssuerUf?: string;
   } = {}
 ): NfceValidationResult {
   const issues: NfceValidationIssue[] = [];
@@ -65,6 +71,9 @@ export function validateNfceEmissionPayload(
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);
   const emit = asObject(infNFe.emit) ?? asObject(infNFe.emitente);
+  const emitAddress = asObject(emit?.enderEmit) ?? asObject(emit?.endereco);
+  const dest = asObject(infNFe.dest) ?? asObject(infNFe.destinatario);
+  const destAddress = asObject(dest?.enderDest) ?? asObject(dest?.endereco);
   const total = asObject(infNFe.total);
   const icmsTotal = asObject(total?.ICMSTot);
   const payment = asObject(infNFe.pag);
@@ -76,6 +85,14 @@ export function validateNfceEmissionPayload(
   } else {
     if (String(ide.mod ?? "") !== "65") {
       pushIssue(issues, "invalid_model", "infNFe.ide.mod", "NFC-e deve usar modelo 65.");
+    }
+    if (String(ide.idDest ?? "1") !== "1") {
+      pushIssue(
+        issues,
+        "interstate_nfce_not_allowed",
+        "infNFe.ide.idDest",
+        "NFC-e so pode acobertar operacao interna; para UF diferente use NF-e."
+      );
     }
 
     const tpAmb = String(ide.tpAmb ?? "");
@@ -149,6 +166,19 @@ export function validateNfceEmissionPayload(
     if (!hasText(emit.CRT)) {
       pushIssue(issues, "missing_tax_regime", "infNFe.emit.CRT", "Informe CRT do emitente.");
     }
+  }
+
+  const issuerUf =
+    normalizeUf(options.expectedIssuerUf) ||
+    normalizeUf(emitAddress?.UF ?? emitAddress?.uf);
+  const recipientUf = normalizeUf(destAddress?.UF ?? destAddress?.uf ?? dest?.UF ?? dest?.uf);
+  if (issuerUf && recipientUf && issuerUf !== recipientUf) {
+    pushIssue(
+      issues,
+      "interstate_nfce_not_allowed",
+      "infNFe.dest.enderDest.UF",
+      `NFC-e bloqueada para operacao interestadual (${issuerUf} -> ${recipientUf}); emita NF-e.`
+    );
   }
 
   if (details.length === 0) {
@@ -230,6 +260,7 @@ export function assertValidNfceEmissionPayload(
   options: {
     expectedEnvironment?: Environment;
     expectedIssuerCnpj?: string;
+    expectedIssuerUf?: string;
   } = {}
 ) {
   const result = validateNfceEmissionPayload(payload, options);

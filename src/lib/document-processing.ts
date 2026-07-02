@@ -160,7 +160,8 @@ export async function processHomologationDocument(
     if (document.tipoDocumento === "NFCe") {
       assertValidNfceEmissionPayload(document.payloadOriginal as Record<string, unknown>, {
         expectedEnvironment: document.ambiente,
-        expectedIssuerCnpj: document.issuerCnpj
+        expectedIssuerCnpj: document.issuerCnpj,
+        expectedIssuerUf: issuer.uf
       });
     } else {
       assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>);

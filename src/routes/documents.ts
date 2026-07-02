@@ -1236,7 +1236,8 @@ async function handleCreateDocument(
   if (tipoDocumento === "NFCe") {
     const validation = validateNfceEmissionPayload(payloadOriginal, {
       expectedEnvironment: ambiente,
-      expectedIssuerCnpj: issuerCnpj
+      expectedIssuerCnpj: issuerCnpj,
+      expectedIssuerUf: issuer.uf
     });
     if (!validation.ok) {
       return reply.code(400).send({
