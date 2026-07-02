@@ -22,6 +22,27 @@ export type AutomaticProcessingResult = {
 
 const documentsInProcessing = new Set<string>();
 
+async function waitForNonBlockingPersistence(
+  store: InMemoryStore,
+  documentId: string,
+  step: string
+) {
+  try {
+    await store.waitForPersistence();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[FiscalPersistence] Falha ao persistir ${step} do documento ${documentId}: ${message}`
+    );
+    store.addDocumentEvent(documentId, {
+      eventType: "persistence_warning",
+      level: "warn",
+      message: `Falha temporaria ao persistir ${step}. O processamento fiscal continuou.`,
+      payload: { step, error: message }
+    });
+  }
+}
+
 function resolveQrCodeConfig(document: DocumentRecord) {
   if (document.tipoDocumento !== "NFCe") {
     return undefined;
@@ -103,7 +124,7 @@ export async function processHomologationDocument(
       level: "warn",
       message
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "bloqueio de concorrencia");
     return { document, transmitted: false, error: message };
   }
   documentsInProcessing.add(document.id);
@@ -113,7 +134,7 @@ export async function processHomologationDocument(
   if (!issuer || !certificate?.encryptedBundle) {
     const message = "Emitente ou certificado A1 nao encontrado.";
     const failed = store.failDocument(document.id, "CONFIGURACAO", message);
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "falha de configuracao");
     documentsInProcessing.delete(document.id);
     return { document: failed ?? document, transmitted: false, error: message };
   }
@@ -134,7 +155,7 @@ export async function processHomologationDocument(
         environment: document.ambiente
       }
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "inicio da tentativa");
 
     if (document.tipoDocumento === "NFCe") {
       assertValidNfceEmissionPayload(document.payloadOriginal as Record<string, unknown>, {
@@ -172,7 +193,7 @@ export async function processHomologationDocument(
         xsdErrors: xsd.errors,
         certificateId: certificate.id
       });
-      await store.waitForPersistence();
+      await waitForNonBlockingPersistence(store, document.id, "XML assinado");
 
       if (!signed.signatureValid) {
         throw new Error("A assinatura digital do XML nao foi validada.");
@@ -190,7 +211,7 @@ export async function processHomologationDocument(
           certificateId: certificate.id
         }
       });
-      await store.waitForPersistence();
+      await waitForNonBlockingPersistence(store, document.id, "evento de XML regenerado");
     }
 
     const accessKey = store.findDocument(document.id)?.chave;
@@ -202,7 +223,7 @@ export async function processHomologationDocument(
       message: "Consulta previa da chave iniciada antes da transmissao.",
       payload: { attempt: attemptNumber, accessKey }
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "inicio da consulta previa");
 
     const currentStatus = await querySefazDocumentStatus({
       uf: issuer.uf,
@@ -223,7 +244,7 @@ export async function processHomologationDocument(
         protocol: currentStatus.protocol || null
       }
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "fim da consulta previa");
 
     if (["100", "150"].includes(currentStatus.protocolCStat)) {
       const recovered = store.saveSefazAuthorization(document.id, {
@@ -247,7 +268,7 @@ export async function processHomologationDocument(
           protocol: currentStatus.protocol
         }
       });
-      await store.waitForPersistence();
+      await waitForNonBlockingPersistence(store, document.id, "autorizacao recuperada");
       return {
         document: recovered ?? document,
         transmitted: false,
@@ -267,7 +288,7 @@ export async function processHomologationDocument(
       message: "Chave inexistente na SEFAZ; transmissao iniciada.",
       payload: { attempt: attemptNumber, accessKey }
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "inicio da transmissao");
     const authorization = await authorizeNfeAtSefaz({
       uf: issuer.uf,
       ambiente: document.ambiente,
@@ -302,7 +323,7 @@ export async function processHomologationDocument(
       responseXml: authorization.responseXml,
       processedXml: authorization.processedXml
     });
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "autorizacao SEFAZ");
 
     return {
       document: updated ?? document,
@@ -321,7 +342,7 @@ export async function processHomologationDocument(
       }
     });
     const failed = store.failDocument(document.id, "PROCESSAMENTO_AUTOMATICO", message);
-    await store.waitForPersistence();
+    await waitForNonBlockingPersistence(store, document.id, "falha de processamento");
     return { document: failed ?? document, transmitted: false, error: message };
   } finally {
     documentsInProcessing.delete(document.id);
