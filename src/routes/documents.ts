@@ -1251,7 +1251,7 @@ async function handleCreateDocument(
       });
     }
   } else {
-    const validation = validateRtcPayload(payloadOriginal);
+    const validation = validateRtcPayload(payloadOriginal, { expectedModel: 55 });
     if (!validation.ok) {
       return reply.code(400).send({
         message: "Payload NF-e invalido para emissao.",

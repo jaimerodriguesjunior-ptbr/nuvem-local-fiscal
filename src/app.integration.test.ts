@@ -655,6 +655,53 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       true
     );
 
+    const documentsBeforeWrongRtcModelNfe = app.store.documents.length;
+    const wrongRtcModelNfe = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          ide: {
+            mod: 65
+          },
+          emit: {
+            CNPJ: cnpj
+          },
+          det: [
+            {
+              imposto: {
+                IBSCBS: {
+                  CST: "000",
+                  cClassTrib: "000001",
+                  gIBSCBS: {
+                    vBC: 0
+                  }
+                }
+              }
+            }
+          ],
+          total: {
+            IBSCBSTot: {
+              vBCIBSCBS: 0
+            }
+          }
+        }
+      }
+    });
+    assert.equal(wrongRtcModelNfe.statusCode, 400, wrongRtcModelNfe.body);
+    assert.equal(
+      wrongRtcModelNfe
+        .json()
+        .issues.some((issue: { code: string }) => issue.code === "rtc_model_mismatch"),
+      true
+    );
+    assert.equal(app.store.documents.length, documentsBeforeWrongRtcModelNfe);
+
     const documentsBeforeInterstateNfce = app.store.documents.length;
     const interstateNfce = await app.inject({
       method: "POST",

@@ -66,7 +66,7 @@ export function validateNfceEmissionPayload(
   } = {}
 ): NfceValidationResult {
   const issues: NfceValidationIssue[] = [];
-  const rtcValidation = validateRtcPayload(payload);
+  const rtcValidation = validateRtcPayload(payload, { expectedModel: 65 });
   issues.push(...rtcValidation.issues);
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);

@@ -164,7 +164,9 @@ export async function processHomologationDocument(
         expectedIssuerUf: issuer.uf
       });
     } else {
-      assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>);
+      assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>, {
+        expectedModel: 55
+      });
     }
 
     let signedXml = document.xmlSigned;

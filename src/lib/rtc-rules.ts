@@ -11,6 +11,10 @@ export type RtcValidationResult = {
   issues: RtcValidationIssue[];
 };
 
+export type RtcValidationOptions = {
+  expectedModel?: 55 | 65;
+};
+
 function asObject(value: unknown): JsonObject | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as JsonObject)
@@ -39,6 +43,10 @@ function hasNumberLike(value: unknown) {
   return normalized !== "" && Number.isFinite(Number(normalized));
 }
 
+function isModel(value: unknown, model: 55 | 65) {
+  return String(value ?? "") === String(model);
+}
+
 function pushIssue(
   issues: RtcValidationIssue[],
   code: string,
@@ -52,7 +60,10 @@ function rootInfNFe(payload: JsonObject) {
   return asObject(payload.infNFe) ?? payload;
 }
 
-export function validateRtcPayload(payload: JsonObject): RtcValidationResult {
+export function validateRtcPayload(
+  payload: JsonObject,
+  options: RtcValidationOptions = {}
+): RtcValidationResult {
   const issues: RtcValidationIssue[] = [];
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);
@@ -73,12 +84,35 @@ export function validateRtcPayload(payload: JsonObject): RtcValidationResult {
 
   const model = Number(ide?.mod);
   const isNfce = model === 65;
+  if (options.expectedModel && !isModel(ide?.mod, options.expectedModel)) {
+    pushIssue(
+      issues,
+      "rtc_model_mismatch",
+      "infNFe.ide.mod",
+      `Tributacao IBS/CBS neste endpoint exige modelo ${options.expectedModel}.`
+    );
+  }
+  if (![55, 65].includes(model)) {
+    pushIssue(
+      issues,
+      "unsupported_rtc_model",
+      "infNFe.ide.mod",
+      "Tributacao IBS/CBS so esta validada para NF-e modelo 55 e NFC-e modelo 65."
+    );
+  }
   if (isNfce && hasText(ide?.cMunFGIBS)) {
     pushIssue(
       issues,
       "unexpected_rtc_municipality",
       "infNFe.ide.cMunFGIBS",
       "Nao informe cMunFGIBS em NFC-e com tributacao IBS/CBS."
+    );
+  } else if (isNfce && String(ide?.idDest ?? "1") !== "1") {
+    pushIssue(
+      issues,
+      "rtc_nfce_not_internal",
+      "infNFe.ide.idDest",
+      "NFC-e com IBS/CBS so esta validada para operacao interna; para UF diferente use NF-e."
     );
   } else if (!isNfce && (!ide || !hasText(ide.cMunFGIBS))) {
     pushIssue(
@@ -149,8 +183,11 @@ export function validateRtcPayload(payload: JsonObject): RtcValidationResult {
   return { ok: issues.length === 0, issues };
 }
 
-export function assertValidRtcPayload(payload: JsonObject) {
-  const result = validateRtcPayload(payload);
+export function assertValidRtcPayload(
+  payload: JsonObject,
+  options: RtcValidationOptions = {}
+) {
+  const result = validateRtcPayload(payload, options);
   if (!result.ok) {
     const error = new Error(
       `Payload RTC invalido: ${result.issues.map((issue) => issue.message).join(" ")}`

@@ -1163,6 +1163,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!document) {
       return reply.code(404).send({ message: "Documento nao encontrado." });
     }
+    const issuer = app.store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
     if (document.tipoDocumento === "NFSe") {
       return reply.code(501).send({
         message: "Assinatura NFS-e municipal deve ser feita pelo conector da prefeitura."
@@ -1180,10 +1181,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       if (document.tipoDocumento === "NFCe") {
         assertValidNfceEmissionPayload(document.payloadOriginal as Record<string, unknown>, {
           expectedEnvironment: document.ambiente,
-          expectedIssuerCnpj: document.issuerCnpj
+          expectedIssuerCnpj: document.issuerCnpj,
+          expectedIssuerUf: issuer?.uf
         });
       } else {
-        assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>);
+        assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>, {
+          expectedModel: 55
+        });
       }
 
       const opened = openEncryptedCertificate(
