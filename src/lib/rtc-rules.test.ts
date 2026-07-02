@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {
+  findRtcClassification,
+  rtcClassificationCatalogSummary
+} from "./rtc-classification-catalog.js";
 import { validateRtcPayload } from "./rtc-rules.js";
 
 function rtcPayload() {
@@ -65,6 +69,19 @@ test("aceita grupo IBS/CBS minimo com municipio, classificacao e totais", () => 
   assert.deepEqual(result.issues, []);
 });
 
+test("catalogo RTC carrega classificacoes oficiais IBS/CBS exportadas da SVRS/CFF", () => {
+  const summary = rtcClassificationCatalogSummary();
+
+  assert.equal(summary.officialCatalogEntries, 161);
+  assert.equal(summary.structuralSmokeEntries, 1);
+  assert.equal(summary.total, 162);
+
+  const classification = findRtcClassification("ibscbs", "620", "620001");
+  assert.equal(classification?.evidenceStatus, "official_catalog");
+  assert.deepEqual(classification?.models, [55]);
+  assert.equal(classification?.valueGroup, "monophasic");
+});
+
 test("bloqueia par CST/cClassTrib IBS/CBS fora do catalogo local", () => {
   const payload = rtcPayload();
   payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "000999";
@@ -73,6 +90,20 @@ test("bloqueia par CST/cClassTrib IBS/CBS fora do catalogo local", () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.issues.some((issue) => issue.code === "unknown_rtc_classification"), true);
+});
+
+test("bloqueia classificacao oficial que nao esta liberada para NF-e/NFC-e", () => {
+  const payload = rtcPayload();
+  payload.infNFe.det[0].imposto.IBSCBS.CST = "550";
+  payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "550002";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "rtc_classification_model_not_allowed"),
+    true
+  );
 });
 
 test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => {
@@ -90,6 +121,25 @@ test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => 
 
   assert.equal(result.ok, false);
   assert.equal(result.issues.some((issue) => issue.code === "rtc_value_group_mismatch"), true);
+});
+
+test("aceita grupo monofasico quando o CST/cClassTrib oficial exige monofasia", () => {
+  const payload = rtcPayload();
+  payload.infNFe.det[0].imposto.IBSCBS.CST = "620";
+  payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "620001";
+  delete (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS;
+  (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBSMono = {
+    qBCMono: 1,
+    adRemIBS: 0,
+    adRemCBS: 0,
+    vIBSMono: 0,
+    vCBSMono: 0
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
 });
 
 test("aceita NFC-e com grupo IBS/CBS sem municipio do fato gerador IBS", () => {

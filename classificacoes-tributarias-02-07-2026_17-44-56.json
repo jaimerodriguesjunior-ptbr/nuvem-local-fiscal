@@ -1,0 +1,5010 @@
+[
+  {
+    "codigo": "000001",
+    "descricao": "Situações tributadas integralmente pelo IBS e CBS.",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Tributação integral",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "000002",
+    "descricao": "Exploração de via",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação integral",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 92,
+        "sigla": "NFSe Via",
+        "descricao": "Nota Fiscal de Serviços Eletrônica de Via de Pedágio"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "000003",
+    "descricao": "Regime automotivo - projetos incentivados (art. 311)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação integral",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "000004",
+    "descricao": "Regime automotivo - projetos incentivados (art. 312)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação integral",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "000005",
+    "descricao": "Operação com EAC destinado à mistura com gasolina A, mas com saída do biocombustível com destinação diversa",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação integral",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "010001",
+    "descricao": "Operações do FGTS não realizadas pela Caixa Econômica Federal",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes - operações do FGTS",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "010002",
+    "descricao": "Operações do serviço financeiro",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes - operações do setor financeiro",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "011001",
+    "descricao": "Planos de assistência funerária.",
+    "tipoAliquota": "Uniforme nacional (referência)",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes reduzidas em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "011002",
+    "descricao": "Planos de assistência à saúde",
+    "tipoAliquota": "Uniforme nacional (referência)",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes reduzidas em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "011003",
+    "descricao": "Intermediação de planos de assistência à saúde",
+    "tipoAliquota": "Uniforme nacional (referência)",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes reduzidas em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "011004",
+    "descricao": "Concursos e prognósticos",
+    "tipoAliquota": "Uniforme nacional (referência)",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "011005",
+    "descricao": "Planos de assistência à saúde de animais domésticos",
+    "tipoAliquota": "Uniforme nacional (referência)",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação com alíquotas uniformes reduzidas em 30%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 30,
+    "percentualReducaoIbsUf": 30,
+    "percentualReducaoIbsMun": 30,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200001",
+    "descricao": "Serviços de transporte de bens até as zonas de processamento de exportação e bens exportados a partir das zonas de processamento de exportação",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200002",
+    "descricao": "Fornecimento ou importação para produtor rural não contribuinte ou TAC",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200003",
+    "descricao": "Vendas de produtos destinados à alimentação humana (Anexo I)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200004",
+    "descricao": "Fornecimento de dispositivos médicos (Anexo XII)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200005",
+    "descricao": "Fornecimento de dispositivos médicos para órgãos da administração pública e entidades de saúde imunes (Anexo IV)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200006",
+    "descricao": "Situação de emergência de saúde pública reconhecida pelo Poder público",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200007",
+    "descricao": "Fornecimento dos dispositivos de acessibilidade próprios para pessoas com deficiência (Anexo XIII)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200008",
+    "descricao": "Fornecimento dos dispositivos de acessibilidade próprios para pessoas com deficiência adquiridos por órgãos da administração pública (Anexo V)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200009",
+    "descricao": "Fornecimento dos medicamentos registrados na Anvisa",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200010",
+    "descricao": "Fornecimento dos medicamentos registrados na Anvisa, adquiridos por órgãos da administração pública",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200011",
+    "descricao": "Fornecimento das composições para nutrição enteral e parenteral quando adquiridas por órgãos da administração pública (Anexo VI)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200012",
+    "descricao": "Situação de emergência de saúde pública reconhecida pelo Poder público",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200013",
+    "descricao": "Fornecimento de tampões higiênicos, absorventes higiênicos internos ou externos",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200014",
+    "descricao": "Fornecimento dos produtos hortícolas, frutas e ovos (Anexo XV)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200015",
+    "descricao": "Venda de automóveis de passageiros de fabricação nacional adquiridos por motoristas profissionais ou pessoas com deficiência",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200016",
+    "descricao": "Prestação de serviços de pesquisa e desenvolvimento por Instituição Científica, Tecnológica e de Inovação (ICT)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200017",
+    "descricao": "Operações relacionadas ao FGTS",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200018",
+    "descricao": "Operações de resseguro e retrocessão",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200019",
+    "descricao": "Importador dos serviços financeiros contribuinte",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200020",
+    "descricao": "Operação praticada por sociedades cooperativas optantes por regime específico do IBS e CBS",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200021",
+    "descricao": "Serviços de transporte público coletivo de passageiros ferroviário e hidroviário",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 93,
+        "sigla": "BPe TM",
+        "descricao": "Bilhete de Passagem eletrônico de Transporte Metropolitano"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200022",
+    "descricao": "Operação originada fora da ZFM que destine bem material industrializado a contribuinte estabelecido na ZFM",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Operação originada fora da ZFM - 200022",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200023",
+    "descricao": "Operação realizada por indústria incentivada que destine bem material intermediário para outra indústria incentivada na ZFM",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200024",
+    "descricao": "Operação originada fora das Áreas de Livre Comércio destinadas a contribuinte estabelecido nas Áreas de Livre Comércio",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Operação originada fora das Áreas de Livre Comércio - 200024",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200025",
+    "descricao": "Fornecimento dos serviços de educação relacionados ao Programa Universidade para Todos (Prouni)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota zero apenas CBS e reduzida em 60% para IBS",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200026",
+    "descricao": "Locação de imóveis localizados nas zonas reabilitadas",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota Reduzida em 80%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 80,
+    "percentualReducaoIbsUf": 80,
+    "percentualReducaoIbsMun": 80,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200027",
+    "descricao": "Operações de locação, cessão onerosa e arrendamento de bens imóveis",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 70%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 70,
+    "percentualReducaoIbsUf": 70,
+    "percentualReducaoIbsMun": 70,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200028",
+    "descricao": "Fornecimento dos serviços de educação (Anexo II)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200029",
+    "descricao": "Fornecimento dos serviços de saúde humana (Anexo III)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200030",
+    "descricao": "Venda dos dispositivos médicos (Anexo IV)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200031",
+    "descricao": "Fornecimento dos dispositivos de acessibilidade próprios para pessoas com deficiência (Anexo V)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200032",
+    "descricao": "Fornecimento dos medicamentos registrados na Anvisa ou produzidos por farmácias de manipulação, ressalvados os medicamentos sujeitos à alíquota zero",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-26"
+  },
+  {
+    "codigo": "200033",
+    "descricao": "Fornecimento das composições para nutrição enteral e parenteral (Anexo VI)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200034",
+    "descricao": "Fornecimento dos alimentos destinados ao consumo humano (Anexo VII)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200035",
+    "descricao": "Fornecimento dos produtos de higiene pessoal e limpeza (Anexo VIII)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200036",
+    "descricao": "Fornecimento de produtos agropecuários, aquícolas, pesqueiros, florestais e extrativistas vegetais in natura",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200037",
+    "descricao": "Fornecimento de serviços ambientais de conservação ou recuperação da vegetação nativa",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200038",
+    "descricao": "Fornecimento dos insumos agropecuários e aquícolas (Anexo IX)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200039",
+    "descricao": "Fornecimento dos bens e serviços relacionados com produções nacionais artísticas, culturais, de eventos, jornalísticas e audiovisuais (Anexo X)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200040",
+    "descricao": "Fornecimento de serviços de comunicação institucional à administração pública",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200041",
+    "descricao": "Fornecimento de serviço de educação desportiva (art. 141. I)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200042",
+    "descricao": "Fornecimento de serviço de gestão e exploração do desporto (art. 141. II)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200043",
+    "descricao": "Fornecimento à administração pública dos serviços e dos bens relativos à soberania (Anexo XI)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200044",
+    "descricao": "Operações e prestações de serviços de segurança da informação e segurança cibernética desenvolvidos por sociedade que tenha sócio brasileiro (Anexo XI)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200045",
+    "descricao": "Operações relacionadas a projetos de reabilitação urbana de zonas históricas e de áreas críticas de recuperação e reconversão urbanística",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 60%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200046",
+    "descricao": "Operações com bens imóveis",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 50%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 50,
+    "percentualReducaoIbsUf": 50,
+    "percentualReducaoIbsMun": 50,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200047",
+    "descricao": "Bares e Restaurantes",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 40%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 40,
+    "percentualReducaoIbsUf": 40,
+    "percentualReducaoIbsMun": 40,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200048",
+    "descricao": "Hotelaria, Parques de Diversão e Parques Temáticos",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 40%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 40,
+    "percentualReducaoIbsUf": 40,
+    "percentualReducaoIbsMun": 40,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200049",
+    "descricao": "Transporte coletivo de passageiros rodoviário, ferroviário e hidroviário",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 40%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 40,
+    "percentualReducaoIbsUf": 40,
+    "percentualReducaoIbsMun": 40,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200050",
+    "descricao": "Serviços de transporte aéreo regional coletivo de passageiros ou de carga",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 40%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 40,
+    "percentualReducaoIbsUf": 40,
+    "percentualReducaoIbsMun": 40,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200051",
+    "descricao": "Agências de Turismo",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 40%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 40,
+    "percentualReducaoIbsUf": 40,
+    "percentualReducaoIbsMun": 40,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "200052",
+    "descricao": "Prestação de serviços de profissões intelectuais",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota reduzida em 30%",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 30,
+    "percentualReducaoIbsUf": 30,
+    "percentualReducaoIbsMun": 30,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "200053",
+    "descricao": "Fornecimento de medicamentos registrados na Anvisa, quando  classificados como soros ou vacinas",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "200054",
+    "descricao": "Fornecimento de bem material pela cooperativa de produção agropecuária a associado não sujeito ao regime regular do IBS e da CBS",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Alíquota zero",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "221001",
+    "descricao": "Locação, cessão onerosa ou arrendamento de bem imóvel com alíquota sobre a receita bruta",
+    "tipoAliquota": "Fixa",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota fixa proporcional",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "221002",
+    "descricao": "Incorporação imobiliária submetida ao regime especial de tributação",
+    "tipoAliquota": "Fixa",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota fixa",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "221003",
+    "descricao": "Incorporação imobiliária submetida ao regime especial de tributação",
+    "tipoAliquota": "Fixa",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota fixa",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "221004",
+    "descricao": "Alienação de imóvel decorrente de parcelamento do solo",
+    "tipoAliquota": "Fixa",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Alíquota fixa",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "222001",
+    "descricao": "Transporte internacional de passageiros, caso os trechos de ida e volta sejam vendidos em conjunto",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Redução de base de cálculo",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "400001",
+    "descricao": "Fornecimento de serviços de transporte público coletivo de passageiros rodoviário e metroviário",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Isenção",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "tipo": 93,
+        "sigla": "BPe TM",
+        "descricao": "Bilhete de Passagem eletrônico de Transporte Metropolitano"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "400002",
+    "descricao": "Fornecimento de serviços de transporte público coletivo de passageiros rodoviário e metroviário com medição por quilômetro rodado",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Isenção",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410001",
+    "descricao": "Fornecimento de bonificações quando constem no documento fiscal e que não dependam de evento posterior",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410002",
+    "descricao": "Transferências entre estabelecimentos pertencentes ao mesmo contribuinte",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410003",
+    "descricao": "Doações sem contraprestação em benefício do doador",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410004",
+    "descricao": "Exportações de bens e serviços",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410005",
+    "descricao": "Fornecimentos realizados pela União, pelos Estados, pelo Distrito Federal e pelos Municípios",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410006",
+    "descricao": "Fornecimentos realizados por entidades religiosas e templos de qualquer culto",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410007",
+    "descricao": "Fornecimentos realizados por partidos políticos, entidades sindicais e instituições de educação e de assistência social",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410008",
+    "descricao": "Fornecimentos de livros, jornais, periódicos e do papel destinado a sua impressão",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410009",
+    "descricao": "Fornecimentos de fonogramas e videofonogramas musicais produzidos no Brasil",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410010",
+    "descricao": "Fornecimentos de serviço de comunicação nas modalidades de radiodifusão sonora e de sons e imagens de recepção livre e gratuita",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410011",
+    "descricao": "Fornecimentos de ouro, quando definido em lei como ativo financeiro ou instrumento cambial",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410012",
+    "descricao": "Fornecimento de condomínio edilício não optante pelo regime regular",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410013",
+    "descricao": "Exportações de combustíveis",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410014",
+    "descricao": "Fornecimento de produtor rural não contribuinte",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410015",
+    "descricao": "Fornecimento por transportador autônomo não contribuinte",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410016",
+    "descricao": "Fornecimento ou aquisição de resíduos sólidos",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410017",
+    "descricao": "Aquisição de bem móvel com crédito presumido sob condição de revenda realizada",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410018",
+    "descricao": "Operações relacionadas aos fundos garantidores e executores de políticas públicas",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410019",
+    "descricao": "Exclusão da gorjeta na base de cálculo no fornecimento de alimentação",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação com exclusão de base de cálculo em caso de não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410020",
+    "descricao": "Exclusão do valor de intermediação na base de cálculo no fornecimento de alimentação",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação com exclusão de base de cálculo em caso de não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410021",
+    "descricao": "Contribuição de que trata o art. 149-A da Constituição Federal",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação com exclusão de base de cálculo em caso de não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410022",
+    "descricao": "Consolidação da propriedade do bem pelo credor",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410023",
+    "descricao": "Alienação de bens móveis ou imóveis que tenham sido objeto de garantia em que o prestador da garantia não seja contribuinte",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410024",
+    "descricao": "Consolidação da propriedade do bem pelo grupo de consórcio",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410025",
+    "descricao": "Alienação de bem que tenha sido objeto de garantia em que o prestador da garantia não seja contribuinte",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410026",
+    "descricao": "Doação com anulação de crédito",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410027",
+    "descricao": "Exportação de serviço ou de bem imaterial",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410028",
+    "descricao": "Operações com bens imóveis realizadas por pessoas físicas não consideradas contribuintes",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410029",
+    "descricao": "Operações acobertadas somente pelo ICMS",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410030",
+    "descricao": "Estorno de crédito por perecimento, deteriorização, roubo, furto ou extravio.",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410031",
+    "descricao": "Fornecimento em período anterior ao início de vigência de incidências de CBS e IBS",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 100,
+    "percentualReducaoIbsUf": 100,
+    "percentualReducaoIbsMun": 100,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "410032",
+    "descricao": "Tributos incidentes na operação que não integram a base de cálculo do IBS e da CBS",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410033",
+    "descricao": "Operações de Fundos de Investimento Imobiliário (FII) e Fundos de Investimento nas Cadeias Produtivas do Agronegócio (Fiagro)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410034",
+    "descricao": "Operações de fundos de investimento",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 94,
+        "sigla": "DERE",
+        "descricao": "Declaração Eletrônica de Regimes Específicos"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410035",
+    "descricao": "Fornecimento realizado por nanoempreendedor",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "410036",
+    "descricao": "Descontos incondicionais",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "410037",
+    "descricao": "Importação os bens materiais sem incidência de IBS e CBS",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "410999",
+    "descricao": "Operações não onerosas sem previsão de tributação, não especificadas anteriormente",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Imunidade e não incidência",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      },
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      },
+      {
+        "tipo": 57,
+        "sigla": "CTe",
+        "descricao": "Conhecimento de Transporte Eletrônico"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      },
+      {
+        "tipo": 63,
+        "sigla": "BPe",
+        "descricao": "Bilhete de Passagem Eletrônico"
+      },
+      {
+        "sigla": "BPe TA",
+        "descricao": "Bilhete de Passagem Eletrônico para Transporte Aéreo"
+      },
+      {
+        "tipo": 93,
+        "sigla": "BPe TM",
+        "descricao": "Bilhete de Passagem eletrônico de Transporte Metropolitano"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "510001",
+    "descricao": "Operações, sujeitas a diferimento, com energia elétrica, relativas à importação, geração, comercialização, distribuição e transmissão",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Diferimento",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "515001",
+    "descricao": "Operações, sujeitas a diferimento, com insumos agropecuários e aquícolas (Anexo IX)",
+    "tipoAliquota": "Padrão",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Diferimento com redução de alíquota",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": true,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 60,
+    "percentualReducaoIbsUf": 60,
+    "percentualReducaoIbsMun": 60,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550001",
+    "descricao": "Exportações de bens materiais",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550002",
+    "descricao": "Regime de Trânsito",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550003",
+    "descricao": "Regimes de Depósito (art. 85)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550004",
+    "descricao": "Regimes de Depósito (art. 87)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550005",
+    "descricao": "Regimes de Depósito (art. 87, Parágrafo único)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550006",
+    "descricao": "Regimes de Permanência Temporária",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550007",
+    "descricao": "Regimes de Aperfeiçoamento",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550008",
+    "descricao": "Importação de bens para o Regime de Repetro-Temporário",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550009",
+    "descricao": "GNL-Temporário",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550010",
+    "descricao": "Repetro-Permanente",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550011",
+    "descricao": "Repetro-Industrialização",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550012",
+    "descricao": "Repetro-Nacional",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550013",
+    "descricao": "Repetro-Entreposto",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550014",
+    "descricao": "Zona de Processamento de Exportação",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550015",
+    "descricao": "Regime Tributário para Incentivo à Modernização e à Ampliação da Estrutura Portuária",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550016",
+    "descricao": "Regime Especial de Incentivos para o Desenvolvimento da Infraestrutura",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550017",
+    "descricao": "Regime Tributário para Incentivo à Atividade Naval - Renaval (Art. 107, I)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550018",
+    "descricao": "Desoneração da aquisição de bens de capital",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550019",
+    "descricao": "Importação de bem material por indústria incentivada para utilização na ZFM",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550020",
+    "descricao": "Áreas de livre comércio",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550021",
+    "descricao": "Industrialização destinada a exportações",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "550022",
+    "descricao": "Regime Especial de Incentivos para a Produção de Hidrogênio de Baixa Emissão de Carbono (Rehidro)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "550023",
+    "descricao": "Operações com hidrocarbonetos líquidos derivados de petróleo não combustíveis ou de gás natural, inclusive nafta",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Suspensão em operações com hidrocarbonetos líquidos",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "550024",
+    "descricao": "Regime Tributário para Incentivo à Atividade Naval - Renaval (Art. 107, II)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "550025",
+    "descricao": "Regime Tributário para Incentivo à Atividade Naval - Renaval (Art. 107, III)",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Suspensão",
+    "incompativelComSuspensao": true,
+    "exigeGrupoDesoneracao": true,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "620001",
+    "descricao": "Tributação monofásica sobre combustíveis",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica sobre combustíveis",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620002",
+    "descricao": "Tributação monofásica com responsabilidade pela retenção sobre combustíveis",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica com responsabilidade pela retenção sobre combustíveis",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620003",
+    "descricao": "Tributação monofásica com responsabilidade de retenção de tributos por terceiros",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica com tributos retidos por responsabilidade sobre combustíveis",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620004",
+    "descricao": "Tributação monofásica sobre mistura de EAC com gasolina A em percentual superior ao obrigatório",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica sobre mistura de EAC com gasolina A em percentual superior ao obrigatório",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620005",
+    "descricao": "Tributação monofásica sobre mistura de EAC com gasolina A em percentual inferior ao obrigatório",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica sobre mistura de EAC com gasolina A em percentual inferior ao obrigatório",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620006",
+    "descricao": "Tributação monofásica sobre combustíveis cobrada anteriormente",
+    "tipoAliquota": "Uniforme setorial",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica sobre combustíveis cobrada anteriormente",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 65,
+        "sigla": "NFCe",
+        "descricao": "Nota Fiscal de Consumidor Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "620007",
+    "descricao": "Perecimento, deteriorização, roubo, furto ou extravio no regime monofásico",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Tributação monofásica sem alíquota",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-06-22"
+  },
+  {
+    "codigo": "800001",
+    "descricao": "Fusão, cisão ou incorporação",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Transferência de crédito",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "800002",
+    "descricao": "Transferência de crédito do associado, inclusive as cooperativas singulares",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Transferência de crédito",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "810001",
+    "descricao": "Crédito presumido de IBS sobre o valor apurado nos fornecimentos a partir da ZFM",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "Não possui",
+    "descricaoTratamentoTributario": "Ajuste de IBS na ZFM",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": true,
+    "indicaCreditoPresumidoAdquirente": true,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "811001",
+    "descricao": "Anulação de Crédito por Saídas Imunes/Isentas",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Ajustes",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Anulação",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "811002",
+    "descricao": "Débitos de notas fiscais não processadas na apuração",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Ajustes",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "811003",
+    "descricao": "Desenquadramento do Simples Nacional",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Ajustes",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  },
+  {
+    "codigo": "820001",
+    "descricao": "Documento com informações de fornecimento de serviços de planos de assistência à saúde elencados no art. 234 da Lei Complementar nº214, de 2025",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820002",
+    "descricao": "Documento com informações de fornecimento de serviços de planos de assistência funerária",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820003",
+    "descricao": "Documento com informações de fornecimento de serviços de planos de assistência à saúde de animais domésticos",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820004",
+    "descricao": "Documento com informações de prestação de serviços de consursos de prognósticos",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "820005",
+    "descricao": "Documento com informações de alienação de bens imóveis",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "Não possui",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "sigla": "NFe ABI",
+        "descricao": "Nota Fiscal Eletrônica de Alienação de Bens Imóveis"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820006",
+    "descricao": "Documento com informações de fornecimento de serviços de exploração de via",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820007",
+    "descricao": "Documento com informações de fornecimento de serviços financeiros",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "820008",
+    "descricao": "Documento com informações de fornecimento de serviço continuado, mas com tributação realizada em fatura anterior",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      }
+    ],
+    "dataAtualizacao": "2026-01-23"
+  },
+  {
+    "codigo": "820009",
+    "descricao": "Cobrança relativa a fornecimentos declarados em outro documento",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NBS ou NCM",
+    "descricaoTratamentoTributario": "Tributação em documento específico",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": false,
+    "indicaApropriacaoCreditoAdquirenteIbs": false,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      },
+      {
+        "tipo": 91,
+        "sigla": "NFSe",
+        "descricao": "Nota Fiscal de Serviços Eletrônica"
+      },
+      {
+        "tipo": 62,
+        "sigla": "NFCom",
+        "descricao": "Nota Fiscal Fatura de Serviços de Comunicação Eletrônica"
+      },
+      {
+        "sigla": "NFAg",
+        "descricao": "Nota Fiscal da Água e Saneamento Eletrônica"
+      },
+      {
+        "sigla": "NFGas",
+        "descricao": "Nota Fiscal Eletrônica do Gás"
+      },
+      {
+        "tipo": 67,
+        "sigla": "CTe OS",
+        "descricao": "Conhecimento de Transporte Eletrônico para Outros Serviços "
+      }
+    ],
+    "dataAtualizacao": "2026-04-15"
+  },
+  {
+    "codigo": "830001",
+    "descricao": "Documento com exclusão da BC da CBS e do IBS de energia elétrica fornecida pela distribuidora à UC",
+    "tipoAliquota": "Sem alíquota",
+    "nomenclatura": "NCM",
+    "descricaoTratamentoTributario": "Exclusão de base de cálculo",
+    "incompativelComSuspensao": false,
+    "exigeGrupoDesoneracao": false,
+    "possuiPercentualReducao": false,
+    "indicaApropriacaoCreditoAdquirenteCbs": true,
+    "indicaApropriacaoCreditoAdquirenteIbs": true,
+    "indicaCreditoPresumidoFornecedor": false,
+    "indicaCreditoPresumidoAdquirente": false,
+    "creditoOperacaoAntecedente": "Manutenção",
+    "percentualReducaoCbs": 0,
+    "percentualReducaoIbsUf": 0,
+    "percentualReducaoIbsMun": 0,
+    "tiposDfeClassificacao": [
+      {
+        "tipo": 55,
+        "sigla": "NFe",
+        "descricao": "Nota Fiscal Eletrônica"
+      },
+      {
+        "tipo": 66,
+        "sigla": "NF3e",
+        "descricao": "Nota Fiscal de Energia Elétrica Eletrônica"
+      }
+    ],
+    "dataAtualizacao": "2025-12-15"
+  }
+]
