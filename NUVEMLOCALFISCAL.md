@@ -363,10 +363,18 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   existia no schema, mas nao estava na ordem do bloco `ide`, entao poderia ser
   serializado no fim do grupo e rejeitado pelo XSD quando algum cliente enviasse
   esse campo
-- `RT-VALIDACAO`: status `aberto`; hoje a compatibilidade tende a aceitar e
-  repassar informacoes recebidas, mas ainda nao existe regra defensiva que
-  bloqueie payload incompleto quando CST, classificacao tributaria, municipio do
-  fato gerador ou outros campos da transicao forem exigidos pela regra vigente
+- `RT-VALIDACAO`: status `parcial`; em `2026-07-02`, foi criada a primeira
+  camada defensiva especifica de NFC-e em `src/lib/nfce-rules.ts`, aplicada no
+  `POST /nfce`, na assinatura admin e no processamento automatico antes da
+  geracao/transmissao do XML
+- essa camada bloqueia NFC-e com modelo diferente de `65`, ambiente incoerente,
+  `tpEmis=9`, tipo de emissao online nao suportado, `tpImp` diferente de `4`,
+  CNPJ do emitente divergente, falta de IE/CRT, falta de item, campos basicos
+  de produto, grupos minimos `ICMS`/`PIS`/`COFINS`, total `vNF` e pagamento
+- a validacao defensiva ainda nao fecha regras tributarias profundas da reforma
+  tributaria; `CST`, `cClassTrib`, municipio do fato gerador, IBS/CBS/IS e
+  demais exigencias novas continuam dependendo de `RT-CLASSIFICACAO` e da
+  conciliacao com a nota tecnica vigente
 - `NFCE-QR`: status `parcial`; o portal lista `NFCe_qrCode_3` e o schema local
   `PL_010c_NT2022_002v1.30` ja contem os padroes `QRCODE V3 ONLINE` e
   `QRCODE V3 OFFLINE`; em `2026-07-02`, o gerador NFC-e online passou a montar
@@ -381,11 +389,15 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   dependente de informacoes da nota assinada; enquanto esse fluxo nao estiver
   implementado e testado, a Nuvem Local bloqueia a tentativa com erro claro em
   vez de gerar XML fiscalmente ambíguo
+- o bloqueio de `tpEmis=9` agora ocorre antes da criacao/transmissao da NFC-e e
+  tambem no processamento de documento ja salvo, evitando contingencia offline
+  acidental por cliente, admin ou retry
 - `DANFE-TIPO2`: status `aberto`; nao faz parte do layout atual e precisa de
   decisao explicita de escopo antes de producao
-- `CONTINGENCIA`: status `aberto`; como o projeto ainda nao tem contingencia
-  offline completa, qualquer tentativa de operar `tpEmis=9` deve ser bloqueada
-  ou tratada com erro claro ate implementacao/teste especifico
+- `CONTINGENCIA`: status `fechado para o escopo inicial`; a primeira producao
+  controlada nao deve operar NFC-e em contingencia offline e o codigo bloqueia
+  `tpEmis=9` com mensagem operacional clara ate existir implementacao/teste do
+  QR Code v3 offline
 - `CNPJ-ALFA`: status `aberto`; a normalizacao atual ainda assume CNPJ numerico
   em pontos do codigo, entao a `NT 2026.004` precisa ser avaliada antes de
   qualquer declaracao de aderencia ampla
@@ -393,8 +405,8 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
 Tarefas geradas pelo diagnostico inicial:
 1. comparar o pacote local `PL_010c_NT2022_002v1.30` com o pacote oficial mais
    adequado para a data de retomada e decidir se o schema deve ser atualizado
-2. transformar lacunas de `RT-VALIDACAO`, `CONTINGENCIA`, `NFCE-QR`,
-   `DANFE-TIPO2`, `REFERENCIAMENTO` e `CNPJ-ALFA` em regras/testes
+2. transformar lacunas restantes de `RT-VALIDACAO`, `DANFE-TIPO2`,
+   `REFERENCIAMENTO`, `RETRY-FILA` e `CNPJ-ALFA` em regras/testes
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 

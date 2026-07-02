@@ -26,6 +26,7 @@ import {
   resolveNfseProvider,
   validateNfseConfigDraft
 } from "../lib/nfse-rules.js";
+import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
@@ -1212,6 +1213,24 @@ async function handleCreateDocument(
       if (originalEmitente) {
         originalEmitente.IE = issuer.ie;
       }
+    }
+  }
+
+  if (tipoDocumento === "NFCe") {
+    const validation = validateNfceEmissionPayload(payloadOriginal, {
+      expectedEnvironment: ambiente,
+      expectedIssuerCnpj: issuerCnpj
+    });
+    if (!validation.ok) {
+      return reply.code(400).send({
+        message: "Payload NFC-e invalido para emissao.",
+        error: {
+          code: "nfce_payload_invalid",
+          message: "Payload NFC-e invalido para emissao.",
+          issues: validation.issues
+        },
+        issues: validation.issues
+      });
     }
   }
 

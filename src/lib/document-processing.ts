@@ -10,6 +10,7 @@ import {
   authorizeNfeAtSefaz,
   querySefazDocumentStatus
 } from "./sefaz-authorization.js";
+import { assertValidNfceEmissionPayload } from "./nfce-rules.js";
 import { validateNfeXml } from "./xsd-validator.js";
 
 export type AutomaticProcessingResult = {
@@ -133,6 +134,13 @@ export async function processHomologationDocument(
       }
     });
     await store.waitForPersistence();
+
+    if (document.tipoDocumento === "NFCe") {
+      assertValidNfceEmissionPayload(document.payloadOriginal as Record<string, unknown>, {
+        expectedEnvironment: document.ambiente,
+        expectedIssuerCnpj: document.issuerCnpj
+      });
+    }
 
     let signedXml = document.xmlSigned;
     if (

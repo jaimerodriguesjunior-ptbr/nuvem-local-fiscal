@@ -11,6 +11,7 @@ import {
   processHomologationDocument,
   processHomologationNfce
 } from "../lib/document-processing.js";
+import { assertValidNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { generateAndSignNfeXml } from "../lib/nfe-xml.js";
 import {
   authorizeNfeAtSefaz,
@@ -1175,6 +1176,13 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     }
 
     try {
+      if (document.tipoDocumento === "NFCe") {
+        assertValidNfceEmissionPayload(document.payloadOriginal as Record<string, unknown>, {
+          expectedEnvironment: document.ambiente,
+          expectedIssuerCnpj: document.issuerCnpj
+        });
+      }
+
       const opened = openEncryptedCertificate(
         certificate.encryptedBundle,
         config.certificateEncryptionKey
