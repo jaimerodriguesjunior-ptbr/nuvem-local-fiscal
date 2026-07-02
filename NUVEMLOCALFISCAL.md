@@ -521,6 +521,29 @@ Tarefas geradas pelo diagnostico inicial:
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 
+Matriz viva de homologacao:
+- em `2026-07-02`, a decisao operacional passou a ser fechar homologacao como
+  matriz unica antes de discutir producao, cobrindo documento, instancia,
+  evidencia e proximo passo
+- `src/lib/homologation-matrix.ts` virou o contrato programatico dessa matriz,
+  separado em tres estados:
+  - `satisfied`: fluxo homologado ou coberto por regressao no escopo atual
+  - `scoped_block`: fluxo recusado de forma intencional e documentada para o
+    escopo inicial
+  - `blocks_production`: lacuna que impede producao ate ter evidencia, teste ou
+    decisao formal
+- itens satisfeitos no escopo atual: NF-e PR/Otica com autorizacao, DANFE A4,
+  cancelamento e inutilizacao; NFC-e PR/Otica e Autoeletrica para operacao
+  interna; guarda NFC-e interestadual; NFS-e Toledo/Equiplano
+- bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
+  `tpImp` diferente de `1`
+- itens que ainda bloqueiam producao pela matriz: classificacao RTC profunda,
+  referenciamento NF-e/NFC-e, retries/processamento distribuido e
+  consulta/cancelamento Guaira/IPM em cenario municipal reconhecido
+- `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
+  visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
+  deve denunciar a mudanca
+
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
