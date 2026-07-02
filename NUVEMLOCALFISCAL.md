@@ -463,6 +463,18 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `cClassTrib`, base e total, os blocos minimos `gIBSUF`, `gIBSMun`, `vIBS` e
   `gCBS`; `IS` passou a exigir `CSTIS`, `cClassTribIS`, valores de calculo e
   `ISTot` quando informado
+- em `2026-07-02`, foi criado o catalogo RTC local versionado em
+  `src/lib/rtc-classification-catalog.ts`; a validacao compartilhada agora
+  bloqueia pares `CST/cClassTrib` e `CSTIS/cClassTribIS` que nao estejam
+  explicitamente cadastrados nesse catalogo, antes da geracao de XML
+- o catalogo atual contem somente combinacoes de smoke estrutural usadas nos
+  testes locais (`000/000001` para `IBSCBS` regular e `IS`), com fonte apontando
+  para o XSD local; isso impede combinacoes inventadas, mas nao substitui a
+  carga da tabela oficial vigente nem a decisao contabile/fiscal por tipo de
+  operacao do cliente
+- testes automatizados cobrem o bloqueio de par RTC desconhecido, par de
+  Imposto Seletivo desconhecido e grupo monofasico quando o par catalogado exige
+  `IBSCBS` regular
 - esse fechamento e deliberadamente estrutural: ele impede payload RTC meio
   montado e impede que o emissor invente aliquota/classificacao, mas ainda nao
   declara que a escolha legal de `CST`, `cClassTrib` e `cClassTribIS` por tipo
@@ -545,6 +557,9 @@ Tarefas geradas pelo diagnostico inicial:
    - andamento em `2026-07-02`: contrato compartilhado de modelo/fluxo para
      `IBSCBS` e bloqueio preventivo de NFC-e interestadual implementados e
      cobertos por teste
+   - andamento em `2026-07-02`: catalogo RTC local versionado criado; pares
+     `CST/cClassTrib` e `CSTIS/cClassTribIS` desconhecidos agora sao bloqueados
+     antes do XML
    - andamento em `2026-07-02`: lacuna `DANFE-TIPO2` fechada como bloqueio de
      escopo; NF-e local aceita somente `tpImp=1` ate existir layout/teste para
      os demais tipos de impressao
@@ -608,6 +623,9 @@ Limites atuais:
 - o deploy em VPS ja foi feito e validado em homologacao; `127.0.0.1:3001` continua valido para desenvolvimento local
 - filas/retries ainda precisam ser fechados
 - o processamento de autorizacao ja possui trava local por documento, consulta previa da chave, historico persistente em `fiscal_document_events` e politica local de retry seguro para falha externa incerta; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
+- a classificacao RTC ja possui catalogo local versionado e bloqueio para pares
+  desconhecidos; a carga da tabela oficial vigente e a vinculacao aos tipos de
+  operacao reais dos clientes continuam pendentes
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
@@ -634,7 +652,6 @@ Proximo foco:
 9. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
    emitidos com `nfse_teste=1`
 10. implementar cancelamento Guaira somente depois da consulta validada
-
 ---
 
 ## 1. Objetivo do projeto

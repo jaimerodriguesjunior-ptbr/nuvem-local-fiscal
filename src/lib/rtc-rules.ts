@@ -1,3 +1,8 @@
+import {
+  findRtcClassification,
+  type RtcClassificationCatalogEntry
+} from "./rtc-classification-catalog.js";
+
 type JsonObject = Record<string, unknown>;
 
 export type RtcValidationIssue = {
@@ -49,6 +54,13 @@ function hasAnyText(...values: unknown[]) {
 
 function isModel(value: unknown, model: 55 | 65) {
   return String(value ?? "") === String(model);
+}
+
+function catalogAllowsModel(
+  entry: RtcClassificationCatalogEntry,
+  model: number
+) {
+  return entry.models.some((allowedModel) => allowedModel === model);
 }
 
 function pushIssue(
@@ -174,6 +186,26 @@ export function validateRtcPayload(
       );
     }
 
+    const classification =
+      hasCodeLength(rtc.CST, 3) && hasCodeLength(rtc.cClassTrib, 6)
+        ? findRtcClassification("ibscbs", text(rtc.CST), text(rtc.cClassTrib))
+        : undefined;
+    if (!classification && hasCodeLength(rtc.CST, 3) && hasCodeLength(rtc.cClassTrib, 6)) {
+      pushIssue(
+        issues,
+        "unknown_rtc_classification",
+        `${path}.cClassTrib`,
+        "Par CST/cClassTrib IBS/CBS nao consta no catalogo RTC local versionado."
+      );
+    } else if (classification && !catalogAllowsModel(classification, model)) {
+      pushIssue(
+        issues,
+        "rtc_classification_model_not_allowed",
+        `${path}.cClassTrib`,
+        "Par CST/cClassTrib IBS/CBS nao esta liberado para este modelo de documento."
+      );
+    }
+
     const gIBSCBS = asObject(rtc.gIBSCBS);
     const gIBSCBSMono = asObject(rtc.gIBSCBSMono);
     if (!gIBSCBS && !gIBSCBSMono) {
@@ -182,6 +214,22 @@ export function validateRtcPayload(
         "missing_rtc_values",
         path,
         "Informe gIBSCBS ou gIBSCBSMono no grupo IBS/CBS do item."
+      );
+    }
+    if (gIBSCBS && classification && classification.valueGroup !== "regular") {
+      pushIssue(
+        issues,
+        "rtc_value_group_mismatch",
+        `${path}.gIBSCBS`,
+        "Grupo gIBSCBS nao e compativel com o par CST/cClassTrib informado."
+      );
+    }
+    if (gIBSCBSMono && classification && classification.valueGroup !== "monophasic") {
+      pushIssue(
+        issues,
+        "rtc_value_group_mismatch",
+        `${path}.gIBSCBSMono`,
+        "Grupo gIBSCBSMono nao e compativel com o par CST/cClassTrib informado."
       );
     }
     if (gIBSCBS && !hasNumberLike(gIBSCBS.vBC)) {
@@ -275,6 +323,34 @@ export function validateRtcPayload(
         "invalid_selective_tax_classification",
         `${path}.cClassTribIS`,
         "Informe cClassTribIS do Imposto Seletivo com 6 digitos."
+      );
+    }
+    const classification =
+      hasCodeLength(selectiveTax.CSTIS, 3) &&
+      hasCodeLength(selectiveTax.cClassTribIS, 6)
+        ? findRtcClassification(
+            "is",
+            text(selectiveTax.CSTIS),
+            text(selectiveTax.cClassTribIS)
+          )
+        : undefined;
+    if (
+      !classification &&
+      hasCodeLength(selectiveTax.CSTIS, 3) &&
+      hasCodeLength(selectiveTax.cClassTribIS, 6)
+    ) {
+      pushIssue(
+        issues,
+        "unknown_selective_tax_classification",
+        `${path}.cClassTribIS`,
+        "Par CSTIS/cClassTribIS nao consta no catalogo RTC local versionado."
+      );
+    } else if (classification && !catalogAllowsModel(classification, model)) {
+      pushIssue(
+        issues,
+        "selective_tax_classification_model_not_allowed",
+        `${path}.cClassTribIS`,
+        "Par CSTIS/cClassTribIS nao esta liberado para este modelo de documento."
       );
     }
 

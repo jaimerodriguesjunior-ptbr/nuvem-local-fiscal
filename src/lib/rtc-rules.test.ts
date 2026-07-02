@@ -65,6 +65,33 @@ test("aceita grupo IBS/CBS minimo com municipio, classificacao e totais", () => 
   assert.deepEqual(result.issues, []);
 });
 
+test("bloqueia par CST/cClassTrib IBS/CBS fora do catalogo local", () => {
+  const payload = rtcPayload();
+  payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "000999";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "unknown_rtc_classification"), true);
+});
+
+test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => {
+  const payload = rtcPayload();
+  delete (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS;
+  (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBSMono = {
+    qBCMono: 1,
+    adRemIBS: 0,
+    adRemCBS: 0,
+    vIBSMono: 0,
+    vCBSMono: 0
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "rtc_value_group_mismatch"), true);
+});
+
 test("aceita NFC-e com grupo IBS/CBS sem municipio do fato gerador IBS", () => {
   const payload = rtcPayload();
   payload.infNFe.ide.mod = 65;
@@ -187,6 +214,42 @@ test("aceita Imposto Seletivo com classificacao, valores e total", () => {
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.issues, []);
+});
+
+test("bloqueia par CSTIS/cClassTribIS fora do catalogo local", () => {
+  const payload = {
+    infNFe: {
+      ide: {
+        mod: 55
+      },
+      det: [
+        {
+          imposto: {
+            IS: {
+              CSTIS: "000",
+              cClassTribIS: "000999",
+              vBCIS: 0,
+              pIS: 0,
+              vIS: 0
+            }
+          }
+        }
+      ],
+      total: {
+        ISTot: {
+          vIS: 0
+        }
+      }
+    }
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "unknown_selective_tax_classification"),
+    true
+  );
 });
 
 test("bloqueia Imposto Seletivo sem classificacao, valores e total", () => {

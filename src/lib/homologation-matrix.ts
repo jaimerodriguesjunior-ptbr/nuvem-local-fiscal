@@ -89,11 +89,13 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     status: "blocks_production",
     evidence: [
       "validacao atual bloqueia grupos IBSCBS incompletos e IS incompleto",
+      "catalogo RTC local exige que pares CST/cClassTrib e CSTIS/cClassTribIS estejam versionados antes de aceitar payload",
+      "catalogo atual contem apenas entradas de smoke estrutural; entradas oficiais ainda precisam ser carregadas com fonte vigente",
       "IBSCBS regular exige CST, cClassTrib, IBS UF, IBS municipio, CBS, bases e totais",
       "IS exige CSTIS, cClassTribIS, valores de calculo e ISTot quando informado",
       "a classificacao legal por tipo de operacao ainda depende da tabela vigente e dos dados do cliente"
     ],
-    nextAction: "Conciliar CST/cClassTrib/IS com tabela oficial vigente e tipos de operacao dos clientes."
+    nextAction: "Carregar catalogo oficial CST/cClassTrib/IS vigente e vincular tipos de operacao dos clientes."
   },
   {
     id: "referenciamento-nfe-nfce",
