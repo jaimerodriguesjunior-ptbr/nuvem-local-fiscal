@@ -613,6 +613,10 @@ Tarefas geradas pelo diagnostico inicial:
    - andamento em `2026-07-02`: NF-e de devolucao da Autoeletrica/NHT validada
      em homologacao com `NFref` e itens carregados a partir de uma NF-e de
      entrada temporaria, removida do banco apos o teste
+   - andamento em `2026-07-02`: complemento (`finNFe=2`) e ajuste
+     (`finNFe=3`) ganharam contrato automatizado explicito: com `NFref` valido
+     e sem `IBSCBS`, o payload NF-e passa pela regra compartilhada; com
+     `IBSCBS`, continua bloqueado ate existir perfil RTC proprio
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 
@@ -638,6 +642,9 @@ Matriz viva de homologacao:
   NF-e/NFC-e,
   retries/processamento distribuido e consulta/cancelamento Guaira/IPM em
   cenario municipal reconhecido
+- complemento/ajuste ainda seguem como lacuna de homologacao real: o contrato
+  automatizado impede os erros estruturais conhecidos, mas falta uma emissao
+  real controlada em homologacao antes de reclassificar a matriz como satisfeita
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
   visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
   deve denunciar a mudanca

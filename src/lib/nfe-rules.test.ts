@@ -59,6 +59,20 @@ test("NF-e aceita documento referenciado por chave fiscal valida", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("NF-e aceita complemento e ajuste com NFref valido sem RTC", () => {
+  for (const finality of [2, 3]) {
+    const result = validateNfeEmissionPayload(
+      minimalNfePayload({
+        finNFe: finality,
+        NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+      })
+    );
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.issues, []);
+  }
+});
+
 test("NF-e preserva contrato RTC de modelo 55 para grupos IBSCBS", () => {
   const result = validateNfeEmissionPayload({
     ambiente: "homologacao",
