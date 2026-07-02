@@ -13,6 +13,7 @@ import {
 } from "../lib/document-processing.js";
 import { assertValidNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { generateAndSignNfeXml } from "../lib/nfe-xml.js";
+import { assertValidRtcPayload } from "../lib/rtc-rules.js";
 import {
   authorizeNfeAtSefaz,
   buildAuthorizationBatch,
@@ -1181,6 +1182,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
           expectedEnvironment: document.ambiente,
           expectedIssuerCnpj: document.issuerCnpj
         });
+      } else {
+        assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>);
       }
 
       const opened = openEncryptedCertificate(

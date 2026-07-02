@@ -11,6 +11,7 @@ import {
   querySefazDocumentStatus
 } from "./sefaz-authorization.js";
 import { assertValidNfceEmissionPayload } from "./nfce-rules.js";
+import { assertValidRtcPayload } from "./rtc-rules.js";
 import { validateNfeXml } from "./xsd-validator.js";
 
 export type AutomaticProcessingResult = {
@@ -140,6 +141,8 @@ export async function processHomologationDocument(
         expectedEnvironment: document.ambiente,
         expectedIssuerCnpj: document.issuerCnpj
       });
+    } else {
+      assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>);
     }
 
     let signedXml = document.xmlSigned;

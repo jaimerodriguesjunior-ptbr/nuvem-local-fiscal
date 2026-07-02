@@ -383,6 +383,17 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `tpEmis=9`, tipo de emissao online nao suportado, `tpImp` diferente de `4`,
   CNPJ do emitente divergente, falta de IE/CRT, falta de item, campos basicos
   de produto, grupos minimos `ICMS`/`PIS`/`COFINS`, total `vNF` e pagamento
+- em `2026-07-02`, foi adicionada uma validacao defensiva compartilhada de RTC
+  em `src/lib/rtc-rules.ts`: quando um payload NF-e/NFC-e envia grupo
+  `IBSCBS`, a API exige consistencia minima antes de gerar XML fiscal
+- essa validacao nao torna IBS/CBS obrigatorio para todos os documentos; ela
+  apenas impede payload meio preenchido, exigindo `cMunFGIBS`, `CST` com 3
+  digitos, `cClassTrib` com 6 digitos, `gIBSCBS` ou `gIBSCBSMono`,
+  `vBC` quando houver `gIBSCBS`, e totais `IBSCBSTot.vBCIBSCBS`
+- a regra RTC compartilhada foi aplicada no `POST /nfe`, reaproveitada no
+  validador NFC-e, e tambem executa antes de assinatura admin e processamento
+  automatico; isso evita que retries ou assinatura manual gerem XML RTC
+  incompleto
 - a validacao defensiva ainda nao fecha regras tributarias profundas da reforma
   tributaria; `CST`, `cClassTrib`, municipio do fato gerador, IBS/CBS/IS e
   demais exigencias novas continuam dependendo de `RT-CLASSIFICACAO` e da
@@ -431,6 +442,8 @@ Tarefas geradas pelo diagnostico inicial:
    travar a integridade dos XSDs por teste automatizado
 2. transformar lacunas restantes de `RT-VALIDACAO`, `DANFE-TIPO2`,
    `REFERENCIAMENTO`, `RETRY-FILA` e `CNPJ-ALFA` em regras/testes
+   - andamento em `2026-07-02`: primeira validacao RTC compartilhada para
+     grupos `IBSCBS` incompletos em NF-e/NFC-e
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 

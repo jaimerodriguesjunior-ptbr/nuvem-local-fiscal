@@ -1,5 +1,6 @@
 import type { Environment } from "../types.js";
 import { normalizeFiscalIdentifier } from "./fiscal-identity.js";
+import { validateRtcPayload } from "./rtc-rules.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -59,6 +60,8 @@ export function validateNfceEmissionPayload(
   } = {}
 ): NfceValidationResult {
   const issues: NfceValidationIssue[] = [];
+  const rtcValidation = validateRtcPayload(payload);
+  issues.push(...rtcValidation.issues);
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);
   const emit = asObject(infNFe.emit) ?? asObject(infNFe.emitente);

@@ -110,6 +110,24 @@ test("bloqueia CNPJ alfanumerico em NFC-e enquanto o fluxo nao suporta NT 2026.0
   assert.equal(result.issues.some((issue) => issue.code === "cnpj_alpha_not_supported"), true);
 });
 
+test("bloqueia NFC-e com grupo IBS/CBS incompleto", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.det[0].imposto as Record<string, unknown>).IBSCBS = {
+    CST: "00",
+    cClassTrib: "ABC001"
+  };
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_municipality"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_totals"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_values"), true);
+});
+
 test("rejeita NFC-e sem total, pagamento e impostos minimos", () => {
   const payload = validNfcePayload();
   delete (payload.infNFe as Record<string, unknown>).total;

@@ -28,6 +28,7 @@ import {
 } from "../lib/nfse-rules.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
+import { validateRtcPayload } from "../lib/rtc-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
@@ -1243,6 +1244,19 @@ async function handleCreateDocument(
         error: {
           code: "nfce_payload_invalid",
           message: "Payload NFC-e invalido para emissao.",
+          issues: validation.issues
+        },
+        issues: validation.issues
+      });
+    }
+  } else {
+    const validation = validateRtcPayload(payloadOriginal);
+    if (!validation.ok) {
+      return reply.code(400).send({
+        message: "Payload NF-e invalido para emissao.",
+        error: {
+          code: "nfe_payload_invalid",
+          message: "Payload NF-e invalido para emissao.",
           issues: validation.issues
         },
         issues: validation.issues
