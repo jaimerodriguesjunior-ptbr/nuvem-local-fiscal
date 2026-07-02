@@ -3,6 +3,8 @@ import { createHash, randomInt } from "node:crypto";
 import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
 
+import { assertNumericCnpj } from "./fiscal-identity.js";
+
 type JsonObject = Record<string, unknown>;
 
 export type SignedNfeResult = {
@@ -347,11 +349,12 @@ function accessKeyFromInfNFe(infNFe: JsonObject) {
   const yearMonth = dateMatch ? `${dateMatch[1].slice(-2)}${dateMatch[2]}` : "0000";
   const cNF = fixedDigits(ide.cNF || randomInt(0, 100_000_000), 8);
   ide.cNF = cNF;
+  const issuerCnpj = assertNumericCnpj(emit.CNPJ, "CNPJ do emitente");
 
   const first43 = [
     fixedDigits(ide.cUF, 2),
     yearMonth,
-    fixedDigits(emit.CNPJ, 14),
+    issuerCnpj,
     fixedDigits(ide.mod, 2),
     fixedDigits(ide.serie, 3),
     fixedDigits(ide.nNF, 9),
@@ -470,7 +473,7 @@ function applyResponsibleTechnicalCsrt(
 
   const infRespTec = infNFe.infRespTec as JsonObject;
   if (config.cnpj && !infRespTec.CNPJ) {
-    infRespTec.CNPJ = onlyDigits(config.cnpj);
+    infRespTec.CNPJ = assertNumericCnpj(config.cnpj, "CNPJ do responsavel tecnico");
   }
   if (config.contact && !infRespTec.xContato) {
     infRespTec.xContato = config.contact;

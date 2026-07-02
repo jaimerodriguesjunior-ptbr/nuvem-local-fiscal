@@ -26,6 +26,7 @@ import {
   resolveNfseProvider,
   validateNfseConfigDraft
 } from "../lib/nfse-rules.js";
+import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
@@ -1170,16 +1171,31 @@ async function handleCreateDocument(
       : null;
   const payloadOriginal = structuredClone(body);
   delete payloadOriginal.nuvemLocalFiscal;
-  const issuerCnpj = String(payloadNormalizado.emitenteCnpj ?? "");
+  const issuerIdentifier = normalizeFiscalIdentifier(payloadNormalizado.emitenteCnpj);
+  const issuerCnpj =
+    issuerIdentifier.kind === "numeric_cnpj"
+      ? issuerIdentifier.value
+      : String(payloadNormalizado.emitenteCnpj ?? "");
   const ambiente = parseEnvironment(payloadNormalizado.ambiente);
   const forcedStatus = body.mockStatus === "autorizado" ? "autorizado" : "processamento";
 
-  if (!issuerCnpj) {
+  if (issuerIdentifier.kind === "alpha_cnpj") {
     return reply.code(400).send({
       error: {
-        message: "Informe emitente.cnpj, emit.CNPJ ou emitenteCnpj."
+        code: "cnpj_alpha_not_supported",
+        message:
+          "CNPJ alfanumerico ainda nao e suportado para emissao NF-e/NFC-e."
       },
-      message: "Informe emitente.cnpj, emit.CNPJ ou emitenteCnpj."
+      message: "CNPJ alfanumerico ainda nao e suportado para emissao NF-e/NFC-e."
+    });
+  }
+
+  if (issuerIdentifier.kind !== "numeric_cnpj") {
+    return reply.code(400).send({
+      error: {
+        message: "Informe emitente.cnpj, emit.CNPJ ou emitenteCnpj com 14 digitos."
+      },
+      message: "Informe emitente.cnpj, emit.CNPJ ou emitenteCnpj com 14 digitos."
     });
   }
 

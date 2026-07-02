@@ -97,6 +97,19 @@ test("bloqueia NFC-e em contingencia offline ate existir QR Code v3 offline", ()
   assert.equal(result.issues.some((issue) => issue.code === "offline_contingency_not_supported"), true);
 });
 
+test("bloqueia CNPJ alfanumerico em NFC-e enquanto o fluxo nao suporta NT 2026.004", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.emit as Record<string, unknown>).CNPJ = "12ABC34501DE67";
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "12ABC34501DE67"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "cnpj_alpha_not_supported"), true);
+});
+
 test("rejeita NFC-e sem total, pagamento e impostos minimos", () => {
   const payload = validNfcePayload();
   delete (payload.infNFe as Record<string, unknown>).total;

@@ -1,4 +1,5 @@
 import type { Environment } from "../types.js";
+import { normalizeFiscalIdentifier } from "./fiscal-identity.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -22,10 +23,6 @@ function asObject(value: unknown): JsonObject | null {
 function asArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   return value === undefined || value === null ? [] : [value];
-}
-
-function onlyDigits(value: unknown) {
-  return String(value ?? "").replace(/\D/g, "");
 }
 
 function text(value: unknown) {
@@ -119,12 +116,23 @@ export function validateNfceEmissionPayload(
   if (!emit) {
     pushIssue(issues, "missing_emit", "infNFe.emit", "Informe o grupo emit da NFC-e.");
   } else {
-    const emitCnpj = onlyDigits(emit.CNPJ ?? emit.cnpj);
-    if (emitCnpj.length !== 14) {
-      pushIssue(issues, "missing_emit_cnpj", "infNFe.emit.CNPJ", "Informe CNPJ do emitente.");
+    const emitCnpj = normalizeFiscalIdentifier(emit.CNPJ ?? emit.cnpj);
+    if (emitCnpj.kind === "alpha_cnpj") {
+      pushIssue(
+        issues,
+        "cnpj_alpha_not_supported",
+        "infNFe.emit.CNPJ",
+        "CNPJ alfanumerico ainda nao e suportado para emissao NFC-e."
+      );
+    } else if (emitCnpj.kind !== "numeric_cnpj") {
+      pushIssue(issues, "missing_emit_cnpj", "infNFe.emit.CNPJ", "Informe CNPJ numerico do emitente.");
     }
-    const expectedIssuerCnpj = onlyDigits(options.expectedIssuerCnpj);
-    if (expectedIssuerCnpj && emitCnpj && emitCnpj !== expectedIssuerCnpj) {
+    const expectedIssuerCnpj = normalizeFiscalIdentifier(options.expectedIssuerCnpj);
+    if (
+      expectedIssuerCnpj.kind === "numeric_cnpj" &&
+      emitCnpj.kind === "numeric_cnpj" &&
+      emitCnpj.value !== expectedIssuerCnpj.value
+    ) {
       pushIssue(
         issues,
         "issuer_cnpj_mismatch",

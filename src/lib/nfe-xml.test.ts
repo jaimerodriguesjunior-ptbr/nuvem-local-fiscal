@@ -169,6 +169,64 @@ test("nao confunde outro identificador de 14 digitos com CNPJ", () => {
   assert.equal(parsed.holderCnpj, null);
 });
 
+test("bloqueia CNPJ alfanumerico antes de gerar chave de acesso", () => {
+  const password = "senha-cnpj-alfa";
+  const opened = openEncryptedCertificate(
+    encryptCertificateBundle(
+      {
+        pfxBase64: createTestPfx(password).toString("base64"),
+        password
+      },
+      "segredo-cnpj-alfa"
+    ),
+    "segredo-cnpj-alfa"
+  );
+
+  assert.throws(
+    () =>
+      generateAndSignNfeXml(
+        {
+          infNFe: {
+            ide: {
+              cUF: 41,
+              natOp: "VENDA",
+              mod: 65,
+              serie: 1,
+              nNF: 1,
+              dhEmi: "2026-07-02T10:00:00-03:00",
+              tpNF: 1,
+              idDest: 1,
+              cMunFG: 4108809,
+              tpImp: 4,
+              tpEmis: 1,
+              tpAmb: 2,
+              finNFe: 1,
+              indFinal: 1,
+              indPres: 1,
+              procEmi: 0,
+              verProc: "NuvemLocalFiscal"
+            },
+            emit: {
+              CNPJ: "12ABC34501DE67",
+              xNome: "Empresa Alfa",
+              IE: "1234567890",
+              CRT: 1
+            }
+          }
+        },
+        opened.privateKeyPem,
+        opened.certificatePem,
+        {
+          cscId: "1",
+          csc: "CSC-DE-HOMOLOGACAO-TESTE",
+          qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
+          consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
+        }
+      ),
+    /CNPJ do emitente alfanumerico ainda nao e suportado/
+  );
+});
+
 test("ordena os blocos de infNFe mesmo quando o JSON chega fora de ordem", () => {
   const password = "senha-ordem";
   const opened = openEncryptedCertificate(

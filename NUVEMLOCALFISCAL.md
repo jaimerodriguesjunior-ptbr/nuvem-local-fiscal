@@ -398,9 +398,20 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   controlada nao deve operar NFC-e em contingencia offline e o codigo bloqueia
   `tpEmis=9` com mensagem operacional clara ate existir implementacao/teste do
   QR Code v3 offline
-- `CNPJ-ALFA`: status `aberto`; a normalizacao atual ainda assume CNPJ numerico
-  em pontos do codigo, entao a `NT 2026.004` precisa ser avaliada antes de
-  qualquer declaracao de aderencia ampla
+- `CNPJ-ALFA`: status `parcial/blindado`; em `2026-07-02`, foi consultado o
+  portal oficial SVRS, que lista a `Nota Tecnica 2026.004 - Schema CNPJ Alfa
+  v1.01`, publicada em `08/06/2026`, com homologacao em `15/06/2026`, alem da
+  `Nota Tecnica DFe Conjunta - CNPJ Alfanumerico v1.00`, publicada em
+  `07/05/2025`
+- a primeira etapa implementada nao declara suporte completo a CNPJ
+  alfanumerico; ela impede o pior risco operacional: apagar letras com
+  `replace(/\D/g, "")` e gerar chave de acesso, cadastro ou comparacao fiscal
+  incorreta
+- `src/lib/fiscal-identity.ts` centraliza a classificacao de identificadores
+  fiscais em CNPJ numerico, CNPJ alfanumerico, vazio ou invalido
+- NF-e/NFC-e bloqueiam CNPJ alfanumerico com erro claro enquanto schema, chave
+  de acesso, inutilizacao, cancelamento, persistencia e demais fluxos nao forem
+  reconciliados com a NT aplicavel
 
 Tarefas geradas pelo diagnostico inicial:
 1. comparar o pacote local `PL_010c_NT2022_002v1.30` com o pacote oficial mais
