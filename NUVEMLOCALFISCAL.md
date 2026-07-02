@@ -106,6 +106,47 @@ Compatibilidade aplicada na Autoeletrica:
 - a rota de upload adapta o payload para a Nuvem Local quando a URL e local/VPS (`fileName`, `pfxBase64`, `password`)
 - essas mudancas foram feitas para preservar a premissa de trocar ambiente por `.env` e evitar cadastro manual repetitivo quando a integracao cliente estiver madura
 
+Licoes praticas da Autoeletrica para outros programas:
+- NFC-e em homologacao com cliente da mesma UF foi validada ponta a ponta depois dos ajustes de homologacao
+- NFC-e com cliente de outra UF nao deve seguir como NFC-e; a regra certa e bloquear cedo e orientar NF-e
+- a validacao de UF precisa acontecer antes de consumir numeracao fiscal, tanto na tela quanto no backend
+- a regra de bloqueio interestadual deve ficar no ponto compartilhado de emissao, nao espalhada em cada programa
+- o comportamento real observado foi este: `NFC-e` mesma UF segue, `NFC-e` interestadual bloqueia, `NF-e` e o caminho certo para a operacao fora do estado
+- os ajustes de RTC que apareceram durante a homologacao da Autoeletrica serviram como diagnostico de regra de montagem, nao como permissao para generalizar `IBSCBS` sem checagem de modelo e UF
+- para NFC-e, o teste valido foi o fluxo com cliente dentro do estado; o teste de fora do estado so faz sentido como confirmacao de bloqueio
+- quando o CSC da NFC-e foi bloqueado no cadastro da empresa, a autorizacao voltou a funcionar apos recadastrar um CSC novo na Nuvem Local Fiscal, o que confirma que parte dos erros pode vir do cadastro e nao do XML
+- no app cliente, vale manter a regra de negocio simples: `NFCe` para venda interna e `NFe` para venda interestadual
+- se outro programa reaproveitar o mesmo emissor base, ele deve herdar essas mesmas guardas para nao repetir o mesmo erro em producao
+
+Detalhe do `IBSCBS` usado na Autoeletrica em homologacao:
+- o payload de homologacao da NFC-e recebeu um grupo RTC apenas no caminho homologacao do cliente
+- o grupo entrou como `IBSCBS` no item e `IBSCBSTot` no total, junto com `CST`, `cClassTrib`, `gIBSCBS`, `gIBSUF`, `gIBSMun`, `gCBS`, `vBC`, `vIBS`, `vIBSUF`, `vIBSMun` e `vCBS`
+- a primeira forma testada mostrou que o schema era sensivel ao formato decimal dos percentuais; `pIBSUF`, `pIBSMun` e `pCBS` precisaram ser enviados em formato aceito pelo XSD, e nao como numero solto com arredondamento implicito
+- depois disso, a SEFAZ passou a rejeitar o municipio com `1036 - Aliquota do IBS do Municipio invalida. [nItem:1]`
+- a tentativa seguinte removeu a alíquota municipal do caminho de teste, mantendo o grupo RTC presente e zerando o municipio
+- em seguida a SEFAZ passou a rejeitar a UF com `1026 - Alíquota do IBS da UF invalida. [nItem:1]`
+- a conclusao pratica foi que, para esse cenário de NFC-e homologacao, o grupo RTC nao deve ser tratado como receita para venda interestadual; ele precisava respeitar a regra de modelo e UF antes de tentar compor aliquotas
+- no estado final validado, a NFC-e homologacao ficou com `IBSCBS` presente apenas como parte do teste de estrutura, mas a operacao interestadual foi bloqueada no app antes do envio
+- o resultado real do teste foi o `707 - NFC-e para operacao interestadual ou com o exterior`, que confirmou que esse fluxo nao deve continuar como NFC-e
+- esse conjunto de testes mostrou que `IBSCBS` nao pode ser copiado cegamente para outros programas; primeiro e preciso decidir se o documento e NFC-e ou NF-e, depois aplicar a regra de RTC correta para o modelo
+- a regra compartilhada a ser herdada pelos demais programas e esta: NFC-e so para operacao interna; se a UF do cliente divergir, o fluxo deve parar antes de assinar, consumir numeracao ou retransmitir
+
+Pontos que precisam ficar vivos para a proxima rodada:
+- a correcao importante nao foi so `UF`; o ganho maior foi transformar uma rejeicao fiscal em bloqueio preventivo dentro do emissor
+- a validacao interestadual deve existir no backend comum e, se houver UI propria, tambem na tela para dar erro antes de chamar a API
+- bloquear cedo evita consumir numeracao NFC-e sem chance real de autorizacao
+- o comportamento da Autoeletrica provou que o mesmo app pode passar por varias rodadas de ajuste sequencial; cada novo erro deve ser interpretado como nova regra confirmada, nao como falha aleatoria
+- `IBSCBS` so deve existir em caminhos que realmente estejam prontos para reforma tributaria e compatibilidade do modelo; em NFC-e, o importante neste momento foi provar a fronteira de bloqueio, nao liberar generalizacao
+- CSC continua sendo um ponto cadastral separado da regra do XML; quando a rejeicao aponta para QR/CSC, vale revisar cadastro da empresa na Nuvem Local antes de mexer no payload
+- outros programas que consumirem o mesmo emissor devem herdar o mesmo contrato: mesma UF -> segue NFC-e; UF diferente -> bloqueia e sugere NF-e; sem isso, o erro volta em outro cliente
+- essa memorizacao precisa sobreviver a troca de contexto porque ela afeta os proximos programas mais do que os ajustes pontuais de homologacao
+
+Resumo curto para reuso:
+- NFC-e interestadual bloqueada
+- NF-e interestadual segue como caminho correto
+- RTC/IBSCBS em NFC-e nao deve ser tratado como atalho para exportar regra de um programa para outro
+- o ponto certo de blindagem e o emissor compartilhado, nao o formulario de cada cliente
+
 Endpoints compativeis ja exercitados:
 - `POST /oauth/token`
 - `POST /nfe`
@@ -383,6 +424,14 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `tpEmis=9`, tipo de emissao online nao suportado, `tpImp` diferente de `4`,
   CNPJ do emitente divergente, falta de IE/CRT, falta de item, campos basicos
   de produto, grupos minimos `ICMS`/`PIS`/`COFINS`, total `vNF` e pagamento
+- em `2026-07-02`, a regra da Autoeletrica deixou de ser apenas memoria do
+  cliente e virou contrato no emissor compartilhado: NFC-e interestadual ou com
+  `idDest` diferente de operacao interna bloqueia no `POST /nfce` antes de
+  `createDocument`, evitando consumir numeracao, assinar XML ou transmitir para
+  a SEFAZ
+- a mesma guarda tambem roda na assinatura admin e no processamento automatico,
+  usando a UF cadastrada do emitente quando disponivel; isso protege retries e
+  acoes manuais contra o mesmo erro
 - em `2026-07-02`, foi adicionada uma validacao defensiva compartilhada de RTC
   em `src/lib/rtc-rules.ts`: quando um payload NF-e/NFC-e envia grupo
   `IBSCBS`, a API exige consistencia minima antes de gerar XML fiscal
@@ -397,10 +446,18 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   transmissao
 - para NF-e modelo `55`, a validacao RTC continua exigindo `cMunFGIBS` quando
   houver grupo `IBSCBS`
+- em `2026-07-02`, a validacao RTC passou a conhecer o modelo esperado pelo
+  endpoint: `/nfe` com `IBSCBS` exige modelo `55`, `/nfce` com `IBSCBS` exige
+  modelo `65`, e NFC-e com `IBSCBS` mais `idDest` nao interno bloqueia antes de
+  criar documento fiscal
 - a regra RTC compartilhada foi aplicada no `POST /nfe`, reaproveitada no
   validador NFC-e, e tambem executa antes de assinatura admin e processamento
   automatico; isso evita que retries ou assinatura manual gerem XML RTC
   incompleto
+- testes automatizados cobrem o contrato de bloqueio: NFC-e interestadual nao
+  altera a contagem de documentos, `/nfe` rejeita payload RTC de modelo `65`, e
+  `src/lib/rtc-rules.test.ts` cobre modelo errado, modelo ainda nao validado e
+  NFC-e RTC nao interna
 - a validacao defensiva ainda nao fecha regras tributarias profundas da reforma
   tributaria; `CST`, `cClassTrib`, municipio do fato gerador, IBS/CBS/IS e
   demais exigencias novas continuam dependendo de `RT-CLASSIFICACAO` e da
@@ -451,6 +508,9 @@ Tarefas geradas pelo diagnostico inicial:
    `REFERENCIAMENTO`, `RETRY-FILA` e `CNPJ-ALFA` em regras/testes
    - andamento em `2026-07-02`: primeira validacao RTC compartilhada para
      grupos `IBSCBS` incompletos em NF-e/NFC-e
+   - andamento em `2026-07-02`: contrato compartilhado de modelo/fluxo para
+     `IBSCBS` e bloqueio preventivo de NFC-e interestadual implementados e
+     cobertos por teste
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 
