@@ -10,6 +10,7 @@ import { config } from "../config.js";
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord, Issuer, ServiceConfig } from "../types.js";
 import { decryptSecretPayload } from "./certificates.js";
+import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
 
 export type GuairaIpmConfig = {
   cnpj: string;
@@ -149,26 +150,11 @@ function parseDate(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
-function providerFrom(serviceConfig: ServiceConfig | null) {
-  return String(serviceConfig?.settings.nfseProvider ?? "").trim().toLowerCase();
-}
-
 export function isGuairaIpmConfig(
   issuer: Issuer | null,
   serviceConfig: ServiceConfig | null
 ) {
-  const provider = providerFrom(serviceConfig);
-  const municipality = digitsOnly(
-    serviceConfig?.settings.nfseMunicipalityCode ??
-      issuer?.metadata?.codigo_municipio ??
-      asRecord(issuer?.metadata?.endereco).codigo_municipio
-  );
-  return (
-    provider === "guaira-ipm" ||
-    provider === "ipm" ||
-    provider === "atende-net" ||
-    municipality === "4108809"
-  );
+  return resolveNfseProvider({ issuer, serviceConfig }) === "guaira-ipm";
 }
 
 function resolveConfig(issuer: Issuer, serviceConfig: ServiceConfig): GuairaIpmConfig {
@@ -684,8 +670,13 @@ export async function transmitGuairaIpmTest(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para transmissao.");
   }
-  if (document.ambiente !== "homologacao") {
-    throw new Error("A transmissao IPM esta liberada somente em homologacao.");
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "guaira-ipm",
+    ambiente: document.ambiente,
+    operation: "emissao"
+  });
+  if (!runtimePolicy.allowed) {
+    throw new Error(runtimePolicy.reason ?? "Transmissao IPM bloqueada pelo motor de regras.");
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
@@ -829,8 +820,17 @@ export async function consultGuairaIpmNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para consulta.");
   }
-  if (document.ambiente !== "homologacao") {
-    return { document, transmitted: false, error: null };
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "guaira-ipm",
+    ambiente: document.ambiente,
+    operation: "consulta"
+  });
+  if (!runtimePolicy.allowed) {
+    return {
+      document,
+      transmitted: false,
+      error: runtimePolicy.reason ?? "Consulta IPM bloqueada pelo motor de regras."
+    };
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
@@ -973,8 +973,15 @@ export async function cancelGuairaIpmNfse(
   if (document.status !== "autorizado") {
     throw new Error("Somente uma NFS-e autorizada pode ser cancelada.");
   }
-  if (document.ambiente !== "homologacao") {
-    throw new Error("Cancelamento IPM esta liberado somente em homologacao.");
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "guaira-ipm",
+    ambiente: document.ambiente,
+    operation: "cancelamento"
+  });
+  if (!runtimePolicy.allowed) {
+    throw new Error(
+      runtimePolicy.reason ?? "Cancelamento IPM bloqueado pelo motor de regras."
+    );
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
@@ -1113,8 +1120,17 @@ export async function processGuairaIpmNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para processamento.");
   }
-  if (document.ambiente !== "homologacao") {
-    return { document, transmitted: false, error: null };
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "guaira-ipm",
+    ambiente: document.ambiente,
+    operation: "emissao"
+  });
+  if (!runtimePolicy.allowed) {
+    return {
+      document,
+      transmitted: false,
+      error: runtimePolicy.reason ?? "Emissao IPM bloqueada pelo motor de regras."
+    };
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);

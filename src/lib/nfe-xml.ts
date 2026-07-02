@@ -37,6 +37,8 @@ const HOMOLOGATION_RECIPIENT_NAME =
   "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
 const HOMOLOGATION_FIRST_ITEM_DESCRIPTION =
   "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+const NFCE_QRCODE_VERSION = "3";
+const NFCE_QRCODE_V3_ONLINE_TPEMIS = new Set(["1", "3", "4"]);
 
 function escapeXml(value: unknown) {
   return String(value)
@@ -258,6 +260,7 @@ const ideOrder = [
   "tpNF",
   "idDest",
   "cMunFG",
+  "cMunFGIBS",
   "tpImp",
   "tpEmis",
   "cDV",
@@ -426,21 +429,20 @@ function buildNfceSupplement(
   }
 
   const environment = String(ide.tpAmb);
-  const rawTokenId = String(config.cscId).trim();
-  if (!/^\d{1,6}$/.test(rawTokenId) || Number(rawTokenId) <= 0) {
-    throw new Error("O ID do CSC deve ser numerico e ter de 1 a 6 digitos.");
+  const emissionType = fixedDigits(ide.tpEmis || 1, 1);
+  if (emissionType === "9") {
+    throw new Error(
+      "NFC-e em contingencia offline exige QR Code v3 offline; este fluxo ainda nao esta habilitado."
+    );
   }
-  const tokenId = String(Number(rawTokenId));
-  if (!config.csc.trim()) {
-    throw new Error("O CSC da NFC-e nao foi informado.");
+  if (!NFCE_QRCODE_V3_ONLINE_TPEMIS.has(emissionType)) {
+    throw new Error(
+      `Tipo de emissao ${emissionType} nao suportado para QR Code NFC-e online.`
+    );
   }
 
-  const qrPayload = `${accessKey}|2|${environment}|${tokenId}`;
-  const hash = createHash("sha1")
-    .update(`${qrPayload}${config.csc.trim()}`, "utf8")
-    .digest("hex")
-    .toUpperCase();
-  const qrCode = `${config.qrCodeBaseUrl}?p=${qrPayload}|${hash}`;
+  const qrPayload = `${accessKey}|${NFCE_QRCODE_VERSION}|${environment}`;
+  const qrCode = `${config.qrCodeBaseUrl}?p=${qrPayload}`;
 
   return (
     `<infNFeSupl>` +

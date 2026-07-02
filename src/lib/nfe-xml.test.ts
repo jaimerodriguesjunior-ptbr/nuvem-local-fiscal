@@ -141,8 +141,9 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
   );
   assert.match(
     result.signedXml,
-    new RegExp(`${result.accessKey}\\|2\\|2\\|1\\|838B838AE69BEE8FA455ABD43A7B6FAD32BF1089`)
+    new RegExp(`${result.accessKey}\\|3\\|2`)
   );
+  assert.doesNotMatch(result.signedXml, /\|3\|2\|1\|[A-F0-9]{40}/);
   assert.match(
     result.signedXml,
     /<urlChave>http:\/\/www\.fazenda\.pr\.gov\.br\/nfce\/consulta<\/urlChave>/
@@ -558,4 +559,199 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
   const batchValidation = validateAuthorizationBatchXml(batch.batchXml);
   assert.deepEqual(batchValidation.errors, []);
   assert.equal(batchValidation.valid, true);
+});
+
+function buildRtcInfNFe(model: 55 | 65, number: number) {
+  return {
+    versao: "4.00",
+    ide: {
+      cUF: 41,
+      natOp: "VENDA DE MERCADORIA",
+      mod: model,
+      serie: model === 55 ? 1 : 2,
+      nNF: number,
+      dhEmi: "2026-07-02T11:00:00-03:00",
+      tpNF: 1,
+      idDest: 1,
+      cMunFG: 4108809,
+      cMunFGIBS: 4108809,
+      tpImp: model === 55 ? 1 : 4,
+      tpEmis: 1,
+      tpAmb: 2,
+      finNFe: 1,
+      indFinal: 1,
+      indPres: 1,
+      procEmi: 0,
+      verProc: "NuvemLocalFiscal"
+    },
+    emit: {
+      CNPJ: "01997929000108",
+      xNome: "FORSTER E FORSTER LTDA",
+      xFant: "Otica Prisma Guaira",
+      enderEmit: {
+        xLgr: "Av. Mate Laranjeira",
+        nro: "424",
+        xBairro: "Centro",
+        cMun: 4108809,
+        xMun: "Guaira",
+        UF: "PR",
+        CEP: "85980046",
+        cPais: "1058",
+        xPais: "BRASIL"
+      },
+      IE: "9013681047",
+      CRT: 1
+    },
+    dest: {
+      CPF: "12345678909",
+      xNome: "Cliente Teste",
+      indIEDest: 9
+    },
+    det: [
+      {
+        nItem: 1,
+        prod: {
+          cProd: "RTC-1",
+          cEAN: "SEM GTIN",
+          xProd: "Produto RTC",
+          NCM: "00000000",
+          CFOP: "5102",
+          uCom: "UN",
+          qCom: 1,
+          vUnCom: 10,
+          vProd: 10,
+          cEANTrib: "SEM GTIN",
+          uTrib: "UN",
+          qTrib: 1,
+          vUnTrib: 10,
+          indTot: 1
+        },
+        imposto: {
+          ICMS: {
+            ICMSSN102: { orig: 0, CSOSN: "102" }
+          },
+          PIS: {
+            PISOutr: { CST: "99", vBC: 0, pPIS: 0, vPIS: 0 }
+          },
+          COFINS: {
+            COFINSOutr: { CST: "99", vBC: 0, pCOFINS: 0, vCOFINS: 0 }
+          },
+          IBSCBS: {
+            CST: "000",
+            cClassTrib: "000001",
+            gIBSCBS: {
+              vBC: "0",
+              gIBSUF: {
+                pIBSUF: "0.10",
+                vIBSUF: "0"
+              },
+              gIBSMun: {
+                pIBSMun: "0.10",
+                vIBSMun: "0"
+              },
+              vIBS: "0",
+              gCBS: {
+                pCBS: "0.90",
+                vCBS: "0"
+              }
+            }
+          }
+        }
+      }
+    ],
+    total: {
+      ICMSTot: {
+        vBC: 0,
+        vICMS: 0,
+        vICMSDeson: 0,
+        vFCP: 0,
+        vBCST: 0,
+        vST: 0,
+        vFCPST: 0,
+        vFCPSTRet: 0,
+        vProd: 10,
+        vFrete: 0,
+        vSeg: 0,
+        vDesc: 0,
+        vII: 0,
+        vIPI: 0,
+        vIPIDevol: 0,
+        vPIS: 0,
+        vCOFINS: 0,
+        vOutro: 0,
+        vNF: 10
+      },
+      IBSCBSTot: {
+        vBCIBSCBS: "0"
+      }
+    },
+    transp: { modFrete: 9 },
+    pag: { detPag: [{ tPag: "01", vPag: 10 }] },
+    infRespTec: {
+      CNPJ: "65667543000102",
+      xContato: "Responsavel Tecnico",
+      email: "fiscal@example.com",
+      fone: "44999261487"
+    }
+  };
+}
+
+test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local", () => {
+  const password = "senha-rtc";
+  const opened = openEncryptedCertificate(
+    encryptCertificateBundle(
+      {
+        pfxBase64: createTestPfx(password).toString("base64"),
+        password
+      },
+      "segredo-rtc"
+    ),
+    "segredo-rtc"
+  );
+
+  const cases = [
+    {
+      model: 55 as const,
+      payload: buildRtcInfNFe(55, 9101),
+      qrCodeConfig: undefined
+    },
+    {
+      model: 65 as const,
+      payload: buildRtcInfNFe(65, 9102),
+      qrCodeConfig: {
+        cscId: "1",
+        csc: "CSC-DE-HOMOLOGACAO-TESTE",
+        qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
+        consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    const result = generateAndSignNfeXml(
+      { infNFe: scenario.payload },
+      opened.privateKeyPem,
+      opened.certificatePem,
+      scenario.qrCodeConfig
+    );
+
+    assert.equal(result.signatureValid, true);
+    assert.match(result.unsignedXml, new RegExp(`<mod>${scenario.model}</mod>`));
+    assert.match(result.unsignedXml, /<cMunFGIBS>4108809<\/cMunFGIBS>/);
+    assert.match(result.unsignedXml, /<IBSCBS><CST>000<\/CST><cClassTrib>000001<\/cClassTrib>/);
+    assert.match(result.unsignedXml, /<gIBSCBS><vBC>0<\/vBC><gIBSUF><pIBSUF>0.10<\/pIBSUF><vIBSUF>0<\/vIBSUF><\/gIBSUF>/);
+    assert.match(result.unsignedXml, /<IBSCBSTot><vBCIBSCBS>0<\/vBCIBSCBS><\/IBSCBSTot>/);
+
+    const xmlValidation = validateNfeXml(result.signedXml);
+    assert.deepEqual(xmlValidation.errors, []);
+    assert.equal(xmlValidation.valid, true);
+
+    const batch = buildAuthorizationBatch(
+      result.signedXml,
+      `00000000000${scenario.model}`
+    );
+    const batchValidation = validateAuthorizationBatchXml(batch.batchXml);
+    assert.deepEqual(batchValidation.errors, []);
+    assert.equal(batchValidation.valid, true);
+  }
 });

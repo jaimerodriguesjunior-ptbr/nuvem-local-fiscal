@@ -1,17 +1,33 @@
 const { createHash } = require("node:crypto");
+const { readFileSync } = require("node:fs");
 const { createClient } = require("@supabase/supabase-js");
 const { decryptSecretPayload } = require("/opt/nuvem-local-fiscal/dist/lib/certificates.js");
 
 const fingerprint = (value) =>
   createHash("sha256").update(String(value).trim(), "utf8").digest("hex").slice(0, 16);
 
+function loadEnvFile(path) {
+  try {
+    const content = readFileSync(path, "utf8");
+    for (const line of content.split(/\r?\n/)) {
+      const match = line.match(/^([^#=]+)=(.*)$/);
+      if (match && !process.env[match[1].trim()]) {
+        process.env[match[1].trim()] = match[2].trim();
+      }
+    }
+  } catch {
+    // Local development can rely on the current process environment.
+  }
+}
+
 async function main() {
+  loadEnvFile("/etc/nuvem-local-fiscal.env");
+  const cnpj = String(process.argv[2] || "01997929000108").replace(/\D/g, "");
   const supabase = createClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { persistSession: false } }
   );
-  const cnpj = "01997929000108";
   const company = (
     await supabase.from("fiscal_companies").select("id").eq("cnpj", cnpj).single()
   ).data;

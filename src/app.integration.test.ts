@@ -342,7 +342,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           nome: "Toledo"
         },
         prefeitura: {
-          login: "970339"
+          login: "970339",
+          senha: "SENHA-FICTICIA-NFSE"
         },
         equiplano: {
           inscricao_municipal: "970339",
@@ -390,6 +391,38 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     });
     assert.equal(saveToledoNfseConfig.statusCode, 200, saveToledoNfseConfig.body);
     assert.doesNotMatch(saveToledoNfseConfig.body, /SENHA-FICTICIA-NFSE|secretsEncrypted/);
+
+    const toledoConfigWithRuleDefaults = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=homologacao`,
+      headers: bearer
+    });
+    assert.equal(toledoConfigWithRuleDefaults.statusCode, 200, toledoConfigWithRuleDefaults.body);
+    assert.equal(toledoConfigWithRuleDefaults.json().equiplano.endpoint, "https://www.esnfs.com.br:9443//homologacaows/services/Enfs");
+    assert.equal(toledoConfigWithRuleDefaults.json().equiplano.soap_action, "http://services.enfsws.es/esRecepcionarLoteRps");
+
+    const mismatchedMunicipalityProvider = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        provedor: "guaira-ipm",
+        municipio: {
+          codigo_ibge: "4127700",
+          nome: "Toledo"
+        },
+        prefeitura: {
+          login: "970339",
+          senha: "SENHA-FICTICIA-NFSE"
+        }
+      }
+    });
+    assert.equal(mismatchedMunicipalityProvider.statusCode, 400);
+    assert.match(mismatchedMunicipalityProvider.body, /toledo-equiplano/);
 
     const nfseEmission = await app.inject({
       method: "POST",
@@ -1179,6 +1212,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(xml.body, /<Signature xmlns="http:\/\/www.w3.org\/2000\/09\/xmldsig#">/);
     assert.match(xml.body, /<infNFeSupl>/);
     assert.match(xml.body, /<qrCode>/);
+    assert.match(xml.body, /qrcode\?p=\d{44}\|3\|2/);
+    assert.doesNotMatch(xml.body, /\|3\|2\|1\|[A-F0-9]{40}/);
     assert.match(xml.body, /<protNFe/);
   } finally {
     await app.close();

@@ -12,6 +12,7 @@ import {
   decryptSecretPayload,
   openEncryptedCertificate
 } from "./certificates.js";
+import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
 
 type RequestFormat = "soap" | "xml";
 
@@ -185,26 +186,11 @@ export function allowsLegacyEquiplanoHomologationTls(url: URL) {
   );
 }
 
-function providerFrom(serviceConfig: ServiceConfig | null) {
-  return String(serviceConfig?.settings.nfseProvider ?? "").trim().toLowerCase();
-}
-
 export function isToledoNfseConfig(
   issuer: Issuer | null,
   serviceConfig: ServiceConfig | null
 ) {
-  const provider = providerFrom(serviceConfig);
-  const municipality = String(
-    serviceConfig?.settings.nfseMunicipalityCode ??
-      issuer?.metadata?.codigo_municipio ??
-      (issuer?.metadata?.endereco as Record<string, unknown> | undefined)?.codigo_municipio ??
-      ""
-  ).replace(/\D/g, "");
-  return (
-    provider === "toledo-equiplano" ||
-    provider === "equiplano" ||
-    municipality === "4127700"
-  );
+  return resolveNfseProvider({ issuer, serviceConfig }) === "toledo-equiplano";
 }
 
 function resolveToledoConfig(
@@ -661,8 +647,17 @@ export async function processToledoNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para processamento.");
   }
-  if (document.ambiente !== "homologacao") {
-    return { document, transmitted: false, error: null };
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "toledo-equiplano",
+    ambiente: document.ambiente,
+    operation: "emissao"
+  });
+  if (!runtimePolicy.allowed) {
+    return {
+      document,
+      transmitted: false,
+      error: runtimePolicy.reason ?? "Emissao Toledo bloqueada pelo motor de regras."
+    };
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
@@ -834,7 +829,12 @@ export async function consultToledoNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para consulta.");
   }
-  if (document.ambiente !== "homologacao" || document.status !== "processamento") {
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "toledo-equiplano",
+    ambiente: document.ambiente,
+    operation: "consulta"
+  });
+  if (!runtimePolicy.allowed || document.status !== "processamento") {
     return { document, transmitted: false, error: null };
   }
 
@@ -969,8 +969,15 @@ export async function cancelToledoNfse(
   if (document.status !== "autorizado") {
     throw new Error("Somente uma NFS-e autorizada pode ser cancelada.");
   }
-  if (document.ambiente !== "homologacao") {
-    throw new Error("Cancelamento NFS-e em producao permanece bloqueado.");
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "toledo-equiplano",
+    ambiente: document.ambiente,
+    operation: "cancelamento"
+  });
+  if (!runtimePolicy.allowed) {
+    throw new Error(
+      runtimePolicy.reason ?? "Cancelamento NFS-e bloqueado pelo motor de regras."
+    );
   }
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);

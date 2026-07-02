@@ -21,6 +21,11 @@ import {
   processConfiguredNfse,
   transmitConfiguredNfseTest
 } from "../lib/nfse-provider.js";
+import {
+  getNfseRuleProfile,
+  resolveNfseProvider,
+  validateNfseConfigDraft
+} from "../lib/nfse-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
@@ -218,6 +223,14 @@ function normalizePayload(tipoDocumento: DocumentType, body: Record<string, unkn
 
 function parseEnvironment(value: unknown): Environment {
   return value === "producao" ? "producao" : "homologacao";
+}
+
+function firstNonEmptyText(...values: unknown[]) {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
 }
 
 function usedToledoSequenceFromDocuments(
@@ -543,17 +556,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         : {};
     const login = String(prefeitura.login ?? prefeitura.usuario ?? "").trim();
     const password = String(prefeitura.senha ?? prefeitura.password ?? "").trim();
-    const provider = String(
+    const providerInput = String(
       body.provedor ?? body.provider ?? equiplano.provedor ?? ""
     ).trim();
-    const normalizedProvider =
-      provider.toLowerCase().includes("toledo") || provider.toLowerCase().includes("equiplano")
-        ? "toledo-equiplano"
-        : provider.toLowerCase().includes("guaira") ||
-            provider.toLowerCase().includes("ipm") ||
-            provider.toLowerCase().includes("atende")
-          ? "guaira-ipm"
-          : provider;
 
     if (cnpj.length !== 14) {
       return reply.code(400).send({ message: "Informe CNPJ valido." });
@@ -563,8 +568,29 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       environment,
       "NFSE"
     );
-    const effectiveLogin = login || String(existingServiceConfig?.settings.nfseLogin ?? "");
-    const hasMunicipalPassword = Boolean(password || existingServiceConfig?.secretsEncrypted);
+    const municipalityCode = String(
+      municipio.codigo_ibge ??
+        municipio.codigo_municipio ??
+        body.codigo_municipio ??
+        existingServiceConfig?.settings.nfseMunicipalityCode ??
+        ""
+    ).replace(/\D/g, "");
+    const effectiveProvider = resolveNfseProvider({
+      serviceConfig: existingServiceConfig,
+      provider: providerInput,
+      municipalityCode
+    });
+    const previousProvider = resolveNfseProvider({
+      serviceConfig: existingServiceConfig
+    });
+    const reusableExistingSettings =
+      !effectiveProvider || !previousProvider || previousProvider === effectiveProvider
+        ? existingServiceConfig?.settings
+        : undefined;
+    const effectiveLogin = login || String(reusableExistingSettings?.nfseLogin ?? "");
+    const hasMunicipalPassword = Boolean(
+      password || (reusableExistingSettings && existingServiceConfig?.secretsEncrypted)
+    );
 
     if (!effectiveLogin || !hasMunicipalPassword) {
       return reply.code(400).send({
@@ -572,15 +598,13 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       });
     }
 
-    const effectiveProvider =
-      normalizedProvider ||
-      String(existingServiceConfig?.settings.nfseProvider ?? "");
+    const ruleProfile = getNfseRuleProfile(effectiveProvider);
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
     const effectiveIdEntidade = String(
       equiplano.id_entidade ??
         equiplano.idEntidade ??
         body.id_entidade ??
-        existingServiceConfig?.settings.nfseIdEntidade ??
+        reusableExistingSettings?.nfseIdEntidade ??
         ""
     ).trim();
 
@@ -608,91 +632,149 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         ? Math.max(requestedNextLotNumber, usedToledoSequence.lot + 1)
         : undefined;
 
+    const nfseSettings = {
+      nfseLogin: login || undefined,
+      nfseProvider: effectiveProvider || undefined,
+      nfseMunicipalityCode: municipalityCode || ruleProfile?.municipalityCode || undefined,
+      nfseMunicipalityName: firstNonEmptyText(
+        municipio.nome,
+        municipio.cidade,
+        body.cidade,
+        reusableExistingSettings?.nfseMunicipalityName,
+        ruleProfile?.municipalityName
+      ) || undefined,
+      nfseEndpoint: firstNonEmptyText(
+        ipm.endpoint,
+        equiplano.endpoint,
+        body.endpoint,
+        reusableExistingSettings?.nfseEndpoint,
+        ruleProfile?.defaults.endpoint
+      ) || undefined,
+      nfseSoapAction: firstNonEmptyText(
+        equiplano.soap_action,
+        equiplano.soapAction,
+        body.soap_action,
+        reusableExistingSettings?.nfseSoapAction,
+        ruleProfile?.defaults.soapAction
+      ) || undefined,
+      nfseRequestFormat:
+        firstNonEmptyText(
+          equiplano.request_format,
+          equiplano.requestFormat,
+          body.request_format,
+          reusableExistingSettings?.nfseRequestFormat,
+          ruleProfile?.defaults.requestFormat
+        ).toLowerCase() === "xml"
+          ? "xml" as const
+          : ruleProfile?.defaults.requestFormat === "soap"
+            ? "soap" as const
+            : undefined,
+      nfseInscricaoMunicipal: firstNonEmptyText(
+        equiplano.inscricao_municipal,
+        body.inscricao_municipal,
+        prefeitura.inscricao_municipal,
+        reusableExistingSettings?.nfseInscricaoMunicipal
+      ) || undefined,
+      nfseIdEntidade: effectiveIdEntidade || undefined,
+      nfseRpsSerie: firstNonEmptyText(
+        rps.serie,
+        body.serie_rps,
+        reusableExistingSettings?.nfseRpsSerie,
+        ruleProfile?.defaults.rpsSeries
+      ) || undefined,
+      nfseRpsEmissor: firstNonEmptyText(
+        rps.emissor,
+        rps.emissor_rps,
+        body.emissor_rps,
+        reusableExistingSettings?.nfseRpsEmissor,
+        ruleProfile?.defaults.rpsIssuer
+      ) || undefined,
+      nfseNextRpsNumber: nextRpsNumber,
+      nfseNextLotNumber: nextLotNumber,
+      nfseDefaultServiceCode: firstNonEmptyText(
+        servico.codigo,
+        servico.codigo_servico,
+        body.codigo_servico,
+        reusableExistingSettings?.nfseDefaultServiceCode,
+        ruleProfile?.defaults.serviceCode
+      ) || undefined,
+      nfseDefaultServiceItem: firstNonEmptyText(
+        servico.item,
+        servico.item_servico,
+        body.item_servico,
+        reusableExistingSettings?.nfseDefaultServiceItem
+      ) || undefined,
+      nfseDefaultServiceSubItem: firstNonEmptyText(
+        servico.subitem,
+        servico.subitem_servico,
+        body.subitem_servico,
+        reusableExistingSettings?.nfseDefaultServiceSubItem
+      ) || undefined,
+      nfseDefaultAliquotaIss:
+        Number(servico.aliquota_iss ?? body.aliquota_iss) > 0
+          ? Number(servico.aliquota_iss ?? body.aliquota_iss)
+          : reusableExistingSettings?.nfseDefaultAliquotaIss ??
+            ruleProfile?.defaults.issRate,
+      nfseTomCode: firstNonEmptyText(
+        ipm.codigo_tom,
+        ipm.tom_code,
+        body.codigo_tom,
+        reusableExistingSettings?.nfseTomCode,
+        ruleProfile?.defaults.tomCode
+      ).replace(/\D/g, "") || undefined,
+      nfseEconomicRegistration: firstNonEmptyText(
+        ipm.cadastro_economico,
+        ipm.economic_registration,
+        body.cadastro_economico,
+        reusableExistingSettings?.nfseEconomicRegistration,
+        reusableExistingSettings?.nfseInscricaoMunicipal
+      ) || undefined,
+      nfseDefaultActivityCode: firstNonEmptyText(
+        ipm.codigo_atividade,
+        servico.codigo_atividade,
+        body.codigo_atividade,
+        reusableExistingSettings?.nfseDefaultActivityCode,
+        ruleProfile?.defaults.activityCode
+      ).replace(/\D/g, "") || undefined,
+      nfseDefaultTaxSituation: firstNonEmptyText(
+        ipm.situacao_tributaria,
+        servico.situacao_tributaria,
+        body.situacao_tributaria,
+        reusableExistingSettings?.nfseDefaultTaxSituation,
+        ruleProfile?.defaults.taxSituation
+      ) || undefined,
+      nfseRequiresSignature:
+        ipm.exige_assinatura === true || body.exige_assinatura === true,
+      nfseTestMode:
+        ipm.modo_teste === false || body.modo_teste === false ? false : true,
+      autoTransmit: body.transmissao_automatica === true || body.autoTransmit === true
+    };
+    const configValidation = validateNfseConfigDraft({
+      cnpj,
+      ambiente: environment,
+      provider: effectiveProvider ?? "",
+      municipalityCode,
+      login: effectiveLogin,
+      hasPassword: hasMunicipalPassword,
+      settings: nfseSettings
+    });
+    if (configValidation.errors.length) {
+      return reply.code(400).send({
+        message: configValidation.errors.join(" ")
+      });
+    }
+
     app.store.ensureIssuer(cnpj, environment, {
       razaoSocial: `Emitente ${cnpj}`,
       nomeFantasia: `Emitente ${cnpj}`
     });
     const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFSE", {
       active: true,
-      settings: {
-        nfseLogin: login || undefined,
-        nfseProvider: normalizedProvider || undefined,
-        nfseMunicipalityCode: String(
-          municipio.codigo_ibge ??
-            municipio.codigo_municipio ??
-            body.codigo_municipio ??
-            ""
-        ).replace(/\D/g, "") || undefined,
-        nfseMunicipalityName: String(
-          municipio.nome ?? municipio.cidade ?? body.cidade ?? ""
-        ).trim() || undefined,
-        nfseEndpoint: String(
-          ipm.endpoint ?? equiplano.endpoint ?? body.endpoint ?? ""
-        ).trim() || undefined,
-        nfseSoapAction: String(
-          equiplano.soap_action ?? equiplano.soapAction ?? body.soap_action ?? ""
-        ).trim() || undefined,
-        nfseRequestFormat:
-          String(equiplano.request_format ?? equiplano.requestFormat ?? body.request_format ?? "")
-            .trim()
-            .toLowerCase() === "xml"
-            ? "xml"
-            : undefined,
-        nfseInscricaoMunicipal: String(
-          equiplano.inscricao_municipal ??
-            body.inscricao_municipal ??
-            prefeitura.inscricao_municipal ??
-            ""
-        ).trim() || undefined,
-        nfseIdEntidade: effectiveIdEntidade || undefined,
-        nfseRpsSerie: String(rps.serie ?? body.serie_rps ?? "").trim() || undefined,
-        nfseRpsEmissor: String(rps.emissor ?? rps.emissor_rps ?? body.emissor_rps ?? "").trim() || undefined,
-        nfseNextRpsNumber: nextRpsNumber,
-        nfseNextLotNumber: nextLotNumber,
-        nfseDefaultServiceCode: String(
-          servico.codigo ?? servico.codigo_servico ?? body.codigo_servico ?? ""
-        ).trim() || undefined,
-        nfseDefaultServiceItem: String(
-          servico.item ?? servico.item_servico ?? body.item_servico ?? ""
-        ).trim() || undefined,
-        nfseDefaultServiceSubItem: String(
-          servico.subitem ?? servico.subitem_servico ?? body.subitem_servico ?? ""
-        ).trim() || undefined,
-        nfseDefaultAliquotaIss:
-          Number(servico.aliquota_iss ?? body.aliquota_iss) > 0
-            ? Number(servico.aliquota_iss ?? body.aliquota_iss)
-            : undefined,
-        nfseTomCode: String(
-          ipm.codigo_tom ?? ipm.tom_code ?? body.codigo_tom ?? ""
-        ).replace(/\D/g, "") || undefined,
-        nfseEconomicRegistration: String(
-          ipm.cadastro_economico ??
-            ipm.economic_registration ??
-            body.cadastro_economico ??
-            ""
-        ).trim() || undefined,
-        nfseDefaultActivityCode: String(
-          ipm.codigo_atividade ??
-            servico.codigo_atividade ??
-            body.codigo_atividade ??
-            ""
-        ).replace(/\D/g, "") || undefined,
-        nfseDefaultTaxSituation: String(
-          ipm.situacao_tributaria ??
-            servico.situacao_tributaria ??
-            body.situacao_tributaria ??
-            ""
-        ).trim() || undefined,
-        nfseRequiresSignature:
-          ipm.exige_assinatura === true || body.exige_assinatura === true,
-        nfseTestMode:
-          ipm.modo_teste === false || body.modo_teste === false ? false : true,
-        autoTransmit: body.transmissao_automatica === true || body.autoTransmit === true
-      },
+      settings: nfseSettings,
       secretsEncrypted: password
         ? encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
         : undefined,
-      preserveSecrets: !password
+      preserveSecrets: !password && Boolean(reusableExistingSettings)
     });
     await app.store.waitForPersistence();
 

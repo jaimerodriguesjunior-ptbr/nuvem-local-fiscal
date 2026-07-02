@@ -90,6 +90,14 @@ Marco VPS e multiplos clientes:
   - protocolo: `141260001358339`
   - status SEFAZ: `100 - Autorizado o uso da NF-e`
   - recebimento: `2026-06-13T10:03:20-03:00`
+- em `2026-07-02`, a Autoeletrica teve uma NFC-e rejeitada em homologacao com
+  `462 - Codigo Identificador do CSC no QR-Code nao cadastrado na SEFAZ`; o
+  diagnostico confirmou XML assinado, XSD valido e QR/hash coerentes com o CSC
+  salvo, indicando problema cadastral do CSC na SEFAZ, nao erro de montagem do
+  XML
+- depois de criar novo CSC no portal e recadastrar na Nuvem Local, a NFC-e
+  homologacao `numero 10`, serie `2`, foi autorizada para a Autoeletrica com
+  protocolo `141260001382291` em `2026-07-02T12:01:40-03:00`
 
 Compatibilidade aplicada na Autoeletrica:
 - `src/lib/nuvemfiscal.ts` passou a respeitar `NUVEMFISCAL_HOM_AUTH_URL`, mantendo auth oficial como fallback
@@ -144,6 +152,20 @@ Configuracoes persistidas:
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - configuracao NFS-e por ambiente: login e senha da prefeitura criptografada, provedor/municipio, dados Equiplano e sequencia de RPS/lote
 - atualizacao parcial de configuracao NFS-e preserva login e senha ja salvos no servidor; isso evita rejeicao indevida de sync quando o cliente altera apenas campos nao sensiveis
+- em `2026-07-02`, foi criada a primeira versao do motor de regras NFS-e em
+  `src/lib/nfse-rules.ts`, com perfis versionados para `guaira-ipm` e
+  `toledo-equiplano`
+- o motor centraliza identificacao de provedor por alias/municipio, defaults
+  municipais, requisitos de configuracao, compatibilidade provedor x IBGE e
+  politica de transmissao por ambiente
+- a atualizacao parcial reaproveita credenciais e campos antigos somente quando
+  o provedor ainda e o mesmo, ou quando uma configuracao NFS-e generica esta
+  sendo promovida pela primeira vez para um provedor municipal; trocar entre
+  Guaira/IPM e Toledo/Equiplano exige dados novos e nao reaproveita segredo do
+  provedor anterior
+- producao NFS-e segue bloqueada pelo perfil do motor de regras; liberar
+  producao deve ser uma mudanca explicita de perfil, com teste e evidencia
+  regulatoria da data vigente
 - a NFS-e Toledo/Equiplano foi validada ponta a ponta em homologacao em 2026-06-13:
   - `POST /nfse/dps` aceita payload estilo Nuvem Fiscal
   - `GET /nfse/:id` consulta o documento e o RPS no Equiplano
@@ -168,6 +190,9 @@ Configuracoes persistidas:
     `idEntidade`, limitar data futura de RPS ao dia atual de Sao Paulo e elevar
     automaticamente proximo lote/RPS para acima da maior sequencia Toledo ja
     usada no historico local
+  - a emissao de `2026-07-02T10:53:20-03:00` ficou autorizada com PDF final
+    consistente para `Leandro, Car Prime`, confirmando que o ciclo de ajuste
+    operacional Toledo foi fechado em homologacao
 - a primeira NFS-e Guaira/IPM foi emitida em homologacao em 2026-06-13:
   - documento Nuvem Local `doc_19c69b1c`
   - NFS-e municipal `184`, serie `1`
@@ -234,6 +259,145 @@ Checkpoint regulatorio em `2026-07-01`:
 - decisao de projeto a partir deste ponto: so partir para producao depois que a homologacao estiver explicitamente revisada e considerada de acordo com a reforma tributaria da data vigente da decisao
 - essa regra vale mesmo se a transmissao tecnica em homologacao estiver funcionando ponta a ponta
 
+Checklist regulatorio de homologacao para producao controlada:
+- objetivo: transformar "emitiu em homologacao" em evidencia tecnica minima para
+  operar varios sistemas e varias empresas sem depender da Nuvem Fiscal real
+- regra de fechamento: nenhum item abaixo libera producao sozinho; producao so
+  pode ser discutida quando os itens aplicaveis tiverem evidencia, teste ou
+  decisao explicita de escopo
+- fontes oficiais obrigatorias antes de marcar item como fechado:
+  - Portal Nacional da NF-e: notas tecnicas, MOC, schemas e comunicados vigentes
+  - CONFAZ: Ajustes SINIEF vigentes para NF-e/NFC-e e documentos auxiliares
+  - Receita Federal / reforma tributaria: regras de transicao de IBS, CBS e IS
+  - SEFAZ-PR: endpoints, disponibilidade, regras operacionais e homologacao
+  - Planalto: EC 132/2023, LC 214/2025 e normas complementares aplicaveis
+- evidencia aceita:
+  - XML homologado e armazenado
+  - retorno SEFAZ com `cStat` e protocolo
+  - XSD validado contra pacote vigente
+  - PDF/DANFE conferido visualmente quando o item afetar impressao
+  - teste automatizado quando a regra puder ser reproduzida localmente
+  - decisao registrada no MD quando o item ficar fora do escopo inicial
+
+Itens minimos do checklist:
+- `RT-BASE`: confirmar, na data da decisao, qual Nota Tecnica NF-e/NFC-e da
+  reforma tributaria esta vigente em homologacao e qual pacote de schemas deve
+  ser usado
+- `RT-XML`: validar se os grupos `IBSCBS`, totais de `IBSCBS`, `cMunFGIBS`,
+  `idCSRT`, `hashCSRT` e demais campos de transicao estao aceitos no XML quando
+  aplicaveis, sem inventar valores quando o cliente nao informou tributacao
+  suficiente
+- `RT-COEXISTENCIA`: confirmar que ICMS, IPI, PIS, COFINS e campos atuais
+  continuam sendo emitidos corretamente durante a transicao, sem substituir
+  indevidamente tributos atuais por IBS/CBS
+- `RT-CLASSIFICACAO`: mapear quais dados cada sistema cliente precisa fornecer
+  para IBS/CBS/IS, especialmente CST, classificacao tributaria e municipio do
+  fato gerador quando aplicavel
+- `RT-VALIDACAO`: criar validacoes defensivas no motor de regras para bloquear
+  payload incompleto quando a regra vigente exigir campos novos obrigatorios
+- `NFE-XSD`: revisar se `schemas/PL_010c` ainda e suficiente para a data da
+  retomada; se nao for, atualizar pacote de schemas e testes
+- `NFE-CSRT`: manter `idCSRT`/`hashCSRT` calculados pelo servidor, nunca expor
+  CSRT no XML nem exigir que o cliente envie segredo fiscal
+- `NFCE-QR`: validar QR Code, CSC, `idToken`, URL de consulta e URL do QR Code
+  conforme ambiente de homologacao/producao do PR
+- `DANFE-A4`: conferir se o DANFE NF-e A4 continua suficiente para emissao
+  normal e cancelada
+- `DANFE-NFCE`: conferir se o DANFE NFC-e termico continua suficiente para
+  emissao normal e cancelada, incluindo QR Code e chave
+- `DANFE-TIPO2`: verificar aplicabilidade de `DANFE Simplificado - Tipo 2`; se
+  aplicavel ao escopo, implementar layout/teste antes de producao; se nao
+  aplicavel, registrar decisao e fonte
+- `CONTINGENCIA`: decidir explicitamente se a primeira producao vai operar sem
+  contingencia offline; se sim, bloquear qualquer tentativa de emissao em
+  contingencia e comunicar erro claro ao cliente
+- `RETRY-FILA`: fechar retries agendados e processamento distribuido para evitar
+  duplicidade, perda de protocolo ou reenvio indevido em queda da SEFAZ/Nuvem
+  Local
+- `CONSULTA-RECUPERACAO`: validar consulta por chave/recibo e recuperacao de
+  protocolo para documento que ficou pendente depois de falha de rede
+- `REFERENCIAMENTO`: testar NF-e/NFC-e com documentos referenciados quando o
+  cliente usar devolucao, complemento, ajuste ou vinculacao entre documentos
+- `CANCELAMENTO`: manter regressao de cancelamento NF-e/NFC-e por evento
+  `110111`, garantindo protocolo de evento separado do protocolo de autorizacao
+- `INUTILIZACAO`: manter regressao de inutilizacao NF-e/NFC-e por modelo, serie
+  e faixa, com persistencia e XML de resposta
+- `PDF-ARTEFATOS`: garantir que XML autorizado, XML de cancelamento, PDF e URLs
+  compativeis permanecem disponiveis para todos os sistemas clientes
+- `AUDITORIA`: garantir trilha em `fiscal_document_events` para request,
+  normalizacao, assinatura, validacao, transmissao, consulta, erro e retry
+- `MENSAGENS`: traduzir rejeicoes criticas para mensagens operacionais claras,
+  preservando o retorno tecnico original para auditoria
+- `PROD-GATE`: manter `fiscalProductionBlocked=true` ate o checklist aplicavel
+  estar fechado e documentado
+
+Primeiro recorte recomendado:
+1. validar `NFE-XSD`, `RT-BASE` e `RT-XML` em XML NF-e e NFC-e de homologacao
+2. revisar `NFCE-QR`, `NFE-CSRT` e PDFs/DANFE ja gerados
+3. transformar `RT-VALIDACAO`, `CONTINGENCIA` e `RETRY-FILA` em regras/testes
+4. so depois discutir liberacao controlada de producao por empresa e por sistema
+
+Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
+`2026-07-02`:
+- fonte oficial consultada: Portal da Nota Fiscal Eletronica - SVRS, pagina
+  `Documentos`, em `2026-07-02`
+- `NFE-XSD`: status `parcial`; o projeto usa pacote oficial local
+  `PL_010c_NT2022_002v1.30`, valida NF-e/NFC-e com `nfe_v4.00.xsd` e ja possui
+  campos recentes no schema, mas ainda precisa reconciliar esse pacote com os
+  pacotes/notas mais novos listados no portal antes de producao
+- `RT-BASE`: status `aberto`; o portal lista a `Nota Tecnica 2025.002 v1.50 -
+  RTC` em `02/06/2026`, a `Nota Tecnica 2026.004 - Schema CNPJ Alfa v1.01` em
+  `08/06/2026`, a `Nota Tecnica 2026.002` sobre operacoes presenciais e nao
+  presenciais com `DANFE Simplificado Tipo 2` em `22/05/2026`, a `Nota Tecnica
+  2026.003` com especificacoes tecnicas do `DANFE Simplificado Tipo 2` em
+  `22/05/2026` e a `NT 2025.001 v1.01 - NFCe_qrCode_3` em `26/06/2025`
+- `RT-XML`: status `parcial`; o gerador consegue preservar grupos/campos novos
+  quando recebidos no payload e o schema local possui estruturas ligadas a
+  `IBSCBS`, `IBSCBSTot`, `cMunFGIBS`, `idCSRT` e `hashCSRT`, e agora possui um
+  teste automatizado com amostra minima de RTC passando por geracao de XML,
+  assinatura, lote e validacao XSD
+- em `2026-07-02`, foi criado teste automatizado de `RT-XML` minimo para
+  NF-e modelo `55` e NFC-e modelo `65`, cobrindo `cMunFGIBS`, `IBSCBS` no item
+  e `IBSCBSTot` no total; o teste valida XML assinado e lote contra o XSD local
+- esse teste revelou e corrigiu uma falha real de serializacao: `cMunFGIBS`
+  existia no schema, mas nao estava na ordem do bloco `ide`, entao poderia ser
+  serializado no fim do grupo e rejeitado pelo XSD quando algum cliente enviasse
+  esse campo
+- `RT-VALIDACAO`: status `aberto`; hoje a compatibilidade tende a aceitar e
+  repassar informacoes recebidas, mas ainda nao existe regra defensiva que
+  bloqueie payload incompleto quando CST, classificacao tributaria, municipio do
+  fato gerador ou outros campos da transicao forem exigidos pela regra vigente
+- `NFCE-QR`: status `parcial`; o portal lista `NFCe_qrCode_3` e o schema local
+  `PL_010c_NT2022_002v1.30` ja contem os padroes `QRCODE V3 ONLINE` e
+  `QRCODE V3 OFFLINE`; em `2026-07-02`, o gerador NFC-e online passou a montar
+  QR Code v3 no formato `chNFe|3|tpAmb`, validado por XSD e por teste de fluxo
+  HTTP
+- para NFC-e online, essa mudanca remove o `idToken`/hash do QR Code e reduz a
+  dependencia operacional de CSC ativo na SEFAZ para o QR; a configuracao de
+  CSC ainda existe no admin por compatibilidade e historico, mas o QR Code
+  online novo nao serializa mais o segredo nem o identificador
+- `NFCE-QR-OFFLINE`: status `bloqueado por seguranca`; o schema mostra que
+  `tpEmis=9` exige o leiaute `QRCODE V3 OFFLINE`, diferente do online e
+  dependente de informacoes da nota assinada; enquanto esse fluxo nao estiver
+  implementado e testado, a Nuvem Local bloqueia a tentativa com erro claro em
+  vez de gerar XML fiscalmente ambíguo
+- `DANFE-TIPO2`: status `aberto`; nao faz parte do layout atual e precisa de
+  decisao explicita de escopo antes de producao
+- `CONTINGENCIA`: status `aberto`; como o projeto ainda nao tem contingencia
+  offline completa, qualquer tentativa de operar `tpEmis=9` deve ser bloqueada
+  ou tratada com erro claro ate implementacao/teste especifico
+- `CNPJ-ALFA`: status `aberto`; a normalizacao atual ainda assume CNPJ numerico
+  em pontos do codigo, entao a `NT 2026.004` precisa ser avaliada antes de
+  qualquer declaracao de aderencia ampla
+
+Tarefas geradas pelo diagnostico inicial:
+1. comparar o pacote local `PL_010c_NT2022_002v1.30` com o pacote oficial mais
+   adequado para a data de retomada e decidir se o schema deve ser atualizado
+2. transformar lacunas de `RT-VALIDACAO`, `CONTINGENCIA`, `NFCE-QR`,
+   `DANFE-TIPO2`, `REFERENCIAMENTO` e `CNPJ-ALFA` em regras/testes
+3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
+   formal de fora de escopo
+
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
@@ -258,6 +422,9 @@ Limites atuais:
 - a EC2 AWS mantem `ipm-gateway.service` habilitado e cria somente o listener
   local `127.0.0.1:9443` na DigitalOcean; a Nuvem Local usa esse listener por
   `NFSE_IPM_CONNECT_HOST=127.0.0.1` e `NFSE_IPM_CONNECT_PORT=9443`
+- o motor de regras NFS-e ja impede cadastro com provedor incompativel com o
+  IBGE informado, aplica defaults municipais seguros e mantem producao bloqueada
+  por perfil
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -270,19 +437,26 @@ Limites atuais:
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-1. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
-   ou outro servidor com saida aceita pela IPM
-2. validar se existem outros cenarios municipais de tomador em Guaira/IPM alem
+1. reconciliar `NFE-XSD`/`RT-BASE` com os pacotes e notas tecnicas oficiais
+   vigentes na data da retomada, antes de qualquer liberacao de producao
+2. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a
+   mudancas normativas recentes, incluindo contingencia, `DANFE Simplificado -
+   Tipo 2`, referenciamento entre documentos e campos novos do leiaute
+3. transformar cada item do checklist em regra/teste quando couber, mantendo o
+   motor de regras como ponto central de decisao
+4. manter compatibilidade com payloads dos sistemas clientes; nao alterar
+   cliente sem necessidade
+5. manter producao bloqueada na Nuvem Local Fiscal ate o checklist ter evidencia
+   tecnica e regulatoria suficiente
+6. fechar retries agendados e estrategia de processamento distribuido antes de
+   qualquer uso fiscal amplo
+7. validar se existem outros cenarios municipais de tomador em Guaira/IPM alem
    do `229` ja coberto
-3. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
+8. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
+   ou outro servidor com saida aceita pela IPM
+9. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
    emitidos com `nfse_teste=1`
-4. implementar cancelamento Guaira somente depois da consulta validada
-5. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
-6. manter producao bloqueada na Nuvem Local Fiscal
-7. montar um checklist objetivo de aderencia da homologacao a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada
-8. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a mudancas normativas recentes, incluindo contingencia, `DANFE Simplificado - Tipo 2`, referenciamento entre documentos e campos novos do leiaute
-9. so discutir liberacao de producao depois que o checklist do item 7 estiver fechado com evidencia tecnica e regulatoria suficiente
-10. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
+10. implementar cancelamento Guaira somente depois da consulta validada
 
 ---
 
