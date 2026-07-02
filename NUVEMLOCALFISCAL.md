@@ -195,9 +195,21 @@ Configuracoes persistidas:
 - cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
 - a aba NF-e do admin e propositalmente enxuta; Documentos e Logs e debug possuem filtros e downloads de XML autorizado, DANFE, cancelamento e inutilizacao
 
+Checkpoint regulatorio em `2026-07-01`:
+- foi feita uma revisao de aderencia legal considerando a data corrente `2026-07-01`
+- conclusao operacional: a base esta consistente para homologacao controlada de `NF-e` e `NFC-e` no PR, mas ainda nao pode ser tratada como emissor plenamente aderente para uso fiscal real em producao
+- a producao continua bloqueada no codigo e deve permanecer assim ate segunda ordem
+- `NFS-e` continua sendo frente municipal/provedor-especifica; nao deve ser vendida internamente como cobertura legal ampla do Brasil
+- o schema local ja carrega campos ligados a reforma tributaria e evolucoes recentes do leiaute, incluindo `IBSCBS`, `IBSCBSTot`, `cMunFGIBS`, `idCSRT` e `hashCSRT`
+- porem, ter o schema atualizado nao basta: e obrigatorio provar que a homologacao esta aderente ao comportamento exigido na data vigente, inclusive regras novas de `NF-e`/`NFC-e`, antes de qualquer liberacao de producao
+- ha mudancas normativas de `2025` e `2026` que precisam entrar no checklist ativo da homologacao, especialmente o que impacta contingencia, `DANFE Simplificado - Tipo 2`, referenciamento entre `NF-e` e `NFC-e`, e reflexos operacionais da reforma tributaria
+- decisao de projeto a partir deste ponto: so partir para producao depois que a homologacao estiver explicitamente revisada e considerada de acordo com a reforma tributaria da data vigente da decisao
+- essa regra vale mesmo se a transmissao tecnica em homologacao estiver funcionando ponta a ponta
+
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
 - producao permanece bloqueada por seguranca
+- homologacao ainda precisa de uma trilha formal de aderencia continua a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada; emitir em homologacao com sucesso nao e criterio suficiente, por si so, para liberar producao
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
 - NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; a
   estrategia de rede usa uma EC2 AWS Sao Paulo como gateway IPM persistente por
@@ -234,7 +246,10 @@ Proximo foco:
 4. implementar cancelamento Guaira somente depois da consulta validada
 5. manter compatibilidade com payloads dos sistemas clientes; nao alterar cliente sem necessidade
 6. manter producao bloqueada na Nuvem Local Fiscal
-7. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
+7. montar um checklist objetivo de aderencia da homologacao a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada
+8. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a mudancas normativas recentes, incluindo contingencia, `DANFE Simplificado - Tipo 2`, referenciamento entre documentos e campos novos do leiaute
+9. so discutir liberacao de producao depois que o checklist do item 7 estiver fechado com evidencia tecnica e regulatoria suficiente
+10. fechar retries agendados e estrategia de processamento distribuido antes de qualquer uso fiscal amplo
 
 ---
 
