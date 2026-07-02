@@ -475,12 +475,20 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `classificacoes-tributarias-02-07-2026_17-44-56.json`, extraida da pagina
   oficial "Classificacao Tributaria" da SVRS/CFF; o texto copiado da pagina
   indicava 164 registros, enquanto o JSON arquivado contem 161 entradas
+- a diferenca `164 x 161` foi reconciliada em `2026-07-02`: os tres codigos
+  que aparecem no PDF e nao no JSON vigente sao `220001`, `220002` e `220003`;
+  no historico do IT 2025.002 v1.60 eles constam como exclusao do CST `220`
+  com fim de vigencia, por isso nao foram carregados no catalogo ativo
 - esse arquivo existe como evidencia de consulta para nao depender da memoria
   da conversa e agora alimenta `src/lib/rtc-classifications-2026-07-02.ts`,
   gerado por `scripts/generate-rtc-classification-catalog-data.mjs`
+- a busca local por fonte oficial de `CSTIS/cClassTribIS` ainda nao encontrou
+  tabela propria de Imposto Seletivo; o XSD confirma a estrutura do grupo `IS`,
+  mas nao substitui a tabela classificatoria oficial
 - testes automatizados cobrem o bloqueio de par RTC desconhecido, par de
   Imposto Seletivo desconhecido, classificacao oficial nao liberada para
-  NF-e/NFC-e e grupo monofasico do CST `620`
+  NF-e/NFC-e, codigos `220` excluidos do catalogo ativo e grupo monofasico do
+  CST `620`
 - esse fechamento e deliberadamente estrutural: ele impede payload RTC meio
   montado e impede que o emissor invente aliquota/classificacao, mas ainda nao
   declara que a escolha legal de `CST`, `cClassTrib` e `cClassTribIS` por tipo

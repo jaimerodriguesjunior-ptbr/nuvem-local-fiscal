@@ -80,6 +80,7 @@ test("catalogo RTC carrega classificacoes oficiais IBS/CBS exportadas da SVRS/CF
   assert.equal(classification?.evidenceStatus, "official_catalog");
   assert.deepEqual(classification?.models, [55]);
   assert.equal(classification?.valueGroup, "monophasic");
+  assert.equal(findRtcClassification("ibscbs", "220", "220001"), undefined);
 });
 
 test("bloqueia par CST/cClassTrib IBS/CBS fora do catalogo local", () => {
