@@ -784,7 +784,7 @@ const page = String.raw`<!doctype html>
 
     function groupedCompanies() {
       const companies = new Map();
-      state.snapshot.issuers.forEach(function(issuer) {
+      state.snapshot.issuers.slice().reverse().forEach(function(issuer) {
         if (!companies.has(issuer.cnpj)) {
           companies.set(issuer.cnpj, {
             cnpj: issuer.cnpj,
