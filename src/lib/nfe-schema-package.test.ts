@@ -11,11 +11,15 @@ import {
 test("pacote XSD NF-e/NFC-e local bate com o PL_010c oficial validado em 2026-07-02", () => {
   assert.equal(NFE_SCHEMA_PACKAGE.id, "PL_010c_NT2022_002v1.30");
   assert.equal(NFE_SCHEMA_PACKAGE.svrsListedAt, "2026-03-20");
+  assert.equal(NFE_SCHEMA_PACKAGE.hashNormalization, "text-with-lf");
 
   for (const [fileName, expectedHash] of Object.entries(NFE_SCHEMA_PACKAGE.files)) {
     const filePath = nfeSchemaPath(fileName as keyof typeof NFE_SCHEMA_PACKAGE.files);
     const actualHash = createHash("sha256")
-      .update(readFileSync(filePath))
+      .update(
+        readFileSync(filePath, "utf8").replace(/\r\n/g, "\n").replace(/\r/g, "\n"),
+        "utf8"
+      )
       .digest("hex")
       .toUpperCase();
 
