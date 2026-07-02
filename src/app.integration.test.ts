@@ -250,6 +250,23 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(guairaIpmAutoConfig.json().ipm.modo_teste, true);
     assert.equal(guairaIpmAutoConfig.json().ipm.transmissao_automatica, true);
 
+    const updateGuairaRpsOnly = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        rps: {
+          numero: 10
+        }
+      }
+    });
+    assert.equal(updateGuairaRpsOnly.statusCode, 200, updateGuairaRpsOnly.body);
+    assert.equal(updateGuairaRpsOnly.json().prefeitura.senha_configurada, true);
+
     const guairaPdfDocument = app.store.createDocument({
       tipoDocumento: "NFSe",
       issuerCnpj: cnpj,

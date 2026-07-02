@@ -130,6 +130,87 @@ test("keeps Autoeletrica fallback address from becoming a local blocker", () => 
   assert.match(xml, /<cep>85980000<\/cep>/);
 });
 
+test("omits customer address when the DPS does not provide toma.end", () => {
+  const document = {
+    providerLikeId: "nfse_registered_customer",
+    payloadOriginal: {
+      infDPS: {
+        dhEmi: "2026-07-02T09:50:27-03:00",
+        toma: {
+          CNPJ: "26772366000172",
+          xNome: "LEANDRO CAR PRIME"
+        },
+        serv: {
+          cServ: {
+            cTribMun: "140101",
+            CNAE: "4520007",
+            cSitTrib: "0",
+            xDescServ: "Servico prestado"
+          },
+          locPrest: { cLocPrestacao: "4108809" }
+        },
+        valores: {
+          vServPrest: { vServ: 70 },
+          trib: { tribMun: { pAliq: 2.01, cLocIncid: "4108809" } }
+        }
+      }
+    }
+  };
+
+  const draft = normalizeGuairaIpmDraft(document, config);
+  const xml = buildGuairaIpmEmissionXml(config, draft);
+
+  assert.equal(draft.customerAddressInformed, false);
+  assert.match(xml, /<endereco_informado>N<\/endereco_informado>/);
+  assert.doesNotMatch(xml, /<logradouro>/);
+  assert.doesNotMatch(xml, /<numero_residencia>/);
+  assert.doesNotMatch(xml, /<bairro>/);
+  assert.doesNotMatch(xml, /<cep>/);
+});
+
+test("can force an IPM emission XML without customer address", () => {
+  const document = {
+    providerLikeId: "nfse_retry_without_address",
+    payloadOriginal: {
+      infDPS: {
+        dhEmi: "2026-07-02T09:50:27-03:00",
+        toma: {
+          CNPJ: "26772366000172",
+          xNome: "LEANDRO CAR PRIME",
+          end: {
+            xLgr: "AV MARTIN LUTHER KING",
+            nro: "457",
+            xBairro: "JD GUAIRA",
+            endNac: { cMun: "4108809", CEP: "85980113" }
+          }
+        },
+        serv: {
+          cServ: {
+            cTribMun: "140101",
+            CNAE: "4520007",
+            cSitTrib: "0",
+            xDescServ: "Servico prestado"
+          },
+          locPrest: { cLocPrestacao: "4108809" }
+        },
+        valores: {
+          vServPrest: { vServ: 70 },
+          trib: { tribMun: { pAliq: 2.01, cLocIncid: "4108809" } }
+        }
+      }
+    }
+  };
+
+  const draft = normalizeGuairaIpmDraft(document, config);
+  const xml = buildGuairaIpmEmissionXml(config, draft, {
+    includeCustomerAddress: false
+  });
+
+  assert.equal(draft.customerAddressInformed, true);
+  assert.match(xml, /<endereco_informado>N<\/endereco_informado>/);
+  assert.doesNotMatch(xml, /<logradouro>AV MARTIN LUTHER KING<\/logradouro>/);
+});
+
 test("parses a successful reduced IPM response", () => {
   const result = parseGuairaIpmResponse(`<?xml version="1.0"?>
     <retorno>

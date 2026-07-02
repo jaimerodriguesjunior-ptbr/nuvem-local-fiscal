@@ -32,6 +32,7 @@ export type GuairaIpmDraft = {
   serviceValue: number;
   discountValue: number;
   observation: string;
+  customerAddressInformed: boolean;
   customerType: "F" | "J" | "E";
   customerDocument: string;
   customerName: string;
@@ -73,6 +74,13 @@ export type GuairaIpmMultipartRequest = {
   body: Buffer;
   contentType: string;
   contentLength: number;
+};
+
+type GuairaIpmTransmissionAttempt = {
+  generatedXml: string;
+  response: { status: number; body: string };
+  parsed: GuairaIpmResponse | null;
+  addressInformed: boolean;
 };
 
 function asRecord(value: unknown) {
@@ -212,6 +220,8 @@ export function normalizeGuairaIpmDraft(
     String(municipalTax.tpRetISSQN ?? "") === "2"
       ? numberFrom(municipalTax.vISSQN)
       : 0;
+  const customerAddressInformed =
+    typeof toma.end === "object" && toma.end !== null;
 
   return {
     identifier: firstText(document.providerLikeId).slice(0, 80),
@@ -219,6 +229,7 @@ export function normalizeGuairaIpmDraft(
     serviceValue,
     discountValue: numberFrom(serviceValues.vDescCondIncond),
     observation: firstText(serviceCode.xDescServ, "Servico prestado").slice(0, 1000),
+    customerAddressInformed,
     customerType,
     customerDocument: digitsOnly(customerDocument),
     customerName: firstText(toma.xNome, toma.nome),
@@ -257,8 +268,11 @@ function optionalTag(name: string, value: string) {
 
 export function buildGuairaIpmEmissionXml(
   config: GuairaIpmConfig,
-  draft: GuairaIpmDraft
+  draft: GuairaIpmDraft,
+  options: { includeCustomerAddress?: boolean } = {}
 ) {
+  const includeCustomerAddress =
+    options.includeCustomerAddress ?? draft.customerAddressInformed;
   const phone = draft.customerPhone;
   const ddd = phone.length > 9 ? phone.slice(0, phone.length - 9) : "";
   const number = phone.length > 9 ? phone.slice(-9) : phone;
@@ -268,6 +282,15 @@ export function buildGuairaIpmEmissionXml(
   const customerComplement = optionalTag("complemento", draft.customerComplement);
   const customerDdd = optionalTag("ddd_fone_comercial", ddd);
   const customerPhone = optionalTag("fone_comercial", number);
+  const customerAddressTags = includeCustomerAddress
+    ? `
+    <logradouro>${escapeXml(draft.customerStreet)}</logradouro>${customerEmail}
+    <numero_residencia>${escapeXml(draft.customerNumber)}</numero_residencia>
+    ${customerComplement.trimStart()}
+    <bairro>${escapeXml(draft.customerDistrict)}</bairro>
+    <cidade>${escapeXml(localCode(draft.customerCityCode, config))}</cidade>
+    <cep>${escapeXml(draft.customerPostalCode)}</cep>${customerDdd}${customerPhone}`
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfse${signatureId}>${testTag}
@@ -290,16 +313,10 @@ export function buildGuairaIpmEmissionXml(
     <cidade>${escapeXml(config.tomCode)}</cidade>
   </prestador>
   <tomador>
-    <endereco_informado>S</endereco_informado>
+    <endereco_informado>${includeCustomerAddress ? "S" : "N"}</endereco_informado>
     <tipo>${draft.customerType}</tipo>
     <cpfcnpj>${escapeXml(draft.customerDocument)}</cpfcnpj>
-    <nome_razao_social>${escapeXml(draft.customerName)}</nome_razao_social>
-    <logradouro>${escapeXml(draft.customerStreet)}</logradouro>${customerEmail}
-    <numero_residencia>${escapeXml(draft.customerNumber)}</numero_residencia>
-    ${customerComplement.trimStart()}
-    <bairro>${escapeXml(draft.customerDistrict)}</bairro>
-    <cidade>${escapeXml(localCode(draft.customerCityCode, config))}</cidade>
-    <cep>${escapeXml(draft.customerPostalCode)}</cep>${customerDdd}${customerPhone}
+    <nome_razao_social>${escapeXml(draft.customerName)}</nome_razao_social>${customerAddressTags}
   </tomador>
   <itens>
     <lista>
@@ -474,6 +491,17 @@ export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
   };
 }
 
+function isCustomerAddressAlreadyRegisteredError(parsed: GuairaIpmResponse | null) {
+  return Boolean(
+    parsed?.messages.some(
+      (message) =>
+        message.codigo === "229" ||
+        (/cadastro economico/i.test(message.descricao) &&
+          /endere[cç]o/i.test(message.descricao))
+    )
+  );
+}
+
 export function buildGuairaIpmBasicAuthorization(username: string, password: string) {
   return `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
 }
@@ -617,6 +645,37 @@ async function postIpmRequest(
   });
 }
 
+async function transmitGuairaIpmXml(
+  endpoint: string,
+  authorization: string,
+  config: GuairaIpmConfig,
+  draft: GuairaIpmDraft,
+  includeCustomerAddress: boolean
+): Promise<GuairaIpmTransmissionAttempt> {
+  const generatedXml = buildGuairaIpmEmissionXml(config, draft, {
+    includeCustomerAddress
+  });
+  if (!generatedXml.includes("<nfse_teste>1</nfse_teste>")) {
+    throw new Error("XML de teste IPM sem a tag nfse_teste=1.");
+  }
+
+  const request = buildGuairaIpmMultipartRequest(generatedXml);
+  const response = await postIpmRequest(endpoint, request, authorization);
+  let parsed: GuairaIpmResponse | null = null;
+  try {
+    parsed = response.body.trim() ? parseGuairaIpmResponse(response.body) : null;
+  } catch {
+    parsed = null;
+  }
+
+  return {
+    generatedXml,
+    response,
+    parsed,
+    addressInformed: includeCustomerAddress
+  };
+}
+
 export async function transmitGuairaIpmTest(
   store: InMemoryStore,
   documentId: string
@@ -650,10 +709,6 @@ export async function transmitGuairaIpmTest(
 
   const draft = normalizeGuairaIpmDraft(document, settings);
   validateDraft(draft);
-  const generatedXml = buildGuairaIpmEmissionXml(settings, draft);
-  if (!generatedXml.includes("<nfse_teste>1</nfse_teste>")) {
-    throw new Error("XML de teste IPM sem a tag nfse_teste=1.");
-  }
 
   const secret = decryptSecretPayload<{ senha?: string }>(
     serviceConfig.secretsEncrypted,
@@ -664,28 +719,46 @@ export async function transmitGuairaIpmTest(
     throw new Error("Senha municipal IPM vazia.");
   }
 
-  const request = buildGuairaIpmMultipartRequest(generatedXml);
   const endpoint = validateIpmEndpoint(settings.endpoint);
-  let response: { status: number; body: string };
+  const authorization = buildGuairaIpmBasicAuthorization(settings.cnpj, password);
+  let attempt: GuairaIpmTransmissionAttempt;
+  let retriedWithoutAddress = false;
   try {
-    response = await postIpmRequest(
+    attempt = await transmitGuairaIpmXml(
       endpoint,
-      request,
-      buildGuairaIpmBasicAuthorization(settings.cnpj, password)
+      authorization,
+      settings,
+      draft,
+      draft.customerAddressInformed
     );
+    if (attempt.addressInformed && isCustomerAddressAlreadyRegisteredError(attempt.parsed)) {
+      retriedWithoutAddress = true;
+      store.addDocumentEvent(document.id, {
+        eventType: "nfse_guaira_ipm_address_retry",
+        level: "warn",
+        message:
+          "IPM rejeitou endereco de tomador ja cadastrado; reenviando sem endereco informado.",
+        payload: {
+          provider: "guaira-ipm",
+          statusCode: attempt.parsed?.messages[0]?.codigo ?? null
+        }
+      });
+      attempt = await transmitGuairaIpmXml(
+        endpoint,
+        authorization,
+        settings,
+        draft,
+        false
+      );
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Falha de conexao com IPM: ${message}`);
   }
 
-  const responseBody = response.body;
-  const responseOk = response.status >= 200 && response.status < 300;
-  let parsed: GuairaIpmResponse | null = null;
-  try {
-    parsed = responseBody.trim() ? parseGuairaIpmResponse(responseBody) : null;
-  } catch {
-    parsed = null;
-  }
+  const responseBody = attempt.response.body;
+  const responseOk = attempt.response.status >= 200 && attempt.response.status < 300;
+  const parsed = attempt.parsed;
 
   const explicitSuccess = parsed?.success === true;
   const hasProviderError = Boolean(parsed && parsed.messages.length && !parsed.success);
@@ -699,16 +772,16 @@ export async function transmitGuairaIpmTest(
     parsed?.messages.map((message) => `${message.codigo} - ${message.descricao}`).join("; ") ||
     (responseOk
       ? "Teste IPM recebido sem confirmacao explicita de autorizacao."
-      : `IPM respondeu HTTP ${response.status}.`);
+      : `IPM respondeu HTTP ${attempt.response.status}.`);
   const reasonCode =
     parsed?.statusCode ||
     parsed?.messages[0]?.codigo ||
-    `HTTP_${response.status}`;
+    `HTTP_${attempt.response.status}`;
 
   const updated = store.saveMunicipalProcessingResult(document.id, {
     providerName: "guaira-ipm",
-    generatedXml,
-    requestBody: generatedXml,
+    generatedXml: attempt.generatedXml,
+    requestBody: attempt.generatedXml,
     responseBody,
     providerReference: draft.identifier,
     status,
@@ -730,11 +803,13 @@ export async function transmitGuairaIpmTest(
     message: reason,
     payload: {
       provider: "guaira-ipm",
-      httpStatus: response.status,
+      httpStatus: attempt.response.status,
       testMode: true,
       explicitSuccess,
       statusCode: reasonCode,
-      providerDocumentNumber: parsed?.number || null
+      providerDocumentNumber: parsed?.number || null,
+      addressInformed: attempt.addressInformed,
+      retriedWithoutAddress
     }
   });
   await store.waitForPersistence();

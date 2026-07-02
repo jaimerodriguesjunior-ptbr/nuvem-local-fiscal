@@ -532,7 +532,15 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     if (cnpj.length !== 14) {
       return reply.code(400).send({ message: "Informe CNPJ valido." });
     }
-    if (!login || (!password && !normalizedProvider)) {
+    const existingServiceConfig = app.store.findServiceConfigRecord(
+      cnpj,
+      environment,
+      "NFSE"
+    );
+    const effectiveLogin = login || String(existingServiceConfig?.settings.nfseLogin ?? "");
+    const hasMunicipalPassword = Boolean(password || existingServiceConfig?.secretsEncrypted);
+
+    if (!effectiveLogin || !hasMunicipalPassword) {
       return reply.code(400).send({
         message: "Informe login e senha da prefeitura para a NFS-e."
       });
@@ -545,7 +553,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFSE", {
       active: true,
       settings: {
-        nfseLogin: login,
+        nfseLogin: login || undefined,
         nfseProvider: normalizedProvider || undefined,
         nfseMunicipalityCode: String(
           municipio.codigo_ibge ??
@@ -638,7 +646,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       message: "Configuracao NFS-e salva.",
       ambiente: environment,
       prefeitura: {
-        login,
+        login: effectiveLogin,
         senha_configurada: Boolean(serviceConfig?.secretsEncrypted)
       }
     };
