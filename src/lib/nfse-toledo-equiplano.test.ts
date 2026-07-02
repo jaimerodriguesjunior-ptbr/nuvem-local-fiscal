@@ -3,7 +3,8 @@ import test from "node:test";
 
 import {
   allowsLegacyEquiplanoHomologationTls,
-  buildCancelarNfseXml
+  buildCancelarNfseXml,
+  toToledoIssueDateTime
 } from "./nfse-toledo-equiplano.js";
 
 test("allows incomplete TLS chain only for Equiplano homologation", () => {
@@ -30,6 +31,17 @@ test("allows incomplete TLS chain only for Equiplano homologation", () => {
       new URL("http://www.esnfs.com.br:9443/homologacaows/services/Enfs")
     ),
     false
+  );
+});
+
+test("formats Toledo RPS issue date in Sao Paulo time", () => {
+  assert.equal(
+    toToledoIssueDateTime("2026-07-01T22:04:45-03:00"),
+    "2026-07-01T22:04:45"
+  );
+  assert.equal(
+    toToledoIssueDateTime("2026-07-02T01:04:45.000Z"),
+    "2026-07-01T22:04:45"
   );
 });
 

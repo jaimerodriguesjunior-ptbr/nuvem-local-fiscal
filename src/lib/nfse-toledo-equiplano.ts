@@ -33,6 +33,7 @@ type ToledoConfig = {
 };
 
 type ToledoDraft = {
+  issuedAt: string;
   tomadorDocumento: string;
   tomadorRazaoSocial: string;
   tomadorEmail: string;
@@ -110,6 +111,37 @@ function firstText(...values: unknown[]) {
     if (text) return text;
   }
   return "";
+}
+
+function toSaoPauloDateTimeParts(value?: string) {
+  const source = value
+    ? new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}-03:00`)
+    : new Date();
+  const date = Number.isNaN(source.getTime()) ? new Date() : source;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: byType.year,
+    month: byType.month,
+    day: byType.day,
+    hour: byType.hour === "24" ? "00" : byType.hour,
+    minute: byType.minute,
+    second: byType.second
+  };
+}
+
+export function toToledoIssueDateTime(value?: string) {
+  const parts = toSaoPauloDateTimeParts(value);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function detectDocumentType(value: string) {
@@ -225,6 +257,7 @@ function resolveDraft(document: DocumentRecord, toledoConfig: ToledoConfig): Tol
   );
 
   return {
+    issuedAt: firstText(infDps.dhEmi),
     tomadorDocumento: firstText(toma.CNPJ, toma.CPF, toma.cnpj, toma.cpf),
     tomadorRazaoSocial: firstText(toma.xNome, toma.nome, "TOMADOR NAO INFORMADO"),
     tomadorEmail: firstText(toma.email),
@@ -280,7 +313,7 @@ function buildLoteXml(input: {
     (draft.valorServico - (draft.isIssRetido ? valorIss : 0)).toFixed(2)
   );
   const document = detectDocumentType(draft.tomadorDocumento);
-  const now = new Date().toISOString().slice(0, 19);
+  const issuedAt = toToledoIssueDateTime(draft.issuedAt);
   const foreignDocument = document.foreignDocument
     ? `<dsDocumentoEstrangeiro>${escapeXml(document.foreignDocument)}</dsDocumentoEstrangeiro>`
     : "";
@@ -307,7 +340,7 @@ function buildLoteXml(input: {
             <rps>
                 <nrRps>${rpsNumber}</nrRps>
                 <nrEmissorRps>${escapeXml(settings.rpsEmissor)}</nrEmissorRps>
-                <dtEmissaoRps>${now}</dtEmissaoRps>
+                <dtEmissaoRps>${issuedAt}</dtEmissaoRps>
                 <stRps>1</stRps>
                 <tpTributacao>1</tpTributacao>
                 <nrCidadeIbgeServico>${escapeXml(settings.codigoMunicipioIbge)}</nrCidadeIbgeServico>
