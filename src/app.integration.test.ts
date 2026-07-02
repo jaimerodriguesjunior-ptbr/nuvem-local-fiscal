@@ -702,6 +702,38 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.equal(app.store.documents.length, documentsBeforeWrongRtcModelNfe);
 
+    const documentsBeforeUnsupportedNfeDanfe = app.store.documents.length;
+    const unsupportedNfeDanfe = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          ide: {
+            mod: 55,
+            tpImp: 3
+          },
+          emit: {
+            CNPJ: cnpj
+          }
+        }
+      }
+    });
+    assert.equal(unsupportedNfeDanfe.statusCode, 400, unsupportedNfeDanfe.body);
+    assert.equal(
+      unsupportedNfeDanfe
+        .json()
+        .issues.some(
+          (issue: { code: string }) => issue.code === "unsupported_nfe_danfe_print_type"
+        ),
+      true
+    );
+    assert.equal(app.store.documents.length, documentsBeforeUnsupportedNfeDanfe);
+
     const documentsBeforeInterstateNfce = app.store.documents.length;
     const interstateNfce = await app.inject({
       method: "POST",

@@ -479,8 +479,12 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
 - o bloqueio de `tpEmis=9` agora ocorre antes da criacao/transmissao da NFC-e e
   tambem no processamento de documento ja salvo, evitando contingencia offline
   acidental por cliente, admin ou retry
-- `DANFE-TIPO2`: status `aberto`; nao faz parte do layout atual e precisa de
-  decisao explicita de escopo antes de producao
+- `DANFE-TIPO2`: status `bloqueado para o escopo inicial`; a NF-e local esta
+  validada apenas para `tpImp=1` (DANFE A4 retrato). O schema permite outros
+  tipos de impressao, incluindo paisagem, simplificado, NFC-e e sem DANFE, mas
+  enquanto esses layouts nao tiverem implementacao e teste proprios, `/nfe`,
+  assinatura admin e processamento automatico rejeitam `tpImp` diferente de `1`
+  antes de criar documento/consumir numeracao
 - `CONTINGENCIA`: status `fechado para o escopo inicial`; a primeira producao
   controlada nao deve operar NFC-e em contingencia offline e o codigo bloqueia
   `tpEmis=9` com mensagem operacional clara ate existir implementacao/teste do
@@ -511,6 +515,9 @@ Tarefas geradas pelo diagnostico inicial:
    - andamento em `2026-07-02`: contrato compartilhado de modelo/fluxo para
      `IBSCBS` e bloqueio preventivo de NFC-e interestadual implementados e
      cobertos por teste
+   - andamento em `2026-07-02`: lacuna `DANFE-TIPO2` fechada como bloqueio de
+     escopo; NF-e local aceita somente `tpImp=1` ate existir layout/teste para
+     os demais tipos de impressao
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 

@@ -27,8 +27,8 @@ import {
   validateNfseConfigDraft
 } from "../lib/nfse-rules.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
+import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
-import { validateRtcPayload } from "../lib/rtc-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
@@ -1251,7 +1251,7 @@ async function handleCreateDocument(
       });
     }
   } else {
-    const validation = validateRtcPayload(payloadOriginal, { expectedModel: 55 });
+    const validation = validateNfeEmissionPayload(payloadOriginal);
     if (!validation.ok) {
       return reply.code(400).send({
         message: "Payload NF-e invalido para emissao.",

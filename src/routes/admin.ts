@@ -11,9 +11,9 @@ import {
   processHomologationDocument,
   processHomologationNfce
 } from "../lib/document-processing.js";
+import { assertValidNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { assertValidNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { generateAndSignNfeXml } from "../lib/nfe-xml.js";
-import { assertValidRtcPayload } from "../lib/rtc-rules.js";
 import {
   authorizeNfeAtSefaz,
   buildAuthorizationBatch,
@@ -1185,9 +1185,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
           expectedIssuerUf: issuer?.uf
         });
       } else {
-        assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>, {
-          expectedModel: 55
-        });
+        assertValidNfeEmissionPayload(document.payloadOriginal as Record<string, unknown>);
       }
 
       const opened = openEncryptedCertificate(

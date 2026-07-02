@@ -6,12 +6,12 @@ import {
   openEncryptedCertificate
 } from "./certificates.js";
 import { generateAndSignNfeXml } from "./nfe-xml.js";
+import { assertValidNfeEmissionPayload } from "./nfe-rules.js";
 import {
   authorizeNfeAtSefaz,
   querySefazDocumentStatus
 } from "./sefaz-authorization.js";
 import { assertValidNfceEmissionPayload } from "./nfce-rules.js";
-import { assertValidRtcPayload } from "./rtc-rules.js";
 import { validateNfeXml } from "./xsd-validator.js";
 
 export type AutomaticProcessingResult = {
@@ -164,9 +164,7 @@ export async function processHomologationDocument(
         expectedIssuerUf: issuer.uf
       });
     } else {
-      assertValidRtcPayload(document.payloadOriginal as Record<string, unknown>, {
-        expectedModel: 55
-      });
+      assertValidNfeEmissionPayload(document.payloadOriginal as Record<string, unknown>);
     }
 
     let signedXml = document.xmlSigned;
