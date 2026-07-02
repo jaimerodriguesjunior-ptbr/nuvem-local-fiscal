@@ -458,10 +458,19 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   altera a contagem de documentos, `/nfe` rejeita payload RTC de modelo `65`, e
   `src/lib/rtc-rules.test.ts` cobre modelo errado, modelo ainda nao validado e
   NFC-e RTC nao interna
+- em `2026-07-02`, o contrato estrutural de `RT-CLASSIFICACAO` avancou na
+  validacao compartilhada: `IBSCBS` regular agora exige, alem de `CST`,
+  `cClassTrib`, base e total, os blocos minimos `gIBSUF`, `gIBSMun`, `vIBS` e
+  `gCBS`; `IS` passou a exigir `CSTIS`, `cClassTribIS`, valores de calculo e
+  `ISTot` quando informado
+- esse fechamento e deliberadamente estrutural: ele impede payload RTC meio
+  montado e impede que o emissor invente aliquota/classificacao, mas ainda nao
+  declara que a escolha legal de `CST`, `cClassTrib` e `cClassTribIS` por tipo
+  de operacao esta conciliada com a tabela oficial vigente
 - a validacao defensiva ainda nao fecha regras tributarias profundas da reforma
-  tributaria; `CST`, `cClassTrib`, municipio do fato gerador, IBS/CBS/IS e
-  demais exigencias novas continuam dependendo de `RT-CLASSIFICACAO` e da
-  conciliacao com a nota tecnica vigente
+  tributaria; a conciliacao legal de `CST`, `cClassTrib`, `cClassTribIS`,
+  municipio do fato gerador, IBS/CBS/IS e demais exigencias novas continua como
+  parte de `RT-CLASSIFICACAO` antes de producao
 - `NFCE-QR`: status `parcial`; o portal lista `NFCe_qrCode_3` e o schema local
   `PL_010c_NT2022_002v1.30` ja contem os padroes `QRCODE V3 ONLINE` e
   `QRCODE V3 OFFLINE`; em `2026-07-02`, o gerador NFC-e online passou a montar
@@ -537,9 +546,10 @@ Matriz viva de homologacao:
   interna; guarda NFC-e interestadual; NFS-e Toledo/Equiplano
 - bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
   `tpImp` diferente de `1`
-- itens que ainda bloqueiam producao pela matriz: classificacao RTC profunda,
-  referenciamento NF-e/NFC-e, retries/processamento distribuido e
-  consulta/cancelamento Guaira/IPM em cenario municipal reconhecido
+- itens que ainda bloqueiam producao pela matriz: conciliacao legal fina da
+  classificacao RTC por tipo de operacao, referenciamento NF-e/NFC-e,
+  retries/processamento distribuido e consulta/cancelamento Guaira/IPM em
+  cenario municipal reconhecido
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
   visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
   deve denunciar a mudanca

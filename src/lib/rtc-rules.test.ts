@@ -17,7 +17,20 @@ function rtcPayload() {
               CST: "000",
               cClassTrib: "000001",
               gIBSCBS: {
-                vBC: 0
+                vBC: 0,
+                gIBSUF: {
+                  pIBSUF: 0,
+                  vIBSUF: 0
+                },
+                gIBSMun: {
+                  pIBSMun: 0,
+                  vIBSMun: 0
+                },
+                vIBS: 0,
+                gCBS: {
+                  pCBS: 0,
+                  vCBS: 0
+                }
               }
             }
           }
@@ -123,4 +136,89 @@ test("bloqueia grupo IBS/CBS incompleto antes de gerar XML fiscal", () => {
   assert.equal(result.issues.some((issue) => issue.code === "invalid_rtc_cst"), true);
   assert.equal(result.issues.some((issue) => issue.code === "invalid_rtc_classification"), true);
   assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_values"), true);
+});
+
+test("bloqueia IBS/CBS regular sem aliquotas e valores de IBS UF, IBS municipio e CBS", () => {
+  const payload = rtcPayload();
+  (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS = {
+    vBC: 0
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_ibs_uf"), true);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "missing_rtc_ibs_municipality"),
+    true
+  );
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_ibs_value"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_cbs"), true);
+});
+
+test("aceita Imposto Seletivo com classificacao, valores e total", () => {
+  const payload = {
+    infNFe: {
+      ide: {
+        mod: 55
+      },
+      det: [
+        {
+          imposto: {
+            IS: {
+              CSTIS: "000",
+              cClassTribIS: "000001",
+              vBCIS: 0,
+              pIS: 0,
+              vIS: 0
+            }
+          }
+        }
+      ],
+      total: {
+        ISTot: {
+          vIS: 0
+        }
+      }
+    }
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
+test("bloqueia Imposto Seletivo sem classificacao, valores e total", () => {
+  const payload = {
+    infNFe: {
+      ide: {
+        mod: 55
+      },
+      det: [
+        {
+          imposto: {
+            IS: {
+              CSTIS: "00",
+              cClassTribIS: "ABC001",
+              vBCIS: 0
+            }
+          }
+        }
+      ],
+      total: {}
+    }
+  };
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "invalid_selective_tax_cst"), true);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "invalid_selective_tax_classification"),
+    true
+  );
+  assert.equal(result.issues.some((issue) => issue.code === "missing_selective_tax_totals"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_selective_tax_rate"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_selective_tax_value"), true);
 });

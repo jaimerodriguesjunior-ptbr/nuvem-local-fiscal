@@ -88,11 +88,12 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     flow: "Classificacao tributaria RTC completa para IBS/CBS/IS",
     status: "blocks_production",
     evidence: [
-      "validacao atual bloqueia grupos IBSCBS incompletos",
-      "XML preserva campos RTC minimos quando informados",
-      "a classificacao profunda ainda depende da nota tecnica vigente e dados do cliente"
+      "validacao atual bloqueia grupos IBSCBS incompletos e IS incompleto",
+      "IBSCBS regular exige CST, cClassTrib, IBS UF, IBS municipio, CBS, bases e totais",
+      "IS exige CSTIS, cClassTribIS, valores de calculo e ISTot quando informado",
+      "a classificacao legal por tipo de operacao ainda depende da tabela vigente e dos dados do cliente"
     ],
-    nextAction: "Fechar contrato de CST, cClassTrib, municipio do fato gerador e IS por tipo de operacao."
+    nextAction: "Conciliar CST/cClassTrib/IS com tabela oficial vigente e tipos de operacao dos clientes."
   },
   {
     id: "referenciamento-nfe-nfce",
