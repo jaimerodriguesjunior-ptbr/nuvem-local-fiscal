@@ -12,6 +12,7 @@ import {
 import { parseXml } from "libxmljs2";
 
 import { decryptCertificateBundle } from "./certificates.js";
+import { nfeSchemaPackageDirectory } from "./nfe-schema-package.js";
 import type { DocumentType, Environment } from "../types.js";
 
 type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
@@ -116,13 +117,7 @@ export function buildAuthorizationBatch(
 export function validateAuthorizationBatchXml(
   batchXml: string
 ): AuthorizationValidation {
-  const schemaDirectory = resolve(
-    process.cwd(),
-    "schemas",
-    "nfe",
-    "official-010c",
-    "PL_010c_NT2022_002v1.30"
-  );
+  const schemaDirectory = nfeSchemaPackageDirectory();
   const wrapperSchema = `<?xml version="1.0" encoding="UTF-8"?>
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
       xmlns="http://www.portalfiscal.inf.br/nfe"

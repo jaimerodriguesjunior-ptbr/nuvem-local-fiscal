@@ -341,16 +341,28 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
 `2026-07-02`:
 - fonte oficial consultada: Portal da Nota Fiscal Eletronica - SVRS, pagina
   `Documentos`, em `2026-07-02`
-- `NFE-XSD`: status `parcial`; o projeto usa pacote oficial local
-  `PL_010c_NT2022_002v1.30`, valida NF-e/NFC-e com `nfe_v4.00.xsd` e ja possui
-  campos recentes no schema, mas ainda precisa reconciliar esse pacote com os
-  pacotes/notas mais novos listados no portal antes de producao
-- `RT-BASE`: status `aberto`; o portal lista a `Nota Tecnica 2025.002 v1.50 -
-  RTC` em `02/06/2026`, a `Nota Tecnica 2026.004 - Schema CNPJ Alfa v1.01` em
-  `08/06/2026`, a `Nota Tecnica 2026.002` sobre operacoes presenciais e nao
-  presenciais com `DANFE Simplificado Tipo 2` em `22/05/2026`, a `Nota Tecnica
-  2026.003` com especificacoes tecnicas do `DANFE Simplificado Tipo 2` em
-  `22/05/2026` e a `NT 2025.001 v1.01 - NFCe_qrCode_3` em `26/06/2025`
+- `NFE-XSD`: status `fechado para o pacote base em 2026-07-02`; o projeto usa
+  pacote oficial local `PL_010c_NT2022_002v1.30`, valida NF-e/NFC-e com
+  `nfe_v4.00.xsd` e ja possui campos recentes no schema
+- em `2026-07-02`, foi baixado novamente do portal SVRS o ZIP oficial
+  `PL_010c_NT2022_002v1.30.zip`; os hashes SHA-256 dos cinco XSDs locais
+  bateram com o ZIP oficial, entao nao ha troca de pacote XSD a fazer neste
+  momento
+- `RT-BASE`: status `fechado para o recorte de identificacao de base`; o portal
+  lista como schema mais recente o `Pacote de schemas - NT 2022.002 v1.30`
+  em `20/03/2026`, e lista como notas tecnicas/regulatorias relevantes a
+  `Nota Tecnica 2025.002 v1.50 - RTC` em `02/06/2026`, a `Nota Tecnica
+  2026.004 - Schema CNPJ Alfa v1.01` em `08/06/2026`, a `Nota Tecnica
+  2026.002` sobre operacoes presenciais e nao presenciais com
+  `DANFE Simplificado Tipo 2` em `22/05/2026`, a `Nota Tecnica 2026.003` com
+  especificacoes tecnicas do `DANFE Simplificado Tipo 2` em `22/05/2026` e a
+  `NT 2025.001 v1.01 - NFCe_qrCode_3` em `26/06/2025`
+- o fechamento de `RT-BASE` nao libera producao nem fecha as regras de negocio
+  da RTC; ele apenas confirma qual pacote XSD e qual conjunto de notas tecnicas
+  devem orientar os proximos testes e validacoes
+- `src/lib/nfe-schema-package.ts` centraliza a identidade do pacote XSD base e
+  `src/lib/nfe-schema-package.test.ts` garante por hash que os arquivos locais
+  continuam identicos ao pacote oficial validado em `2026-07-02`
 - `RT-XML`: status `parcial`; o gerador consegue preservar grupos/campos novos
   quando recebidos no payload e o schema local possui estruturas ligadas a
   `IBSCBS`, `IBSCBSTot`, `cMunFGIBS`, `idCSRT` e `hashCSRT`, e agora possui um
@@ -414,8 +426,9 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   reconciliados com a NT aplicavel
 
 Tarefas geradas pelo diagnostico inicial:
-1. comparar o pacote local `PL_010c_NT2022_002v1.30` com o pacote oficial mais
-   adequado para a data de retomada e decidir se o schema deve ser atualizado
+1. concluido em `2026-07-02`: comparar o pacote local
+   `PL_010c_NT2022_002v1.30` com o pacote oficial vigente no portal SVRS e
+   travar a integridade dos XSDs por teste automatizado
 2. transformar lacunas restantes de `RT-VALIDACAO`, `DANFE-TIPO2`,
    `REFERENCIAMENTO`, `RETRY-FILA` e `CNPJ-ALFA` em regras/testes
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao

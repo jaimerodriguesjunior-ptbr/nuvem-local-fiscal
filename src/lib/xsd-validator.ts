@@ -1,16 +1,10 @@
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 
 import { parseXml } from "libxmljs2";
 
-const schemaPath = resolve(
-  process.cwd(),
-  "schemas",
-  "nfe",
-  "official-010c",
-  "PL_010c_NT2022_002v1.30",
-  "nfe_v4.00.xsd"
-);
+import { nfeSchemaPath } from "./nfe-schema-package.js";
+
+const schemaPath = nfeSchemaPath("nfe_v4.00.xsd");
 
 export type XsdValidationResult = {
   valid: boolean;
