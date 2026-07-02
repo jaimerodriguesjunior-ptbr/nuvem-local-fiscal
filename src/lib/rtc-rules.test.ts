@@ -7,6 +7,7 @@ function rtcPayload() {
   return {
     infNFe: {
       ide: {
+        mod: 55,
         cMunFGIBS: 4108809
       },
       det: [
@@ -49,6 +50,27 @@ test("aceita grupo IBS/CBS minimo com municipio, classificacao e totais", () => 
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.issues, []);
+});
+
+test("aceita NFC-e com grupo IBS/CBS sem municipio do fato gerador IBS", () => {
+  const payload = rtcPayload();
+  payload.infNFe.ide.mod = 65;
+  delete (payload.infNFe.ide as Record<string, unknown>).cMunFGIBS;
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
+test("bloqueia cMunFGIBS indevido em NFC-e com grupo IBS/CBS", () => {
+  const payload = rtcPayload();
+  payload.infNFe.ide.mod = 65;
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "unexpected_rtc_municipality"), true);
 });
 
 test("bloqueia grupo IBS/CBS incompleto antes de gerar XML fiscal", () => {

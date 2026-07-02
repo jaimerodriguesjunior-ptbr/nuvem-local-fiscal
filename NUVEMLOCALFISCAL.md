@@ -369,8 +369,8 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   teste automatizado com amostra minima de RTC passando por geracao de XML,
   assinatura, lote e validacao XSD
 - em `2026-07-02`, foi criado teste automatizado de `RT-XML` minimo para
-  NF-e modelo `55` e NFC-e modelo `65`, cobrindo `cMunFGIBS`, `IBSCBS` no item
-  e `IBSCBSTot` no total; o teste valida XML assinado e lote contra o XSD local
+  NF-e modelo `55` e NFC-e modelo `65`, cobrindo preservacao de `IBSCBS` no item
+  e `IBSCBSTot` no total; para NF-e o teste tambem cobre `cMunFGIBS`
 - esse teste revelou e corrigiu uma falha real de serializacao: `cMunFGIBS`
   existia no schema, mas nao estava na ordem do bloco `ide`, entao poderia ser
   serializado no fim do grupo e rejeitado pelo XSD quando algum cliente enviasse
@@ -387,9 +387,16 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   em `src/lib/rtc-rules.ts`: quando um payload NF-e/NFC-e envia grupo
   `IBSCBS`, a API exige consistencia minima antes de gerar XML fiscal
 - essa validacao nao torna IBS/CBS obrigatorio para todos os documentos; ela
-  apenas impede payload meio preenchido, exigindo `cMunFGIBS`, `CST` com 3
-  digitos, `cClassTrib` com 6 digitos, `gIBSCBS` ou `gIBSCBSMono`,
-  `vBC` quando houver `gIBSCBS`, e totais `IBSCBSTot.vBCIBSCBS`
+  apenas impede payload meio preenchido, exigindo `CST` com 3 digitos,
+  `cClassTrib` com 6 digitos, `gIBSCBS` ou `gIBSCBSMono`, `vBC` quando houver
+  `gIBSCBS`, e totais `IBSCBSTot.vBCIBSCBS`
+- a homologacao real da Autoeletrica em `2026-07-02` mostrou que, para NFC-e
+  modelo `65`, `cMunFGIBS` e rejeitado pela SEFAZ com `1000 - Municipio do fato
+  gerador do IBS informado indevidamente`; a validacao local passou a aceitar
+  NFC-e com `IBSCBS` sem `cMunFGIBS` e a bloquear `cMunFGIBS` indevido antes da
+  transmissao
+- para NF-e modelo `55`, a validacao RTC continua exigindo `cMunFGIBS` quando
+  houver grupo `IBSCBS`
 - a regra RTC compartilhada foi aplicada no `POST /nfe`, reaproveitada no
   validador NFC-e, e tambem executa antes de assinatura admin e processamento
   automatico; isso evita que retries ou assinatura manual gerem XML RTC

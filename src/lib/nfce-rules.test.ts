@@ -123,9 +123,31 @@ test("bloqueia NFC-e com grupo IBS/CBS incompleto", () => {
   });
 
   assert.equal(result.ok, false);
-  assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_municipality"), true);
   assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_totals"), true);
   assert.equal(result.issues.some((issue) => issue.code === "missing_rtc_values"), true);
+});
+
+test("bloqueia cMunFGIBS indevido em NFC-e com grupo IBS/CBS", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.ide as Record<string, unknown>).cMunFGIBS = 4108809;
+  (payload.infNFe.det[0].imposto as Record<string, unknown>).IBSCBS = {
+    CST: "000",
+    cClassTrib: "000001",
+    gIBSCBS: {
+      vBC: 0
+    }
+  };
+  (payload.infNFe.total as Record<string, unknown>).IBSCBSTot = {
+    vBCIBSCBS: 0
+  };
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "unexpected_rtc_municipality"), true);
 });
 
 test("rejeita NFC-e sem total, pagamento e impostos minimos", () => {

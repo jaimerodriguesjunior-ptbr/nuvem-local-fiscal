@@ -71,12 +71,21 @@ export function validateRtcPayload(payload: JsonObject): RtcValidationResult {
     return { ok: true, issues };
   }
 
-  if (!ide || !hasText(ide.cMunFGIBS)) {
+  const model = Number(ide?.mod);
+  const isNfce = model === 65;
+  if (isNfce && hasText(ide?.cMunFGIBS)) {
+    pushIssue(
+      issues,
+      "unexpected_rtc_municipality",
+      "infNFe.ide.cMunFGIBS",
+      "Nao informe cMunFGIBS em NFC-e com tributacao IBS/CBS."
+    );
+  } else if (!isNfce && (!ide || !hasText(ide.cMunFGIBS))) {
     pushIssue(
       issues,
       "missing_rtc_municipality",
       "infNFe.ide.cMunFGIBS",
-      "Informe cMunFGIBS quando enviar tributacao IBS/CBS."
+      "Informe cMunFGIBS quando enviar tributacao IBS/CBS em NF-e."
     );
   }
 
