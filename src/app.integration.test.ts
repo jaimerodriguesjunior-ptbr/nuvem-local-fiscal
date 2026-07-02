@@ -327,6 +327,32 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(guairaPdfText, /guaira\.atende\.net/);
     assert.doesNotMatch(guairaPdfText, /MUNICIPIO DE TOLEDO|www\.esnfs\.com\.br/);
 
+    const saveToledoWithoutEntityId = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        provedor: "toledo-equiplano",
+        municipio: {
+          codigo_ibge: "4127700",
+          nome: "Toledo"
+        },
+        prefeitura: {
+          login: "970339"
+        },
+        equiplano: {
+          inscricao_municipal: "970339",
+          request_format: "soap"
+        }
+      }
+    });
+    assert.equal(saveToledoWithoutEntityId.statusCode, 400);
+    assert.match(saveToledoWithoutEntityId.body, /id_entidade/);
+
     const saveToledoNfseConfig = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,
@@ -437,6 +463,32 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nfseXml.body, /enviarLoteRpsEnvio/);
     assert.match(nfseXml.body, /nrInscricaoMunicipal/);
     assert.match(nfseXml.body, /17\.19\.01\.000/);
+
+    const updateToledoLowSequence = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        rps: {
+          numero: 1,
+          lote: 1
+        }
+      }
+    });
+    assert.equal(updateToledoLowSequence.statusCode, 200, updateToledoLowSequence.body);
+
+    const toledoConfigAfterLowSequence = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=homologacao`,
+      headers: bearer
+    });
+    assert.equal(toledoConfigAfterLowSequence.statusCode, 200, toledoConfigAfterLowSequence.body);
+    assert.equal(toledoConfigAfterLowSequence.json().rps.numero, 2);
+    assert.equal(toledoConfigAfterLowSequence.json().rps.lote, 2);
 
     const remoteCompany = await app.inject({
       method: "GET",

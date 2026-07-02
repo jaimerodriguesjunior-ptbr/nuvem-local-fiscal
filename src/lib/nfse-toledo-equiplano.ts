@@ -113,9 +113,11 @@ function firstText(...values: unknown[]) {
   return "";
 }
 
-function toSaoPauloDateTimeParts(value?: string) {
+function toSaoPauloDateTimeParts(value?: string | Date) {
   const source = value
-    ? new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}-03:00`)
+    ? value instanceof Date
+      ? value
+      : new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}-03:00`)
     : new Date();
   const date = Number.isNaN(source.getTime()) ? new Date() : source;
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -139,9 +141,15 @@ function toSaoPauloDateTimeParts(value?: string) {
   };
 }
 
-export function toToledoIssueDateTime(value?: string) {
+function dateKey(parts: ReturnType<typeof toSaoPauloDateTimeParts>) {
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function toToledoIssueDateTime(value?: string, now = new Date()) {
   const parts = toSaoPauloDateTimeParts(value);
-  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+  const currentParts = toSaoPauloDateTimeParts(now);
+  const safeParts = dateKey(parts) > dateKey(currentParts) ? currentParts : parts;
+  return `${safeParts.year}-${safeParts.month}-${safeParts.day}T${safeParts.hour}:${safeParts.minute}:${safeParts.second}`;
 }
 
 function detectDocumentType(value: string) {
@@ -619,6 +627,32 @@ function validateDraft(draft: ToledoDraft) {
   }
 }
 
+function usedToledoSequences(
+  store: InMemoryStore,
+  cnpj: string,
+  ambiente: DocumentRecord["ambiente"]
+) {
+  let lot = 0;
+  let rps = 0;
+  for (const document of store.documents) {
+    if (
+      document.tipoDocumento !== "NFSe" ||
+      document.issuerCnpj !== cnpj ||
+      document.ambiente !== ambiente ||
+      document.providerName !== "toledo-equiplano"
+    ) {
+      continue;
+    }
+
+    const [lotText, rpsText] = String(document.providerReference ?? "").split(":");
+    const lotNumber = Number(lotText);
+    const rpsNumber = Number(rpsText);
+    if (Number.isInteger(lotNumber) && lotNumber > lot) lot = lotNumber;
+    if (Number.isInteger(rpsNumber) && rpsNumber > rps) rps = rpsNumber;
+  }
+  return { lot, rps };
+}
+
 export async function processToledoNfse(
   store: InMemoryStore,
   documentId: string
@@ -646,14 +680,19 @@ export async function processToledoNfse(
     validateConfig(settings);
     validateDraft(draft);
 
-    const lotNumber =
+    const usedSequences = usedToledoSequences(store, document.issuerCnpj, document.ambiente);
+    const lotNumber = Math.max(
       Number(serviceConfig.settings.nfseNextLotNumber) > 0
         ? Number(serviceConfig.settings.nfseNextLotNumber)
-        : document.numero;
-    const rpsNumber =
+        : document.numero,
+      usedSequences.lot + 1
+    );
+    const rpsNumber = Math.max(
       Number(serviceConfig.settings.nfseNextRpsNumber) > 0
         ? Number(serviceConfig.settings.nfseNextRpsNumber)
-        : document.numero;
+        : document.numero,
+      usedSequences.rps + 1
+    );
     const unsignedXml = buildLoteXml({ settings, draft, lotNumber, rpsNumber });
 
     const certificate = store.findActiveCertificate(document.issuerCnpj);

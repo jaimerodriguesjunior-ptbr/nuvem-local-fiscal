@@ -220,6 +220,32 @@ function parseEnvironment(value: unknown): Environment {
   return value === "producao" ? "producao" : "homologacao";
 }
 
+function usedToledoSequenceFromDocuments(
+  documents: DocumentRecord[],
+  cnpj: string,
+  environment: Environment
+) {
+  let lot = 0;
+  let rps = 0;
+  for (const document of documents) {
+    if (
+      document.tipoDocumento !== "NFSe" ||
+      document.issuerCnpj !== cnpj ||
+      document.ambiente !== environment ||
+      document.providerName !== "toledo-equiplano"
+    ) {
+      continue;
+    }
+
+    const [lotText, rpsText] = String(document.providerReference ?? "").split(":");
+    const lotNumber = Number(lotText);
+    const rpsNumber = Number(rpsText);
+    if (Number.isInteger(lotNumber) && lotNumber > lot) lot = lotNumber;
+    if (Number.isInteger(rpsNumber) && rpsNumber > rps) rps = rpsNumber;
+  }
+  return { lot, rps };
+}
+
 export async function registerDocumentRoutes(app: FastifyInstance) {
   app.addHook("preHandler", async (request, reply) => {
     if (
@@ -546,6 +572,42 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       });
     }
 
+    const effectiveProvider =
+      normalizedProvider ||
+      String(existingServiceConfig?.settings.nfseProvider ?? "");
+    const isToledoProvider = effectiveProvider === "toledo-equiplano";
+    const effectiveIdEntidade = String(
+      equiplano.id_entidade ??
+        equiplano.idEntidade ??
+        body.id_entidade ??
+        existingServiceConfig?.settings.nfseIdEntidade ??
+        ""
+    ).trim();
+
+    if (isToledoProvider && !effectiveIdEntidade) {
+      return reply.code(400).send({
+        message: "Informe id_entidade para NFS-e Toledo/Equiplano."
+      });
+    }
+
+    const usedToledoSequence = isToledoProvider
+      ? usedToledoSequenceFromDocuments(app.store.documents, cnpj, environment)
+      : { lot: 0, rps: 0 };
+    const requestedNextRpsNumber = Number(
+      rps.numero ?? rps.proximo_numero ?? body.proximo_rps
+    );
+    const requestedNextLotNumber = Number(
+      rps.lote ?? rps.proximo_lote ?? body.proximo_lote
+    );
+    const nextRpsNumber =
+      requestedNextRpsNumber > 0
+        ? Math.max(requestedNextRpsNumber, usedToledoSequence.rps + 1)
+        : undefined;
+    const nextLotNumber =
+      requestedNextLotNumber > 0
+        ? Math.max(requestedNextLotNumber, usedToledoSequence.lot + 1)
+        : undefined;
+
     app.store.ensureIssuer(cnpj, environment, {
       razaoSocial: `Emitente ${cnpj}`,
       nomeFantasia: `Emitente ${cnpj}`
@@ -582,19 +644,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
             prefeitura.inscricao_municipal ??
             ""
         ).trim() || undefined,
-        nfseIdEntidade: String(
-          equiplano.id_entidade ?? equiplano.idEntidade ?? body.id_entidade ?? ""
-        ).trim() || undefined,
+        nfseIdEntidade: effectiveIdEntidade || undefined,
         nfseRpsSerie: String(rps.serie ?? body.serie_rps ?? "").trim() || undefined,
         nfseRpsEmissor: String(rps.emissor ?? rps.emissor_rps ?? body.emissor_rps ?? "").trim() || undefined,
-        nfseNextRpsNumber:
-          Number(rps.numero ?? rps.proximo_numero ?? body.proximo_rps) > 0
-            ? Number(rps.numero ?? rps.proximo_numero ?? body.proximo_rps)
-            : undefined,
-        nfseNextLotNumber:
-          Number(rps.lote ?? rps.proximo_lote ?? body.proximo_lote) > 0
-            ? Number(rps.lote ?? rps.proximo_lote ?? body.proximo_lote)
-            : undefined,
+        nfseNextRpsNumber: nextRpsNumber,
+        nfseNextLotNumber: nextLotNumber,
         nfseDefaultServiceCode: String(
           servico.codigo ?? servico.codigo_servico ?? body.codigo_servico ?? ""
         ).trim() || undefined,

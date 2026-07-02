@@ -35,12 +35,14 @@ test("allows incomplete TLS chain only for Equiplano homologation", () => {
 });
 
 test("formats Toledo RPS issue date in Sao Paulo time", () => {
+  const now = new Date("2026-07-02T12:34:56-03:00");
+
   assert.equal(
-    toToledoIssueDateTime("2026-07-01T22:04:45-03:00"),
+    toToledoIssueDateTime("2026-07-01T22:04:45-03:00", now),
     "2026-07-01T22:04:45"
   );
   assert.equal(
-    toToledoIssueDateTime("2026-07-02T01:04:45.000Z"),
+    toToledoIssueDateTime("2026-07-02T01:04:45.000Z", now),
     "2026-07-01T22:04:45"
   );
 });
@@ -65,4 +67,22 @@ test("builds Toledo NFSe cancellation XML with municipal number", () => {
     xml,
     /<dsMotivoCancelamento>Cancelamento de teste em homologacao<\/dsMotivoCancelamento>/
   );
+});
+
+test("toToledoIssueDateTime limita data futura ao dia atual de Sao Paulo", () => {
+  const issuedAt = toToledoIssueDateTime(
+    "2026-07-03T08:00:00-03:00",
+    new Date("2026-07-02T12:34:56-03:00")
+  );
+
+  assert.equal(issuedAt, "2026-07-02T12:34:56");
+});
+
+test("toToledoIssueDateTime preserva data passada", () => {
+  const issuedAt = toToledoIssueDateTime(
+    "2026-07-01T08:00:00-03:00",
+    new Date("2026-07-02T12:34:56-03:00")
+  );
+
+  assert.equal(issuedAt, "2026-07-01T08:00:00");
 });

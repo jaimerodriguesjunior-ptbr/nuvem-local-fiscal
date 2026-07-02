@@ -78,7 +78,7 @@ Marco VPS e multiplos clientes:
 - Nginx protege `/admin` com Basic Auth; `/admin/api/` fica sem Basic Auth do Nginx porque a propria aplicacao valida `ADMIN_USERNAME`/`ADMIN_PASSWORD`
 - arquivo ICP-Brasil obrigatorio na VPS: `/opt/nuvem-local-fiscal/certificates/icp-brasil-root-v10.pem`
 - certificados A1 e configuracoes de servico persistem no Supabase com UUID real; foram corrigidos bugs onde certificados/configuracoes podiam aparecer na memoria e sumir ao recarregar
-- o deploy atual da VPS esta no commit `07ebc06 fix: recognize issued IPM NFSe responses`
+- o deploy atual da VPS esta no commit `8c7f41a fix: retry Guaira IPM NFSe without customer address`
 - a Otica Prisma autorizou NF-e homologacao via VPS e gerou DANFE A4
 - a Autoeletrica/NHT Centro Automotivo autorizou NFC-e homologacao via VPS, usando certificado A1 e CSC persistidos no Supabase
 - NFC-e Autoeletrica validada:
@@ -143,6 +143,7 @@ Configuracoes persistidas:
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - configuracao NFS-e por ambiente: login e senha da prefeitura criptografada, provedor/municipio, dados Equiplano e sequencia de RPS/lote
+- atualizacao parcial de configuracao NFS-e preserva login e senha ja salvos no servidor; isso evita rejeicao indevida de sync quando o cliente altera apenas campos nao sensiveis
 - a NFS-e Toledo/Equiplano foi validada ponta a ponta em homologacao em 2026-06-13:
   - `POST /nfse/dps` aceita payload estilo Nuvem Fiscal
   - `GET /nfse/:id` consulta o documento e o RPS no Equiplano
@@ -158,6 +159,15 @@ Configuracoes persistidas:
   - a NFS-e municipal numero `7`, RPS `12`, lote `14`, foi autorizada e teve XML/PDF recuperados
   - o cancelamento municipal da NFS-e `7` foi confirmado pela Equiplano com `sucesso=true` em `2026-06-13T15:05:46-03:00`
   - a confirmacao de cancelamento agora exige explicitamente `<sucesso>true</sucesso>` no retorno municipal
+  - em `2026-07-01`, as emissoes Toledo em homologacao mostraram um fluxo
+    sequencial de ajuste operacional: primeiro faltou configuracao/`idEntidade`,
+    depois houve rejeicao por data futura de RPS e por lote reutilizado, e as
+    emissoes seguintes foram autorizadas depois dos ajustes de cadastro e
+    sequencia
+  - em `2026-07-02`, o backend passou a bloquear salvamento Toledo/Equiplano sem
+    `idEntidade`, limitar data futura de RPS ao dia atual de Sao Paulo e elevar
+    automaticamente proximo lote/RPS para acima da maior sequencia Toledo ja
+    usada no historico local
 - a primeira NFS-e Guaira/IPM foi emitida em homologacao em 2026-06-13:
   - documento Nuvem Local `doc_19c69b1c`
   - NFS-e municipal `184`, serie `1`
@@ -189,6 +199,24 @@ Configuracoes persistidas:
   - o polling normal de `GET /nfse/:id` ignora consulta municipal enquanto o
     documento estiver em `NFSE_IPM_DRY_RUN`, evitando eventos de erro por codigo
     de autenticidade inexistente antes da transmissao
+  - em `2026-07-02`, a Autoeletrica validou o caso municipal real do tomador
+    `Leandro, Car Prime`, que ja possui cadastro economico em Guaira
+  - o primeiro envio desse cenario retorna rejeicao municipal `229 - O Tomador
+    do servico possui cadastro economico no municipio. Nao e possivel inserir um
+    novo endereco.`
+  - a correcao foi aplicada na Nuvem Local Fiscal, nao no cliente: o conector
+    Guaira/IPM detecta esse `229`, registra o evento
+    `nfse_guaira_ipm_address_retry` e retransmite automaticamente omitindo o
+    endereco do tomador e marcando `<endereco_informado>N</endereco_informado>`
+  - a NFS-e local `#13` (`doc_d87842b2`) comprovou esse fluxo em homologacao:
+    payload original com endereco, retry automatico sem endereco,
+    `retriedWithoutAddress=true`, NFS-e municipal `203`, situacao `1 - Emitida`,
+    protocolo `7571020726102154880351810692026077397185`, XML HTTP `200` e PDF
+    local HTTP `200`
+  - uma emissao anterior do mesmo dia para outro tomador (`doc_2b0d5123`)
+    tambem autorizou em Guaira/IPM, mas sem acionar retry; isso confirmou que o
+    comportamento depende do cadastro municipal do tomador, nao apenas do layout
+    enviado
 - dados do responsavel tecnico e CSRT por ambiente via `.env.local`
 - documentos com payload original, payload normalizado, XML gerado, XML assinado, XML autorizado, resposta SEFAZ e dados de protocolo
 - inutilizacoes com faixa, justificativa, XML assinado, resposta SEFAZ, protocolo e status
@@ -211,10 +239,14 @@ Limites atuais:
 - producao permanece bloqueada por seguranca
 - homologacao ainda precisa de uma trilha formal de aderencia continua a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada; emitir em homologacao com sucesso nao e criterio suficiente, por si so, para liberar producao
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
+- NFS-e Toledo/Equiplano agora possui guardas locais para `idEntidade`, data de
+  RPS futura e reutilizacao local de lote/RPS
 - NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; a
   estrategia de rede usa uma EC2 AWS Sao Paulo como gateway IPM persistente por
   tunel reverso `autossh`, enquanto consulta municipal e cancelamento ainda
   precisam ser fechados
+- o caso municipal `229` de tomador com cadastro economico ja esta absorvido no
+  backend compartilhado, sem exigir tratamento especial nos sistemas clientes
 - a consulta Guaira/IPM foi implementada por codigo de autenticidade, com
   fallback por numero, serie e cadastro economico; a NFS-e `184` em
   `nfse_teste=1` nao aparece na base consultavel da IPM em nenhuma das duas
@@ -240,7 +272,8 @@ Limites atuais:
 Proximo foco:
 1. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
    ou outro servidor com saida aceita pela IPM
-2. validar o endereco de fallback da Autoeletrica em um teste municipal proprio
+2. validar se existem outros cenarios municipais de tomador em Guaira/IPM alem
+   do `229` ja coberto
 3. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
    emitidos com `nfse_teste=1`
 4. implementar cancelamento Guaira somente depois da consulta validada
