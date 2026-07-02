@@ -854,6 +854,10 @@ export async function consultToledoNfse(
       Boolean(responseSummary.cdMensagem) ||
       Boolean(responseSummary.dsMensagem) ||
       /<listaErros>/i.test(businessXml ?? "");
+    const isPendingConversion =
+      responseSummary.cdMensagem === "8005" ||
+      responseSummary.dsMensagem?.toLowerCase().includes("ainda nao foi convertido") ||
+      responseSummary.dsMensagem?.toLowerCase().includes("ainda não foi convertido");
     const nfseNumber = responseSummary.nrNfse || responseSummary.numeroNfse || "";
     const authorized =
       response.status >= 200 &&
@@ -862,7 +866,7 @@ export async function consultToledoNfse(
       !isNilReturn &&
       !hasBusinessError &&
       Boolean(nfseNumber);
-    const rejected = hasBusinessError;
+    const rejected = hasBusinessError && !isPendingConversion;
     const updated = store.saveMunicipalProcessingResult(document.id, {
       providerName: "toledo-equiplano",
       requestBody,
