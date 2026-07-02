@@ -20,6 +20,7 @@ import {
   querySefazDocumentStatus,
   validateAuthorizationBatchXml
 } from "../lib/sefaz-authorization.js";
+import { isUncertainAuthorizationFailure } from "../lib/retry-rules.js";
 import { querySefazStatus } from "../lib/sefaz-status.js";
 import { validateNfeXml } from "../lib/xsd-validator.js";
 
@@ -1525,11 +1526,15 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         versao_aplicacao: result.applicationVersion
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       app.store.addDocumentEvent(document.id, {
         eventType: "authorization_attempt_failed",
         level: "error",
-        message: error instanceof Error ? error.message : String(error),
-        payload: { source: "admin_manual" }
+        message,
+        payload: {
+          source: "admin_manual",
+          uncertainExternalState: isUncertainAuthorizationFailure(message)
+        }
       });
       await app.store.waitForPersistence();
       request.log.error(
@@ -1542,7 +1547,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
         "Falha na autorizacao SEFAZ"
       );
       return reply.code(502).send({
-        message: error instanceof Error ? error.message : String(error),
+        message,
         transmissao_tentada: true,
         autorizacao_confirmada: false
       });

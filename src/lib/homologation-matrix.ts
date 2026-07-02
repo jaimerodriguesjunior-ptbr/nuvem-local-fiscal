@@ -118,9 +118,11 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     evidence: [
       "processamento atual possui trava local por documento",
       "eventos fiscais registram historico persistente",
-      "retries agendados e concorrencia distribuida seguem abertos"
+      "falhas externas incertas agora recebem plano de retry com backoff e limite",
+      "rejeicoes fiscais e falhas deterministicas nao entram em retry automatico",
+      "fila agendada e concorrencia distribuida entre instancias seguem abertas"
     ],
-    nextAction: "Fechar idempotencia, consulta de recuperacao e retry seguro antes de producao."
+    nextAction: "Fechar worker agendado com lock distribuido e smoke multi-instancia antes de producao."
   },
   {
     id: "nfse-toledo-equiplano",

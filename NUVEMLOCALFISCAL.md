@@ -480,6 +480,18 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `400` sem alterar a contagem de documentos; isso fecha a guarda local, mas
   ainda falta homologar um cenario real de devolucao/complemento/ajuste com
   cliente antes de remover o bloqueio de producao da matriz
+- em `2026-07-02`, `RETRY-FILA` ganhou a primeira politica compartilhada em
+  `src/lib/retry-rules.ts`: falhas externas incertas de autorizacao SEFAZ
+  (`timeout`, `socket`, `ECONNRESET`, HTTP 5xx e similares) sao classificadas
+  separadamente de rejeicoes fiscais e falhas deterministicas
+- quando o processamento automatico falha, o evento persistido
+  `authorization_attempt_failed` passa a gravar `attempt`,
+  `uncertainExternalState`, `retryable`, `retryReasonCode` e `nextRetryAt`,
+  aplicando backoff limitado; rejeicao fiscal, erro deterministico e documento
+  terminal nao entram em retry automatico
+- esse contrato fecha a decisao local de retry seguro, mas ainda nao implementa
+  worker agendado nem lock distribuido entre instancias; esses pontos continuam
+  bloqueando producao ate haver smoke multi-instancia
 - `NFCE-QR`: status `parcial`; o portal lista `NFCe_qrCode_3` e o schema local
   `PL_010c_NT2022_002v1.30` ja contem os padroes `QRCODE V3 ONLINE` e
   `QRCODE V3 OFFLINE`; em `2026-07-02`, o gerador NFC-e online passou a montar
@@ -595,7 +607,7 @@ Limites atuais:
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
 - o deploy em VPS ja foi feito e validado em homologacao; `127.0.0.1:3001` continua valido para desenvolvimento local
 - filas/retries ainda precisam ser fechados
-- o processamento de autorizacao ja possui trava local por documento, consulta previa da chave e historico persistente em `fiscal_document_events`; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
+- o processamento de autorizacao ja possui trava local por documento, consulta previa da chave, historico persistente em `fiscal_document_events` e politica local de retry seguro para falha externa incerta; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`

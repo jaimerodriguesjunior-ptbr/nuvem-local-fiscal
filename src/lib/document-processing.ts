@@ -12,6 +12,10 @@ import {
   querySefazDocumentStatus
 } from "./sefaz-authorization.js";
 import { assertValidNfceEmissionPayload } from "./nfce-rules.js";
+import {
+  buildAuthorizationRetryPlan,
+  isUncertainAuthorizationFailure
+} from "./retry-rules.js";
 import { validateNfeXml } from "./xsd-validator.js";
 
 export type AutomaticProcessingResult = {
@@ -128,6 +132,7 @@ export async function processHomologationDocument(
     return { document, transmitted: false, error: message };
   }
   documentsInProcessing.add(document.id);
+  let attemptNumber = 0;
 
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
   const certificate = store.findActiveCertificate(document.issuerCnpj);
@@ -140,7 +145,7 @@ export async function processHomologationDocument(
   }
 
   try {
-    const attemptNumber =
+    attemptNumber =
       store
         .getDocumentEvents(document.id)
         .filter((event) => event.eventType === "authorization_attempt_started")
@@ -333,13 +338,22 @@ export async function processHomologationDocument(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const uncertainExternalState = isUncertainAuthorizationFailure(message);
+    const retryPlan = buildAuthorizationRetryPlan({
+      status: "erro",
+      attempt: attemptNumber,
+      uncertainExternalState
+    });
     store.addDocumentEvent(document.id, {
       eventType: "authorization_attempt_failed",
       level: "error",
       message,
       payload: {
-        uncertainExternalState:
-          /tempo esgotado|ECONNRESET|socket|corpo vazio|HTTP 5\d\d/i.test(message)
+        attempt: attemptNumber,
+        uncertainExternalState,
+        retryable: retryPlan.retryable,
+        retryReasonCode: retryPlan.reasonCode,
+        nextRetryAt: retryPlan.nextRetryAt
       }
     });
     const failed = store.failDocument(document.id, "PROCESSAMENTO_AUTOMATICO", message);
