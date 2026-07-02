@@ -492,10 +492,15 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
 - essa conciliacao nao injeta classificacao automaticamente e nao tenta decidir
   operacoes especiais; ela apenas bloqueia divergencia entre uma venda comum
   reconhecivel e um par RTC oficial que nao corresponda ao perfil operacional
+- em seguida, as finalidades referenciadas `2`, `3`, `4`, `5` e `6`
+  (complemento, ajuste, devolucao, credito ou debito) passaram a bloquear
+  `IBSCBS` ate existir perfil RTC operacional explicito; isso impede que uma
+  devolucao/complemento/ajuste reaproveite por acidente a regra de venda comum
 - testes automatizados cobrem o bloqueio de par RTC desconhecido, par de
   Imposto Seletivo desconhecido, classificacao oficial nao liberada para
   NF-e/NFC-e, codigos `220` excluidos do catalogo ativo e grupo monofasico do
-  CST `620`, alem da divergencia de classificacao em venda comum
+  CST `620`, alem da divergencia de classificacao em venda comum e do bloqueio
+  de RTC em finalidade referenciada sem perfil proprio
 - esse fechamento e deliberadamente estrutural: ele impede payload RTC meio
   montado e impede que o emissor invente aliquota/classificacao, mas ainda nao
   declara que a escolha legal de `CST`, `cClassTrib` e `cClassTribIS` por tipo
@@ -513,6 +518,9 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `400` sem alterar a contagem de documentos; isso fecha a guarda local, mas
   ainda falta homologar um cenario real de devolucao/complemento/ajuste com
   cliente antes de remover o bloqueio de producao da matriz
+- alem disso, se essas finalidades referenciadas trouxerem `IBSCBS`, o emissor
+  agora exige um perfil RTC operacional proprio antes de aceitar a classificacao
+  tributaria
 - em `2026-07-02`, `RETRY-FILA` ganhou a primeira politica compartilhada em
   `src/lib/retry-rules.ts`: falhas externas incertas de autorizacao SEFAZ
   (`timeout`, `socket`, `ECONNRESET`, HTTP 5xx e similares) sao classificadas
@@ -647,9 +655,9 @@ Limites atuais:
 - a classificacao RTC ja possui catalogo local versionado, bloqueio para pares
   desconhecidos e catalogo oficial IBS/CBS derivado de
   `classificacoes-tributarias-02-07-2026_17-44-56.json`; a venda comum de
-  mercadoria ja possui conciliacao inicial com `000/000001`, enquanto os demais
-  tipos de operacao reais dos clientes e a fonte oficial de IS continuam
-  pendentes
+  mercadoria ja possui conciliacao inicial com `000/000001`; finalidades
+  referenciadas bloqueiam `IBSCBS` ate perfil proprio, enquanto os demais tipos
+  de operacao reais dos clientes e a fonte oficial de IS continuam pendentes
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`

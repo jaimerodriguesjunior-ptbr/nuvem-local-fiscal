@@ -2,7 +2,10 @@ import {
   findRtcClassification,
   type RtcClassificationCatalogEntry
 } from "./rtc-classification-catalog.js";
-import { expectedRtcClassificationForItem } from "./rtc-operation-classification.js";
+import {
+  expectedRtcClassificationForItem,
+  unmappedRtcOperationProfileForItem
+} from "./rtc-operation-classification.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -221,6 +224,18 @@ export function validateRtcPayload(
         "rtc_operation_classification_mismatch",
         `${path}.cClassTrib`,
         `Operacao ${operationExpectation.profile} exige CST ${operationExpectation.cst} e cClassTrib ${operationExpectation.classCode}.`
+      );
+    }
+    const unmappedOperationProfile =
+      classification && !operationExpectation
+        ? unmappedRtcOperationProfileForItem(infNFe)
+        : null;
+    if (unmappedOperationProfile) {
+      pushIssue(
+        issues,
+        unmappedOperationProfile.code,
+        path,
+        unmappedOperationProfile.reason
       );
     }
 

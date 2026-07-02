@@ -94,10 +94,11 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "IBSCBS regular exige CST, cClassTrib, IBS UF, IBS municipio, CBS, bases e totais",
       "IBSCBS monofasico e tratado como grupo proprio para CST 620",
       "venda comum de mercadoria com finNFe=1 e CFOP 5101/5102/6101/6102 exige par 000/000001 quando IBSCBS for informado",
+      "finalidades referenciadas 2/3/4/5/6 bloqueiam IBSCBS ate existir perfil RTC operacional explicito",
       "IS exige CSTIS, cClassTribIS, valores de calculo e ISTot quando informado",
       "a classificacao legal por tipo de operacao e a tabela oficial de IS ainda dependem da fonte vigente e dos dados do cliente"
     ],
-    nextAction: "Conciliar perfis operacionais reais alem da venda comum e carregar fonte oficial de IS."
+    nextAction: "Homologar perfil RTC real de devolucao/complemento/ajuste e carregar fonte oficial de IS."
   },
   {
     id: "referenciamento-nfe-nfce",

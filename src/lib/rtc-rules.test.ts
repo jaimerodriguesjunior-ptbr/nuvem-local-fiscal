@@ -133,6 +133,47 @@ test("bloqueia venda comum com classificacao oficial divergente do perfil operac
   );
 });
 
+test("bloqueia IBSCBS em finalidade referenciada enquanto nao houver perfil operacional RTC", () => {
+  const payload = rtcPayload();
+  (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
+  (payload.infNFe.ide as Record<string, unknown>).NFref = [
+    { refNFe: "41260612345678000195550010000001231000001234" }
+  ];
+  payload.infNFe.det[0].prod.CFOP = "5202";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "rtc_referenced_finality_not_mapped"),
+    true
+  );
+});
+
+test("nao aplica perfil RTC de operacao referenciada quando o payload nao traz IBSCBS", () => {
+  const result = validateRtcPayload({
+    infNFe: {
+      ide: {
+        mod: 55,
+        finNFe: 4,
+        NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+      },
+      det: [
+        {
+          prod: {
+            CFOP: "5202"
+          },
+          imposto: {}
+        }
+      ],
+      total: {}
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => {
   const payload = rtcPayload();
   delete (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS;
