@@ -485,10 +485,17 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
 - a busca local por fonte oficial de `CSTIS/cClassTribIS` ainda nao encontrou
   tabela propria de Imposto Seletivo; o XSD confirma a estrutura do grupo `IS`,
   mas nao substitui a tabela classificatoria oficial
+- em `2026-07-02`, foi criado o primeiro perfil operacional de conciliacao RTC
+  em `src/lib/rtc-operation-classification.ts`: venda comum de mercadoria
+  (`finNFe=1` e CFOP `5101`, `5102`, `6101` ou `6102`) exige `CST=000` e
+  `cClassTrib=000001` quando o payload ja trouxer `IBSCBS`
+- essa conciliacao nao injeta classificacao automaticamente e nao tenta decidir
+  operacoes especiais; ela apenas bloqueia divergencia entre uma venda comum
+  reconhecivel e um par RTC oficial que nao corresponda ao perfil operacional
 - testes automatizados cobrem o bloqueio de par RTC desconhecido, par de
   Imposto Seletivo desconhecido, classificacao oficial nao liberada para
   NF-e/NFC-e, codigos `220` excluidos do catalogo ativo e grupo monofasico do
-  CST `620`
+  CST `620`, alem da divergencia de classificacao em venda comum
 - esse fechamento e deliberadamente estrutural: ele impede payload RTC meio
   montado e impede que o emissor invente aliquota/classificacao, mas ainda nao
   declara que a escolha legal de `CST`, `cClassTrib` e `cClassTribIS` por tipo
@@ -639,8 +646,10 @@ Limites atuais:
 - o processamento de autorizacao ja possui trava local por documento, consulta previa da chave, historico persistente em `fiscal_document_events` e politica local de retry seguro para falha externa incerta; retries agendados e processamento distribuido ainda precisam ser fechados antes do deploy
 - a classificacao RTC ja possui catalogo local versionado, bloqueio para pares
   desconhecidos e catalogo oficial IBS/CBS derivado de
-  `classificacoes-tributarias-02-07-2026_17-44-56.json`; a vinculacao aos tipos
-  de operacao reais dos clientes e a fonte oficial de IS continuam pendentes
+  `classificacoes-tributarias-02-07-2026_17-44-56.json`; a venda comum de
+  mercadoria ja possui conciliacao inicial com `000/000001`, enquanto os demais
+  tipos de operacao reais dos clientes e a fonte oficial de IS continuam
+  pendentes
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`

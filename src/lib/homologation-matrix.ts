@@ -93,10 +93,11 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "catalogo IBS/CBS carrega as classificacoes oficiais exportadas da SVRS/CFF em 2026-07-02",
       "IBSCBS regular exige CST, cClassTrib, IBS UF, IBS municipio, CBS, bases e totais",
       "IBSCBS monofasico e tratado como grupo proprio para CST 620",
+      "venda comum de mercadoria com finNFe=1 e CFOP 5101/5102/6101/6102 exige par 000/000001 quando IBSCBS for informado",
       "IS exige CSTIS, cClassTribIS, valores de calculo e ISTot quando informado",
       "a classificacao legal por tipo de operacao e a tabela oficial de IS ainda dependem da fonte vigente e dos dados do cliente"
     ],
-    nextAction: "Conciliar tipos de operacao dos clientes com CST/cClassTrib vigente e carregar fonte oficial de IS."
+    nextAction: "Conciliar perfis operacionais reais alem da venda comum e carregar fonte oficial de IS."
   },
   {
     id: "referenciamento-nfe-nfce",

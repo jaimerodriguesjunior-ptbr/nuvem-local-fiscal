@@ -2,6 +2,7 @@ import {
   findRtcClassification,
   type RtcClassificationCatalogEntry
 } from "./rtc-classification-catalog.js";
+import { expectedRtcClassificationForItem } from "./rtc-operation-classification.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -89,6 +90,7 @@ export function validateRtcPayload(
   const itemsWithRtc = details
     .map((detail, index) => ({
       index,
+      detail: asObject(detail),
       tax: asObject(asObject(detail)?.imposto),
       rtc: asObject(asObject(asObject(detail)?.imposto)?.IBSCBS)
     }))
@@ -203,6 +205,22 @@ export function validateRtcPayload(
         "rtc_classification_model_not_allowed",
         `${path}.cClassTrib`,
         "Par CST/cClassTrib IBS/CBS nao esta liberado para este modelo de documento."
+      );
+    }
+    const operationExpectation =
+      classification && item.detail
+        ? expectedRtcClassificationForItem(infNFe, item.detail)
+        : null;
+    if (
+      operationExpectation &&
+      (text(rtc.CST) !== operationExpectation.cst ||
+        text(rtc.cClassTrib) !== operationExpectation.classCode)
+    ) {
+      pushIssue(
+        issues,
+        "rtc_operation_classification_mismatch",
+        `${path}.cClassTrib`,
+        `Operacao ${operationExpectation.profile} exige CST ${operationExpectation.cst} e cClassTrib ${operationExpectation.classCode}.`
       );
     }
 

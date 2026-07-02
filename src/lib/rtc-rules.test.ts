@@ -16,6 +16,9 @@ function rtcPayload() {
       },
       det: [
         {
+          prod: {
+            CFOP: "5102"
+          },
           imposto: {
             IBSCBS: {
               CST: "000",
@@ -69,6 +72,15 @@ test("aceita grupo IBS/CBS minimo com municipio, classificacao e totais", () => 
   assert.deepEqual(result.issues, []);
 });
 
+test("concilia venda comum com classificacao tributada integralmente", () => {
+  const payload = rtcPayload();
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("catalogo RTC carrega classificacoes oficiais IBS/CBS exportadas da SVRS/CFF", () => {
   const summary = rtcClassificationCatalogSummary();
 
@@ -107,6 +119,20 @@ test("bloqueia classificacao oficial que nao esta liberada para NF-e/NFC-e", () 
   );
 });
 
+test("bloqueia venda comum com classificacao oficial divergente do perfil operacional", () => {
+  const payload = rtcPayload();
+  payload.infNFe.det[0].imposto.IBSCBS.CST = "200";
+  payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "200002";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "rtc_operation_classification_mismatch"),
+    true
+  );
+});
+
 test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => {
   const payload = rtcPayload();
   delete (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS;
@@ -126,6 +152,7 @@ test("bloqueia grupo monofasico quando o catalogo exige IBS/CBS regular", () => 
 
 test("aceita grupo monofasico quando o CST/cClassTrib oficial exige monofasia", () => {
   const payload = rtcPayload();
+  payload.infNFe.det[0].prod.CFOP = "5656";
   payload.infNFe.det[0].imposto.IBSCBS.CST = "620";
   payload.infNFe.det[0].imposto.IBSCBS.cClassTrib = "620001";
   delete (payload.infNFe.det[0].imposto.IBSCBS as Record<string, unknown>).gIBSCBS;
