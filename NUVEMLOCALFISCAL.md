@@ -610,6 +610,9 @@ Tarefas geradas pelo diagnostico inicial:
    - andamento em `2026-07-02`: lacuna `DANFE-TIPO2` fechada como bloqueio de
      escopo; NF-e local aceita somente `tpImp=1` ate existir layout/teste para
      os demais tipos de impressao
+   - andamento em `2026-07-02`: NF-e de devolucao da Autoeletrica/NHT validada
+     em homologacao com `NFref` e itens carregados a partir de uma NF-e de
+     entrada temporaria, removida do banco apos o teste
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 
@@ -626,11 +629,13 @@ Matriz viva de homologacao:
     decisao formal
 - itens satisfeitos no escopo atual: NF-e PR/Otica com autorizacao, DANFE A4,
   cancelamento e inutilizacao; NFC-e PR/Otica e Autoeletrica para operacao
-  interna; guarda NFC-e interestadual; NFS-e Toledo/Equiplano
+  interna; guarda NFC-e interestadual; NF-e devolucao Autoeletrica/NHT em
+  homologacao com `NFref`; NFS-e Toledo/Equiplano
 - bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
   `tpImp` diferente de `1`
 - itens que ainda bloqueiam producao pela matriz: conciliacao legal fina da
-  classificacao RTC por tipo de operacao, referenciamento NF-e/NFC-e,
+  classificacao RTC por tipo de operacao, complemento/ajuste referenciado em
+  NF-e/NFC-e,
   retries/processamento distribuido e consulta/cancelamento Guaira/IPM em
   cenario municipal reconhecido
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam

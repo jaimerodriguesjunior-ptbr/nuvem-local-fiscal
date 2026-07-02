@@ -56,6 +56,20 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     nextAction: "Manter regra no emissor compartilhado, nao nos clientes."
   },
   {
+    id: "nfe-pr-autoeletrica-return-reference",
+    area: "NFe",
+    instance: "Autoeletrica/NHT / SEFAZ-PR",
+    flow: "NF-e devolucao em homologacao com NFref e nota de entrada de apoio",
+    status: "satisfied",
+    evidence: [
+      "NF-e venda homologacao com RTC autorizada como origem do fluxo",
+      "tela de devolucao carregou itens a partir da NF-e de entrada temporaria",
+      "NF-e devolucao nfe-4.xml autorizada em homologacao",
+      "nota de entrada temporaria foi removida do banco apos o teste"
+    ],
+    nextAction: "Manter o cenario como smoke de devolucao quando o fluxo de entrada for ajustado."
+  },
+  {
     id: "nfce-offline-contingency-scope",
     area: "NFCe",
     instance: "Todos os clientes SEFAZ-PR",
@@ -110,9 +124,10 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "checklist regulatorio exige devolucao, complemento, ajuste e vinculacao entre documentos",
       "validacao compartilhada exige NFref para finalidades 2, 3, 4, 5 e 6",
       "contrato automatizado valida chave referenciada, ECF e formatos basicos de NF antiga/produtor",
-      "POST /nfe bloqueia finalidade referenciada sem NFref antes de criar documento"
+      "POST /nfe bloqueia finalidade referenciada sem NFref antes de criar documento",
+      "NF-e devolucao da Autoeletrica foi homologada com NFref, mas complemento/ajuste ainda nao"
     ],
-    nextAction: "Homologar cenario real de devolucao/complemento/ajuste com cliente antes de producao."
+    nextAction: "Homologar cenario real de complemento ou ajuste com cliente antes de producao."
   },
   {
     id: "retry-queue-distributed-processing",

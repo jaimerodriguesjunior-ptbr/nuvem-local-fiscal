@@ -28,6 +28,15 @@ test("itens de bloqueio por escopo nao contam como pendencia escondida", () => {
   );
 });
 
+test("devolucao NF-e homologada fica registrada como fluxo satisfeito", () => {
+  const item = homologationMatrix.find(
+    (matrixItem) => matrixItem.id === "nfe-pr-autoeletrica-return-reference"
+  );
+
+  assert.equal(item?.status, "satisfied");
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-4.xml")), true);
+});
+
 test("cada item da matriz possui evidencia e proximo passo operacional", () => {
   const ids = new Set<string>();
 
