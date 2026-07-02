@@ -121,6 +121,11 @@ Licoes praticas da Autoeletrica para outros programas:
 Detalhe do `IBSCBS` usado na Autoeletrica em homologacao:
 - o payload de homologacao da NFC-e recebeu um grupo RTC apenas no caminho homologacao do cliente
 - o grupo entrou como `IBSCBS` no item e `IBSCBSTot` no total, junto com `CST`, `cClassTrib`, `gIBSCBS`, `gIBSUF`, `gIBSMun`, `gCBS`, `vBC`, `vIBS`, `vIBSUF`, `vIBSMun` e `vCBS`
+- em `2026-07-02`, depois da NF-e de venda comum da Autoeletrica ser
+  autorizada em homologacao sem RTC (`cStat=100`, CFOP `5102`, `finNFe=1`),
+  o app cliente passou a montar `IBSCBS` tambem para NF-e modelo `55` somente
+  em homologacao e somente para venda comum (`finNFe=1`, CFOP `5101`,
+  `5102`, `6101` ou `6102`); producao permanece sem esse grupo
 - a primeira forma testada mostrou que o schema era sensivel ao formato decimal dos percentuais; `pIBSUF`, `pIBSMun` e `pCBS` precisaram ser enviados em formato aceito pelo XSD, e nao como numero solto com arredondamento implicito
 - depois disso, a SEFAZ passou a rejeitar o municipio com `1036 - Aliquota do IBS do Municipio invalida. [nItem:1]`
 - a tentativa seguinte removeu a alíquota municipal do caminho de teste, mantendo o grupo RTC presente e zerando o municipio
