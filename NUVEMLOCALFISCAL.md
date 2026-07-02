@@ -471,6 +471,15 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   tributaria; a conciliacao legal de `CST`, `cClassTrib`, `cClassTribIS`,
   municipio do fato gerador, IBS/CBS/IS e demais exigencias novas continua como
   parte de `RT-CLASSIFICACAO` antes de producao
+- em `2026-07-02`, `REFERENCIAMENTO` ganhou regra compartilhada em
+  `src/lib/document-reference-rules.ts`, aplicada nos validadores de NF-e e
+  NFC-e: finalidades `2`, `3`, `4`, `5` e `6` exigem `NFref`, e referencias por
+  chave (`refNFe`, `refNFeSig`, `refCTe`), NF antiga, produtor rural e ECF
+  passam por validacao estrutural antes de criar documento fiscal
+- o contrato HTTP cobre `/nfe` com finalidade referenciada sem `NFref` retornando
+  `400` sem alterar a contagem de documentos; isso fecha a guarda local, mas
+  ainda falta homologar um cenario real de devolucao/complemento/ajuste com
+  cliente antes de remover o bloqueio de producao da matriz
 - `NFCE-QR`: status `parcial`; o portal lista `NFCe_qrCode_3` e o schema local
   `PL_010c_NT2022_002v1.30` ja contem os padroes `QRCODE V3 ONLINE` e
   `QRCODE V3 OFFLINE`; em `2026-07-02`, o gerador NFC-e online passou a montar

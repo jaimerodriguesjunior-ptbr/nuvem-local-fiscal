@@ -1,4 +1,5 @@
 import type { Environment } from "../types.js";
+import { validateDocumentReferences } from "./document-reference-rules.js";
 import { normalizeFiscalIdentifier } from "./fiscal-identity.js";
 import { validateRtcPayload } from "./rtc-rules.js";
 
@@ -68,6 +69,8 @@ export function validateNfceEmissionPayload(
   const issues: NfceValidationIssue[] = [];
   const rtcValidation = validateRtcPayload(payload, { expectedModel: 65 });
   issues.push(...rtcValidation.issues);
+  const referenceValidation = validateDocumentReferences(payload);
+  issues.push(...referenceValidation.issues);
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);
   const emit = asObject(infNFe.emit) ?? asObject(infNFe.emitente);

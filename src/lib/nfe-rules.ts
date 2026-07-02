@@ -1,3 +1,4 @@
+import { validateDocumentReferences } from "./document-reference-rules.js";
 import { validateRtcPayload } from "./rtc-rules.js";
 
 type JsonObject = Record<string, unknown>;
@@ -40,6 +41,8 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
   const issues: NfeValidationIssue[] = [];
   const rtcValidation = validateRtcPayload(payload, { expectedModel: 55 });
   issues.push(...rtcValidation.issues);
+  const referenceValidation = validateDocumentReferences(payload);
+  issues.push(...referenceValidation.issues);
 
   const infNFe = rootInfNFe(payload);
   const ide = asObject(infNFe.ide);

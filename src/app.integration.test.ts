@@ -734,6 +734,37 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.equal(app.store.documents.length, documentsBeforeUnsupportedNfeDanfe);
 
+    const documentsBeforeMissingReferenceNfe = app.store.documents.length;
+    const missingReferenceNfe = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          ide: {
+            mod: 55,
+            tpImp: 1,
+            finNFe: 4
+          },
+          emit: {
+            CNPJ: cnpj
+          }
+        }
+      }
+    });
+    assert.equal(missingReferenceNfe.statusCode, 400, missingReferenceNfe.body);
+    assert.equal(
+      missingReferenceNfe
+        .json()
+        .issues.some((issue: { code: string }) => issue.code === "missing_document_reference"),
+      true
+    );
+    assert.equal(app.store.documents.length, documentsBeforeMissingReferenceNfe);
+
     const documentsBeforeInterstateNfce = app.store.documents.length;
     const interstateNfce = await app.inject({
       method: "POST",

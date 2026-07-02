@@ -41,6 +41,6 @@ test("cada item da matriz possui evidencia e proximo passo operacional", () => {
 
 test("todo bloqueio de producao aponta uma acao de fechamento", () => {
   for (const item of productionBlockingItems()) {
-    assert.match(item.nextAction, /Conciliar|Fechar|Criar|Confirmar/);
+    assert.match(item.nextAction, /Conciliar|Fechar|Criar|Confirmar|Homologar/);
   }
 });

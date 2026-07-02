@@ -103,9 +103,11 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     status: "blocks_production",
     evidence: [
       "checklist regulatorio exige devolucao, complemento, ajuste e vinculacao entre documentos",
-      "ainda nao ha contrato automatizado dedicado para referencias"
+      "validacao compartilhada exige NFref para finalidades 2, 3, 4, 5 e 6",
+      "contrato automatizado valida chave referenciada, ECF e formatos basicos de NF antiga/produtor",
+      "POST /nfe bloqueia finalidade referenciada sem NFref antes de criar documento"
     ],
-    nextAction: "Criar payloads de contrato para documentos referenciados e validar XML/XSD."
+    nextAction: "Homologar cenario real de devolucao/complemento/ajuste com cliente antes de producao."
   },
   {
     id: "retry-queue-distributed-processing",

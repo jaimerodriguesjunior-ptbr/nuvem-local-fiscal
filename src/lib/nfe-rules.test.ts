@@ -40,6 +40,25 @@ test("NF-e bloqueia payload de outro modelo no endpoint /nfe", () => {
   assert.equal(result.issues.some((issue) => issue.code === "invalid_model"), true);
 });
 
+test("NF-e exige documento referenciado quando a finalidade nao e normal", () => {
+  const result = validateNfeEmissionPayload(minimalNfePayload({ finNFe: 4 }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_document_reference"), true);
+});
+
+test("NF-e aceita documento referenciado por chave fiscal valida", () => {
+  const result = validateNfeEmissionPayload(
+    minimalNfePayload({
+      finNFe: 4,
+      NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+    })
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("NF-e preserva contrato RTC de modelo 55 para grupos IBSCBS", () => {
   const result = validateNfeEmissionPayload({
     ambiente: "homologacao",

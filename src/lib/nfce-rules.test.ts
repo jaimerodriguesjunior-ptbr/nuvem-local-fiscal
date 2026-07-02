@@ -131,6 +131,35 @@ test("bloqueia NFC-e quando idDest declara operacao nao interna", () => {
   assert.equal(result.issues.some((issue) => issue.code === "interstate_nfce_not_allowed"), true);
 });
 
+test("bloqueia NFC-e com finalidade referenciada sem NFref", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143"
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "missing_document_reference"), true);
+});
+
+test("aceita NFC-e com finalidade referenciada e NFref valido", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
+  (payload.infNFe.ide as Record<string, unknown>).NFref = [
+    { refNFe: "41260612345678000195550010000001231000001234" }
+  ];
+
+  const result = validateNfceEmissionPayload(payload, {
+    expectedEnvironment: "homologacao",
+    expectedIssuerCnpj: "35181069000143"
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("bloqueia CNPJ alfanumerico em NFC-e enquanto o fluxo nao suporta NT 2026.004", () => {
   const payload = validNfcePayload();
   (payload.infNFe.emit as Record<string, unknown>).CNPJ = "12ABC34501DE67";
