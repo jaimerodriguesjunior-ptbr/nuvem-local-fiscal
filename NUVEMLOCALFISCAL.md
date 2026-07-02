@@ -131,6 +131,11 @@ Detalhe do `IBSCBS` usado na Autoeletrica em homologacao:
   `infNFe.ide.cMunFGIBS`; a correcao no app cliente foi incluir `cMunFGIBS`
   apenas quando a propria regra de RTC de homologacao da NF-e de venda estiver
   ativa
+- a tentativa seguinte (`nfe-3.xml`, numero `774460378`, serie `1`, CFOP
+  `5102`, `finNFe=1`, `tpAmb=2`) foi autorizada com `cStat=100`, protocolo
+  `141260000401979`, contendo `cMunFGIBS`, `IBSCBS` no item e `IBSCBSTot` no
+  total; isso comprova NF-e de venda comum da Autoeletrica em homologacao com
+  RTC ponta a ponta
 - a primeira forma testada mostrou que o schema era sensivel ao formato decimal dos percentuais; `pIBSUF`, `pIBSMun` e `pCBS` precisaram ser enviados em formato aceito pelo XSD, e nao como numero solto com arredondamento implicito
 - depois disso, a SEFAZ passou a rejeitar o municipio com `1036 - Aliquota do IBS do Municipio invalida. [nItem:1]`
 - a tentativa seguinte removeu a alíquota municipal do caminho de teste, mantendo o grupo RTC presente e zerando o municipio
