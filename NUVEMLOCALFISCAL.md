@@ -32,7 +32,7 @@ Escopo MVP operacional deste mes:
 - clientes atuais: todos no Simples Nacional
 - documentos usados: `NFC-e`, `NFS-e` e, em algumas lojas, `NF-e`
 - `NFC-e`: aberta somente para venda normal, mesma UF e emissao online
-- `NFS-e`: aberta somente para provedores municipais ja mapeados no motor de regras
+- `NFS-e`: aberta somente para provedores municipais ja mapeados no motor de regras; Guaira/IPM e Toledo/Equiplano ficaram validados para emissao no MVP em 2026-07-03
 - `NF-e`: aberta para venda normal e devolucao com documento referenciado
 - `NF-e` complemento, ajuste, credito/debito e demais finalidades permanecem guardadas como conhecimento homologado, mas fechadas no MVP ate necessidade real
 - a decisao comercial deste mes e funcionalidade essencial primeiro; versao por data/hora fica como evolucao posterior
@@ -663,9 +663,8 @@ Matriz viva de homologacao:
 - bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
   `tpImp` diferente de `1`
 - itens que ainda bloqueiam producao pela matriz: conciliacao legal fina da
-  classificacao RTC por tipo de operacao,
-  retries/processamento distribuido e consulta/cancelamento Guaira/IPM em
-  cenario municipal reconhecido
+  classificacao RTC por tipo de operacao, retries/processamento distribuido e
+  cancelamento Guaira/IPM com evidencia real
 - complemento/ajuste agora estao fechados na homologacao controlada: o contrato
   automatizado e as emissoes reais validaram as duas finalidades referenciadas
   sem `IBSCBS`, entao a matriz foi reclassificada como satisfeita nesse ponto
@@ -681,12 +680,26 @@ Limites atuais:
 - producao permanece bloqueada por seguranca
 - homologacao ainda precisa de uma trilha formal de aderencia continua a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada; emitir em homologacao com sucesso nao e criterio suficiente, por si so, para liberar producao
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
+- em `2026-07-03`, a empresa Toledo da Autoeletrica retornou `nfse-5.xml` com
+  `nrNfse=5`, `cdAutenticacao` e `dtEmissaoNfs`, reforcando que o caminho
+  Toledo/Equiplano do MVP esta satisfeito em homologacao
 - NFS-e Toledo/Equiplano agora possui guardas locais para `idEntidade`, data de
   RPS futura e reutilizacao local de lote/RPS
 - NFS-e Guaira/IPM possui emissao controlada homologada, XML e PDF local; a
   estrategia de rede usa uma EC2 AWS Sao Paulo como gateway IPM persistente por
   tunel reverso `autossh`, enquanto consulta municipal e cancelamento ainda
   precisam ser fechados
+- em `2026-07-03`, a empresa Guaira da Autoeletrica retornou `nfse-15.xml` com
+  `numero_nfse=203`, situacao `Emitida`, `link_nfse` e
+  `cod_verificador_autenticidade`; para o MVP, isso fecha emissao e
+  consultabilidade por link/autenticidade em homologacao
+- cancelamento Guaira/IPM fica aberto no MVP; o XML de cancelamento e o parser
+  de sucesso ja possuem contrato automatizado, mas ainda falta cancelar uma
+  NFS-e real de homologacao e registrar o retorno municipal
+- a primeira tentativa de cancelamento da NFS-e Guaira `203` retornou codigo
+  `206 - Nenhuma NFSe foi encontrada na base de dados utilizando os parametros
+  para pesquisa informados`; o XML de cancelamento passou a enviar tambem o
+  cadastro economico do prestador, igual ao fallback de consulta por numero
 - o caso municipal `229` de tomador com cadastro economico ja esta absorvido no
   backend compartilhado, sem exigir tratamento especial nos sistemas clientes
 - a consulta Guaira/IPM foi implementada por codigo de autenticidade, com
@@ -735,13 +748,12 @@ Proximo foco:
    tecnica e regulatoria suficiente
 6. fechar retries agendados e estrategia de processamento distribuido antes de
    qualquer uso fiscal amplo
-7. validar se existem outros cenarios municipais de tomador em Guaira/IPM alem
-   do `229` ja coberto
+7. cancelar uma NFS-e Guaira/IPM em homologacao para fechar o fluxo de
+   cancelamento municipal no MVP, agora com `cadastro` no XML de cancelamento
 8. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
    ou outro servidor com saida aceita pela IPM
-9. confirmar com IPM/Prefeitura se existe consulta persistente para documentos
-   emitidos com `nfse_teste=1`
-10. implementar cancelamento Guaira somente depois da consulta validada
+9. depois do cancelamento Guaira/IPM, nao abrir novos testes NFS-e municipais
+   sem demanda real de cliente
 ---
 
 ## 1. Objetivo do projeto

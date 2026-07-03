@@ -169,6 +169,7 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     status: "satisfied",
     evidence: [
       "fluxo Toledo/Equiplano homologado ponta a ponta",
+      "nfse-5.xml retornou nrNfse=5, cdAutenticacao e dtEmissaoNfs em 2026-07-03",
       "guardas locais para idEntidade, data futura e lote/RPS",
       "testes cobrem regras do conector Equiplano"
     ],
@@ -178,14 +179,16 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     id: "nfse-guaira-ipm-consulta-cancelamento",
     area: "NFSe",
     instance: "Guaira / IPM",
-    flow: "NFS-e Guaira com consulta persistente e cancelamento em cenario municipal reconhecido",
+    flow: "NFS-e Guaira/IPM no MVP com emissao, link municipal consultavel e cancelamento",
     status: "blocks_production",
     evidence: [
       "emissao Guaira/IPM homologada com XML/PDF local",
       "consulta por autenticidade e fallback por numero foram implementados",
-      "documentos nfse_teste=1 ainda nao validam consulta ponta a ponta na base IPM"
+      "nfse-15.xml retornou numero_nfse=203, situacao Emitida, link_nfse e cod_verificador_autenticidade em 2026-07-03",
+      "XML de cancelamento Guaira/IPM e parser de sucesso possuem contrato automatizado",
+      "cancelamento Guaira/IPM fica aberto no MVP, mas ainda precisa de uma evidencia real em homologacao"
     ],
-    nextAction: "Confirmar com IPM/Prefeitura um documento consultavel/cancelavel e repetir smoke."
+    nextAction: "Cancelar em homologacao a NFS-e Guaira numero 203 ou outra NFS-e de teste autorizada e registrar o retorno municipal."
   }
 ];
 
