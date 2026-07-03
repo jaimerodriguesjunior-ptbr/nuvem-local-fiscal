@@ -87,6 +87,49 @@ test("normalizes Nuvem Fiscal DPS and builds IPM test XML", () => {
   assert.doesNotMatch(xml, /<email><\/email>/);
 });
 
+test("builds IPM production XML without nfse_teste", () => {
+  const document = {
+    providerLikeId: "nfse_prod_123",
+    payloadOriginal: {
+      infDPS: {
+        dhEmi: "2026-07-03T14:30:00-03:00",
+        prest: { CNPJ: "35181069000143" },
+        toma: {
+          CPF: "58212043134",
+          xNome: "CLIENTE PRODUCAO",
+          end: {
+            xLgr: "AV MATE LARANJEIRA",
+            nro: "100",
+            xBairro: "CENTRO",
+            endNac: { cMun: "4108809", CEP: "85980000" }
+          }
+        },
+        serv: {
+          cServ: {
+            cTribMun: "140101",
+            CNAE: "4520007",
+            cSitTrib: "0",
+            xDescServ: "Servico prestado"
+          },
+          locPrest: { cLocPrestacao: "4108809" }
+        },
+        valores: {
+          vServPrest: { vServ: 15 },
+          trib: { tribMun: { pAliq: 2.01, cLocIncid: "4108809" } }
+        }
+      }
+    }
+  };
+  const productionConfig = { ...config, testMode: false };
+
+  const draft = normalizeGuairaIpmDraft(document, productionConfig);
+  const xml = buildGuairaIpmEmissionXml(productionConfig, draft);
+
+  assert.doesNotMatch(xml, /<nfse_teste>1<\/nfse_teste>/);
+  assert.match(xml, /<valor_total>15,00<\/valor_total>/);
+  assert.match(xml, /<codigo_item_lista_servico>140101<\/codigo_item_lista_servico>/);
+});
+
 test("keeps Autoeletrica fallback address from becoming a local blocker", () => {
   const document = {
     providerLikeId: "nfse_fallback_address",

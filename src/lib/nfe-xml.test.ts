@@ -803,7 +803,10 @@ test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local
     assert.match(result.unsignedXml, /<cMunFGIBS>4108809<\/cMunFGIBS>/);
     assert.match(result.unsignedXml, /<IBSCBS><CST>000<\/CST><cClassTrib>000001<\/cClassTrib>/);
     assert.match(result.unsignedXml, /<gIBSCBS><vBC>0<\/vBC><gIBSUF><pIBSUF>0.10<\/pIBSUF><vIBSUF>0<\/vIBSUF><\/gIBSUF>/);
-    assert.match(result.unsignedXml, /<IBSCBSTot><vBCIBSCBS>0<\/vBCIBSCBS><\/IBSCBSTot>/);
+    assert.match(
+      result.unsignedXml,
+      /<IBSCBSTot><vBCIBSCBS>0<\/vBCIBSCBS><gIBS><gIBSUF><vDif>0<\/vDif><vDevTrib>0<\/vDevTrib><vIBSUF>0<\/vIBSUF><\/gIBSUF><gIBSMun><vDif>0<\/vDif><vDevTrib>0<\/vDevTrib><vIBSMun>0<\/vIBSMun><\/gIBSMun><vIBS>0<\/vIBS><vCredPres>0<\/vCredPres><vCredPresCondSus>0<\/vCredPresCondSus><\/gIBS><gCBS><vDif>0<\/vDif><vDevTrib>0<\/vDevTrib><vCBS>0<\/vCBS><vCredPres>0<\/vCredPres><vCredPresCondSus>0<\/vCredPresCondSus><\/gCBS><\/IBSCBSTot>/
+    );
 
     const xmlValidation = validateNfeXml(result.signedXml);
     assert.deepEqual(xmlValidation.errors, []);
@@ -817,4 +820,84 @@ test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local
     assert.deepEqual(batchValidation.errors, []);
     assert.equal(batchValidation.valid, true);
   }
+});
+
+test("normaliza totais RTC pela soma dos itens antes de assinar NFC-e", () => {
+  const password = "senha-rtc-total";
+  const opened = openEncryptedCertificate(
+    encryptCertificateBundle(
+      {
+        pfxBase64: createTestPfx(password).toString("base64"),
+        password
+      },
+      "segredo-rtc-total"
+    ),
+    "segredo-rtc-total"
+  );
+  const payload = structuredClone(buildRtcInfNFe(65, 9201)) as Record<string, unknown> & {
+    det: Array<Record<string, unknown>>;
+    total: Record<string, unknown>;
+  };
+
+  const firstDetail = payload.det[0] as Record<string, unknown>;
+  const firstProduct = firstDetail.prod as Record<string, unknown>;
+  const firstTax = firstDetail.imposto as Record<string, unknown>;
+  const firstRtc = firstTax.IBSCBS as Record<string, unknown>;
+  const firstRegularRtc = firstRtc.gIBSCBS as Record<string, unknown>;
+  const firstIbsUf = firstRegularRtc.gIBSUF as Record<string, unknown>;
+  const firstIbsMun = firstRegularRtc.gIBSMun as Record<string, unknown>;
+  const firstCbs = firstRegularRtc.gCBS as Record<string, unknown>;
+
+  firstProduct.vProd = 5;
+  firstProduct.vUnCom = 5;
+  firstProduct.vUnTrib = 5;
+  firstRegularRtc.vBC = 5;
+  firstIbsUf.vIBSUF = 0.01;
+  firstIbsMun.vIBSMun = 0;
+  firstRegularRtc.vIBS = 0.01;
+  firstCbs.vCBS = 0.04;
+
+  payload.det = [
+    firstDetail,
+    structuredClone({
+      ...firstDetail,
+      nItem: 2,
+      prod: {
+        ...firstProduct,
+        cProd: "RTC-2"
+      }
+    })
+  ];
+  payload.total.ICMSTot = {
+    ...(payload.total.ICMSTot as Record<string, unknown>),
+    vProd: 10,
+    vNF: 10
+  };
+  payload.total.IBSCBSTot = {
+    vBCIBSCBS: 10,
+    gIBS: {
+      gIBSUF: { vIBSUF: 0.01 },
+      gIBSMun: { vIBSMun: 0 },
+      vIBS: 0.01
+    },
+    gCBS: { vCBS: 0.09 }
+  };
+
+  const result = generateAndSignNfeXml(
+    { infNFe: payload },
+    opened.privateKeyPem,
+    opened.certificatePem,
+    {
+      cscId: "1",
+      csc: "CSC-DE-HOMOLOGACAO-TESTE",
+      qrCodeBaseUrl: "http://www.fazenda.pr.gov.br/nfce/qrcode",
+      consultationUrl: "http://www.fazenda.pr.gov.br/nfce/consulta"
+    }
+  );
+
+  assert.equal(result.signatureValid, true);
+  assert.match(
+    result.unsignedXml,
+    /<IBSCBSTot>[\s\S]*<vBCIBSCBS>10<\/vBCIBSCBS>[\s\S]*<vIBSUF>0\.02<\/vIBSUF>[\s\S]*<vIBS>0\.02<\/vIBS>[\s\S]*<vCBS>0\.08<\/vCBS>[\s\S]*<\/IBSCBSTot>/
+  );
 });

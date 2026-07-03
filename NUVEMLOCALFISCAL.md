@@ -59,6 +59,19 @@ Atualizacao operacional de `2026-07-03`:
   `tpAmb`, `ambiente`, URL/credencial, numeracao por ambiente e CSRT por
   ambiente. Para `NFS-e`, ainda existem diferencas municipais/configuracoes por
   ambiente, especialmente Toledo/Equiplano.
+- o RTC deixou de ser apenas estrutural e passou a ser calculado de verdade no
+  cliente base e no emissor compartilhado; a nota `nfe-11.xml` foi autorizada
+  em producao com `IBSCBS` calculado e o cancelamento da `#10` tambem foi
+  validado em producao
+- os XML/PDF gerados durante os testes sao artefatos de evidencia, nao fonte de
+  verdade do projeto; quando nao forem mais uteis para auditoria manual, podem
+  ser removidos do workspace/repo sem impacto no codigo
+- incidente de producao piloto NHT em `2026-07-03`: NFC-e `#91` rejeitou com
+  `1080` porque `IBSCBSTot` estava calculado pelo total global enquanto os itens
+  arredondavam centavo a centavo; o emissor compartilhado agora normaliza
+  `IBSCBSTot` pela soma dos itens antes de assinar/transmitir. Na mesma rodada,
+  a NFS-e de Guaira falhou porque a configuracao de producao estava apontando
+  para Toledo/Equiplano; a configuracao operacional correta e Guaira/IPM.
 
 ---
 

@@ -1318,7 +1318,7 @@ const page = String.raw`<!doctype html>
                 '<option value="true"' + (settings.nfseTestMode !== false ? ' selected' : '') + '>Teste sem emissão (nfse_teste=1)</option>' +
                 '<option value="false"' + (settings.nfseTestMode === false ? ' selected' : '') + '>Emissão real</option>' +
               '</select></label>' +
-            '</div><div class="empty">Para transmissão automática em homologação, mantenha “Teste sem emissão (nfse_teste=1)”. A produção continua bloqueada pela API.</div>') +
+            '</div><div class="empty">Para homologacao, mantenha "Teste sem emissao (nfse_teste=1)". Para producao piloto validada, use Emissao real.</div>') +
             '<div class="section-head"><div><h3>RPS</h3><p>' +
               (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
@@ -1345,7 +1345,7 @@ const page = String.raw`<!doctype html>
               '<option value="false"' + (settings.autoTransmit !== true ? ' selected' : '') + '>Dry-run / manual</option>' +
               '<option value="true"' + (!production && settings.autoTransmit === true ? ' selected' : '') + '>Automática em homologação</option>' +
             '</select></label>' +
-            (isIpm ? '<div class="empty">No IPM, a opção automática transmite somente em homologação e exige XML com nfse_teste=1.</div>' : '') +
+            (isIpm ? '<div class="empty">No IPM, use nfse_teste=1 em homologacao. Em producao piloto validada, use Emissao real sem nfse_teste=1.</div>' : '') +
             (production ? '<div class="empty">A emissão NFS-e em produção permanece bloqueada por segurança.</div>' : '') +
             (!cert ? '<div class="empty">Você pode salvar a configuração agora, mas a emissão real exigirá um certificado A1 ativo deste CNPJ.</div>' : '') +
             '<div><button type="submit" class="btn">Salvar configuração NFS-e</button></div>' +
@@ -1688,7 +1688,7 @@ const page = String.raw`<!doctype html>
                 (production ? 'Automatica em producao piloto' : 'Automatica em homologacao') +
               '</option>' +
             '</select></label>' +
-            (isIpm ? '<div class="empty">No IPM, a opcao automatica transmite somente em homologacao e exige XML com nfse_teste=1.</div>' : '') +
+            (isIpm ? '<div class="empty">No IPM, use nfse_teste=1 em homologacao. Em producao piloto validada, use Emissao real sem nfse_teste=1.</div>' : '') +
             (production && fiscalProductionBlocked()
               ? '<div class="empty">A liberacao global de producao ainda esta desligada neste servidor.</div>'
               : production

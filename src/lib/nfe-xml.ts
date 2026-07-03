@@ -424,6 +424,145 @@ function applyPaymentCompatibility(infNFe: JsonObject) {
   }
 }
 
+function centsFromFiscalValue(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return 0;
+  }
+  const normalized = String(value).replace(",", ".");
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
+}
+
+function fiscalValueFromCents(cents: number) {
+  return Number((cents / 100).toFixed(2));
+}
+
+function fiscalValueOrZero(value: unknown) {
+  return value === undefined || value === null || value === ""
+    ? 0
+    : value;
+}
+
+function applyRtcTotalCompatibility(infNFe: JsonObject) {
+  const details = Array.isArray(infNFe.det)
+    ? infNFe.det
+    : infNFe.det
+      ? [infNFe.det]
+      : [];
+
+  const totals = {
+    vBCIBSCBS: 0,
+    vIBSUF: 0,
+    vIBSMun: 0,
+    vIBS: 0,
+    vCBS: 0
+  };
+  let foundRegularRtc = false;
+
+  for (const detail of details) {
+    if (typeof detail !== "object" || detail === null) {
+      continue;
+    }
+    const imposto = (detail as JsonObject).imposto;
+    if (typeof imposto !== "object" || imposto === null) {
+      continue;
+    }
+    const ibsCbs = (imposto as JsonObject).IBSCBS;
+    if (typeof ibsCbs !== "object" || ibsCbs === null) {
+      continue;
+    }
+    const regular = (ibsCbs as JsonObject).gIBSCBS;
+    if (typeof regular !== "object" || regular === null) {
+      continue;
+    }
+
+    foundRegularRtc = true;
+    const regularRtc = regular as JsonObject;
+    const gIBSUF =
+      typeof regularRtc.gIBSUF === "object" && regularRtc.gIBSUF !== null
+        ? (regularRtc.gIBSUF as JsonObject)
+        : undefined;
+    const gIBSMun =
+      typeof regularRtc.gIBSMun === "object" && regularRtc.gIBSMun !== null
+        ? (regularRtc.gIBSMun as JsonObject)
+        : undefined;
+    const gCBS =
+      typeof regularRtc.gCBS === "object" && regularRtc.gCBS !== null
+        ? (regularRtc.gCBS as JsonObject)
+        : undefined;
+
+    totals.vBCIBSCBS += centsFromFiscalValue(regularRtc.vBC);
+    totals.vIBSUF += centsFromFiscalValue(gIBSUF?.vIBSUF);
+    totals.vIBSMun += centsFromFiscalValue(gIBSMun?.vIBSMun);
+    totals.vIBS += centsFromFiscalValue(regularRtc.vIBS);
+    totals.vCBS += centsFromFiscalValue(gCBS?.vCBS);
+  }
+
+  if (!foundRegularRtc) {
+    return;
+  }
+
+  if (typeof infNFe.total !== "object" || infNFe.total === null) {
+    infNFe.total = {};
+  }
+  const total = infNFe.total as JsonObject;
+  if (typeof total.IBSCBSTot !== "object" || total.IBSCBSTot === null) {
+    total.IBSCBSTot = {};
+  }
+
+  const previousTotal = total.IBSCBSTot as JsonObject;
+  const previousGIBS =
+    typeof previousTotal.gIBS === "object" && previousTotal.gIBS !== null
+      ? (previousTotal.gIBS as JsonObject)
+      : {};
+  const previousGIBSUF =
+    typeof previousGIBS.gIBSUF === "object" && previousGIBS.gIBSUF !== null
+      ? (previousGIBS.gIBSUF as JsonObject)
+      : {};
+  const previousGIBSMun =
+    typeof previousGIBS.gIBSMun === "object" && previousGIBS.gIBSMun !== null
+      ? (previousGIBS.gIBSMun as JsonObject)
+      : {};
+  const previousGCBS =
+    typeof previousTotal.gCBS === "object" && previousTotal.gCBS !== null
+      ? (previousTotal.gCBS as JsonObject)
+      : {};
+
+  const nextTotal: JsonObject = {
+    vBCIBSCBS: fiscalValueFromCents(totals.vBCIBSCBS),
+    gIBS: {
+      gIBSUF: {
+        vDif: fiscalValueOrZero(previousGIBSUF.vDif),
+        vDevTrib: fiscalValueOrZero(previousGIBSUF.vDevTrib),
+        vIBSUF: fiscalValueFromCents(totals.vIBSUF)
+      },
+      gIBSMun: {
+        vDif: fiscalValueOrZero(previousGIBSMun.vDif),
+        vDevTrib: fiscalValueOrZero(previousGIBSMun.vDevTrib),
+        vIBSMun: fiscalValueFromCents(totals.vIBSMun)
+      },
+      vIBS: fiscalValueFromCents(totals.vIBS || totals.vIBSUF + totals.vIBSMun),
+      vCredPres: fiscalValueOrZero(previousGIBS.vCredPres),
+      vCredPresCondSus: fiscalValueOrZero(previousGIBS.vCredPresCondSus)
+    },
+    gCBS: {
+      vDif: fiscalValueOrZero(previousGCBS.vDif),
+      vDevTrib: fiscalValueOrZero(previousGCBS.vDevTrib),
+      vCBS: fiscalValueFromCents(totals.vCBS),
+      vCredPres: fiscalValueOrZero(previousGCBS.vCredPres),
+      vCredPresCondSus: fiscalValueOrZero(previousGCBS.vCredPresCondSus)
+    }
+  };
+
+  if (previousTotal.gMono) {
+    nextTotal.gMono = previousTotal.gMono;
+  }
+  if (previousTotal.gEstornoCred) {
+    nextTotal.gEstornoCred = previousTotal.gEstornoCred;
+  }
+  total.IBSCBSTot = nextTotal;
+}
+
 function certificateBody(certificatePem: string) {
   return certificatePem
     .replace(/-----BEGIN CERTIFICATE-----/g, "")
@@ -536,6 +675,7 @@ export function generateAndSignNfeXml(
 
   applyHomologationRequiredText(infNFe);
   applyPaymentCompatibility(infNFe);
+  applyRtcTotalCompatibility(infNFe);
   const accessKey = accessKeyFromInfNFe(infNFe);
   applyResponsibleTechnicalCsrt(infNFe, accessKey, responsibleTechnicalCsrtConfig);
   const version = String(infNFe.versao ?? "4.00");

@@ -641,8 +641,11 @@ async function transmitGuairaIpmXml(
   const generatedXml = buildGuairaIpmEmissionXml(config, draft, {
     includeCustomerAddress
   });
-  if (!generatedXml.includes("<nfse_teste>1</nfse_teste>")) {
+  if (config.testMode && !generatedXml.includes("<nfse_teste>1</nfse_teste>")) {
     throw new Error("XML de teste IPM sem a tag nfse_teste=1.");
+  }
+  if (!config.testMode && generatedXml.includes("<nfse_teste>1</nfse_teste>")) {
+    throw new Error("XML de producao IPM nao deve conter nfse_teste=1.");
   }
 
   const request = buildGuairaIpmMultipartRequest(generatedXml);
@@ -662,9 +665,10 @@ async function transmitGuairaIpmXml(
   };
 }
 
-export async function transmitGuairaIpmTest(
+async function transmitGuairaIpm(
   store: InMemoryStore,
-  documentId: string
+  documentId: string,
+  options: { requireTestMode?: boolean } = {}
 ): Promise<GuairaNfseProcessingResult> {
   const document = store.findDocument(documentId, "NFSe");
   if (!document) {
@@ -691,8 +695,14 @@ export async function transmitGuairaIpmTest(
 
   const settings = resolveConfig(issuer, serviceConfig);
   validateConfig(settings);
-  if (!settings.testMode) {
+  if (options.requireTestMode && !settings.testMode) {
     throw new Error("O modo nfse_teste=1 deve estar ativo para esta transmissao.");
+  }
+  if (document.ambiente === "homologacao" && !settings.testMode) {
+    throw new Error("Homologacao IPM deve usar nfse_teste=1.");
+  }
+  if (document.ambiente === "producao" && settings.testMode) {
+    throw new Error("Producao IPM deve usar Emissao real, sem nfse_teste=1.");
   }
   if (!serviceConfig.secretsEncrypted) {
     throw new Error("Senha municipal IPM nao configurada.");
@@ -789,17 +799,19 @@ export async function transmitGuairaIpmTest(
     updated.mensagens = parsed?.messages ?? [];
   }
   store.addDocumentEvent(document.id, {
-    eventType: "nfse_guaira_ipm_test_transmission",
-    level: explicitSuccess ? "info" : status === "rejeitado" ? "warn" : "info",
-    message: reason,
-    payload: {
-      provider: "guaira-ipm",
-      httpStatus: attempt.response.status,
-      testMode: true,
-      explicitSuccess,
-      statusCode: reasonCode,
-      providerDocumentNumber: parsed?.number || null,
-      addressInformed: attempt.addressInformed,
+      eventType: settings.testMode
+        ? "nfse_guaira_ipm_test_transmission"
+        : "nfse_guaira_ipm_production_transmission",
+      level: explicitSuccess ? "info" : status === "rejeitado" ? "warn" : "info",
+      message: reason,
+      payload: {
+        provider: "guaira-ipm",
+        httpStatus: attempt.response.status,
+        testMode: settings.testMode,
+        explicitSuccess,
+        statusCode: reasonCode,
+        providerDocumentNumber: parsed?.number || null,
+        addressInformed: attempt.addressInformed,
       retriedWithoutAddress
     }
   });
@@ -810,6 +822,20 @@ export async function transmitGuairaIpmTest(
     transmitted: true,
     error: status === "rejeitado" ? reason : null
   };
+}
+
+export async function transmitGuairaIpmTest(
+  store: InMemoryStore,
+  documentId: string
+): Promise<GuairaNfseProcessingResult> {
+  return transmitGuairaIpm(store, documentId, { requireTestMode: true });
+}
+
+export async function transmitGuairaIpmNfse(
+  store: InMemoryStore,
+  documentId: string
+): Promise<GuairaNfseProcessingResult> {
+  return transmitGuairaIpm(store, documentId);
 }
 
 export async function consultGuairaIpmNfse(
@@ -1153,7 +1179,7 @@ export async function processGuairaIpmNfse(
     validateDraft(draft);
     const generatedXml = buildGuairaIpmEmissionXml(settings, draft);
     const reason = settings.autoTransmit
-      ? "XML NFS-e Guaira/IPM validado; transmissao automatica de teste iniciada."
+      ? "XML NFS-e Guaira/IPM validado; transmissao automatica iniciada."
       : "XML NFS-e Guaira/IPM gerado em dry-run.";
     const updated = store.saveMunicipalProcessingResult(document.id, {
       providerName: "guaira-ipm",
@@ -1186,7 +1212,7 @@ export async function processGuairaIpmNfse(
     });
     await store.waitForPersistence();
     if (settings.autoTransmit) {
-      return transmitGuairaIpmTest(store, document.id);
+      return transmitGuairaIpmNfse(store, document.id);
     }
     return { document: updated ?? document, transmitted: false, error: null };
   } catch (error) {
