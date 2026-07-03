@@ -52,6 +52,12 @@ function hasNumberLike(value: unknown) {
   return normalized !== "" && Number.isFinite(Number(normalized));
 }
 
+function numberLike(value: unknown) {
+  const normalized = String(value ?? "").replace(",", ".").trim();
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function hasAnyText(...values: unknown[]) {
   return values.some((value) => hasText(value));
 }
@@ -168,6 +174,21 @@ export function validateRtcPayload(
         "infNFe.total.IBSCBSTot.vBCIBSCBS",
         "Informe vBCIBSCBS numerico no total IBS/CBS."
       );
+    } else {
+      const productsTotal = details.reduce<number>((sum, detail) => {
+        const prod = asObject(asObject(detail)?.prod);
+        return sum + (numberLike(prod?.vProd) ?? 0);
+      }, 0);
+      const rtcBaseTotal = numberLike(ibsCbsTotal.vBCIBSCBS) ?? 0;
+
+      if (productsTotal > 0 && rtcBaseTotal <= 0) {
+        pushIssue(
+          issues,
+          "rtc_total_base_zero_for_positive_products",
+          "infNFe.total.IBSCBSTot.vBCIBSCBS",
+          "vBCIBSCBS nao pode ser zero quando ha produtos com valor e IBS/CBS foi informado."
+        );
+      }
     }
   }
 
@@ -274,6 +295,18 @@ export function validateRtcPayload(
       );
     }
     if (gIBSCBS) {
+      const prod = asObject(item.detail?.prod);
+      const productValue = numberLike(prod?.vProd) ?? 0;
+      const rtcBase = numberLike(gIBSCBS.vBC) ?? 0;
+      if (productValue > 0 && rtcBase <= 0) {
+        pushIssue(
+          issues,
+          "rtc_item_base_zero_for_positive_product",
+          `${path}.gIBSCBS.vBC`,
+          "vBC IBS/CBS nao pode ser zero quando o item possui vProd positivo."
+        );
+      }
+
       const gIBSUF = asObject(gIBSCBS.gIBSUF);
       const gIBSMun = asObject(gIBSCBS.gIBSMun);
       const gCBS = asObject(gIBSCBS.gCBS);

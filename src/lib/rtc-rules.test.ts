@@ -17,26 +17,27 @@ function rtcPayload() {
       det: [
         {
           prod: {
-            CFOP: "5102"
+            CFOP: "5102",
+            vProd: 100
           },
           imposto: {
             IBSCBS: {
               CST: "000",
               cClassTrib: "000001",
               gIBSCBS: {
-                vBC: 0,
+                vBC: 100,
                 gIBSUF: {
-                  pIBSUF: 0,
-                  vIBSUF: 0
+                  pIBSUF: 0.1,
+                  vIBSUF: 0.1
                 },
                 gIBSMun: {
                   pIBSMun: 0,
                   vIBSMun: 0
                 },
-                vIBS: 0,
+                vIBS: 0.1,
                 gCBS: {
-                  pCBS: 0,
-                  vCBS: 0
+                  pCBS: 0.9,
+                  vCBS: 0.9
                 }
               }
             }
@@ -45,7 +46,7 @@ function rtcPayload() {
       ],
       total: {
         IBSCBSTot: {
-          vBCIBSCBS: 0
+          vBCIBSCBS: 100
         }
       }
     }
@@ -79,6 +80,28 @@ test("concilia venda comum com classificacao tributada integralmente", () => {
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.issues, []);
+});
+
+test("bloqueia placeholder RTC zerado quando item possui valor", () => {
+  const payload = rtcPayload();
+  const rtc = payload.infNFe.det[0].imposto.IBSCBS.gIBSCBS;
+  rtc.vBC = 0;
+  rtc.gIBSUF.vIBSUF = 0;
+  rtc.vIBS = 0;
+  rtc.gCBS.vCBS = 0;
+  payload.infNFe.total.IBSCBSTot.vBCIBSCBS = 0;
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "rtc_item_base_zero_for_positive_product"),
+    true
+  );
+  assert.equal(
+    result.issues.some((issue) => issue.code === "rtc_total_base_zero_for_positive_products"),
+    true
+  );
 });
 
 test("catalogo RTC carrega classificacoes oficiais IBS/CBS exportadas da SVRS/CFF", () => {
