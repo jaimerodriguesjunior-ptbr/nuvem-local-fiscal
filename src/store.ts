@@ -416,14 +416,32 @@ export class InMemoryStore {
     const existingCount = this.documents.filter(
       (item) => item.issuerCnpj === input.issuerCnpj && item.tipoDocumento === input.tipoDocumento
     ).length;
-    const numero = existingCount + 1;
-    const serie = issuer
+    const payload = input.payloadOriginal as Record<string, unknown>;
+    const infNFe =
+      typeof payload.infNFe === "object" && payload.infNFe !== null
+        ? (payload.infNFe as Record<string, unknown>)
+        : payload;
+    const ide =
+      typeof infNFe.ide === "object" && infNFe.ide !== null
+        ? (infNFe.ide as Record<string, unknown>)
+        : {};
+    const payloadNumero = Number(ide.nNF);
+    const payloadSerie = Number(ide.serie);
+    const fallbackSerie = issuer
       ? input.tipoDocumento === "NFe"
         ? issuer.serieNfe
         : input.tipoDocumento === "NFCe"
           ? issuer.serieNfce
           : 1
       : 1;
+    const numero =
+      Number.isInteger(payloadNumero) && payloadNumero > 0
+        ? payloadNumero
+        : existingCount + 1;
+    const serie =
+      Number.isInteger(payloadSerie) && payloadSerie > 0
+        ? payloadSerie
+        : fallbackSerie;
     const status = input.forcedStatus ?? "processamento";
     const authorized = status === "autorizado";
     const id = `doc_${randomUUID().slice(0, 8)}`;

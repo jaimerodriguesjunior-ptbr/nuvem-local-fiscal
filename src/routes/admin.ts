@@ -393,10 +393,10 @@ const legacyAdminHtml = `<!doctype html>
           '<button type="button" ' + (canDecide ? '' : 'disabled') + ' onclick="changeDocumentStatus(\\'' + doc.id + '\\', \\'autorizar\\')">4. Simular autorizaÃ§Ã£o</button>' +
           '<button type="button" class="reject" onclick="rejectDocument(\\'' + doc.id + '\\')">4. Rejeitar</button>' +
           '<button type="button" class="process" onclick="changeDocumentStatus(\\'' + doc.id + '\\', \\'processar\\')">Voltar a processando</button>' +
-          '<button type="button" class="sign" ' + (doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao' ? '' : 'disabled') +
+          '<button type="button" class="sign" ' + (doc.signatureValid && doc.xsdValid && (doc.ambiente === 'homologacao' || config.fiscalProductionEnabled) ? '' : 'disabled') +
             ' onclick="prepareSefazAuthorization(\\'' + doc.id + '\\')">5. Preparar envio SEFAZ</button>' +
-          '<button type="button" class="reject" ' + (doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao' ? '' : 'disabled') +
-            ' onclick="transmitToSefaz(\\'' + doc.id + '\\')">6. Transmitir homologaÃ§Ã£o</button>' +
+          '<button type="button" class="reject" ' + (doc.signatureValid && doc.xsdValid && (doc.ambiente === 'homologacao' || config.fiscalProductionEnabled) ? '' : 'disabled') +
+            ' onclick="transmitToSefaz(\\'' + doc.id + '\\')">6. Transmitir SEFAZ</button>' +
           (doc.xmlSigned ? '<button type="button" class="sign" onclick="downloadSignedXml(\\'' + doc.id + '\\')">Baixar XML assinado</button>' : '') +
         '</div>' +
         '<div class="row">' +
@@ -561,14 +561,18 @@ const legacyAdminHtml = `<!doctype html>
     }
 
     async function transmitToSefaz(id) {
+      const doc = data.documents.find((item) => item.id === id);
+      const environment = doc ? doc.ambiente : 'homologacao';
       const confirmation = prompt(
-        'Esta acao enviara a NFC-e para a SEFAZ-PR em HOMOLOGACAO. Digite TRANSMITIR HOMOLOGACAO para continuar:'
+        'Esta acao enviara o documento fiscal para a SEFAZ em ' +
+        String(environment).toUpperCase() +
+        '. Digite TRANSMITIR SEFAZ para continuar:'
       );
-      if (confirmation !== 'TRANSMITIR HOMOLOGACAO') {
+      if (confirmation !== 'TRANSMITIR SEFAZ') {
         document.getElementById('responseBox').textContent = 'Transmissao cancelada.';
         return;
       }
-      document.getElementById('responseBox').textContent = 'Transmitindo para a SEFAZ-PR em homologacao...';
+      document.getElementById('responseBox').textContent = 'Transmitindo para a SEFAZ...';
       const res = await fetch('/admin/api/documents/' + id + '/sefaz-authorize', {
         method: 'POST',
         headers: {
@@ -687,6 +691,22 @@ function positiveSeries(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 && parsed <= 999 ? parsed : null;
 }
 
+function optionalPositiveInteger(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeAdminConfirmation(
+  value: unknown,
+  accepted: string[],
+  legacy: string[] = []
+) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!normalized) return false;
+  return [...accepted, ...legacy].some((item) => item.toUpperCase() === normalized);
+}
+
 function fiscalCheck(name: string, ok: boolean, message: string, details?: Record<string, unknown>) {
   return {
     name,
@@ -708,7 +728,12 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(401).send(unauthorized());
     }
 
-    return app.store.getSnapshot();
+    return {
+      ...app.store.getSnapshot(),
+      runtime: {
+        fiscalProductionBlocked: !config.fiscalProductionEnabled
+      }
+    };
   });
 
   app.get("/admin/api/documents/:id/events", async (request, reply) => {
@@ -1018,14 +1043,17 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const environment = parseAdminEnvironment(params.environment);
     const crt = String(body.crt ?? "").trim();
     const serieNfe = positiveSeries(body.serieNfe);
+    const nfeLastNumber = optionalPositiveInteger(body.nfeLastNumber);
+    const nfeLastBatchId = String(body.nfeLastBatchId ?? "").replace(/\D/g, "");
     if (
       cnpj.length !== 14 ||
       !environment ||
       !["1", "2", "3", "4"].includes(crt) ||
-      !serieNfe
+      !serieNfe ||
+      nfeLastNumber === null
     ) {
       return reply.code(400).send({
-        message: "Informe CNPJ, ambiente, CRT (1 a 4) e serie NF-e entre 1 e 999."
+        message: "Informe CNPJ, ambiente, CRT (1 a 4), serie NF-e entre 1 e 999 e ultima NF-e positiva quando preenchida."
       });
     }
 
@@ -1043,8 +1071,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFE", {
       active: body.ativo === false ? false : true,
       settings: {
-        autoTransmit:
-          environment === "homologacao" && body.autoTransmit !== false
+        autoTransmit: body.autoTransmit !== false,
+        nfeLastNumber,
+        nfeLastBatchId: nfeLastBatchId || undefined
       },
       preserveSecrets: true
     });
@@ -1059,7 +1088,8 @@ export async function registerAdminRoutes(app: FastifyInstance) {
             settings: serviceConfig.settings
           }
         : null,
-      production_blocked: environment === "producao"
+      production_blocked:
+        environment === "producao" && !config.fiscalProductionEnabled
     };
   });
 
@@ -1267,7 +1297,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     }
 
     const body = (request.body as Record<string, unknown> | undefined) ?? {};
-    if (body.confirmation !== "PROCESSAR HOMOLOGACAO") {
+    if (
+      !normalizeAdminConfirmation(body.confirmation, ["PROCESSAR FISCAL"], [
+        "PROCESSAR HOMOLOGACAO"
+      ])
+    ) {
       return reply.code(400).send({
         message: "Confirmacao invalida. O documento nao foi transmitido."
       });
@@ -1278,9 +1312,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!document) {
       return reply.code(404).send({ message: "Documento nao encontrado." });
     }
-    if (document.ambiente !== "homologacao") {
+    if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
       return reply.code(403).send({
-        message: "O processamento automatico esta limitado a homologacao."
+        message: "A liberacao global de producao esta desligada neste servidor."
       });
     }
     if (document.status === "autorizado" || document.status === "cancelado") {
@@ -1331,9 +1365,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
           "O documento precisa ter XML assinado, chave, assinatura valida e XSD valido."
       });
     }
-    if (document.ambiente !== "homologacao") {
+    if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
       return reply.code(403).send({
-        message: "A preparacao desta etapa esta limitada a homologacao."
+        message: "A liberacao global de producao esta desligada neste servidor."
       });
     }
 
@@ -1341,7 +1375,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     const validation = validateAuthorizationBatchXml(batch.batchXml);
     return reply.code(validation.valid ? 200 : 422).send({
       message: validation.valid
-        ? "Lote pronto para transmissao em homologacao. Nada foi enviado."
+        ? `Lote pronto para transmissao em ${document.ambiente}. Nada foi enviado.`
         : "Lote reprovado antes da transmissao.",
       transmite_documento: false,
       ambiente: document.ambiente,
@@ -1362,7 +1396,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     }
 
     const body = (request.body as Record<string, unknown> | undefined) ?? {};
-    if (body.confirmation !== "TRANSMITIR HOMOLOGACAO") {
+    if (
+      !normalizeAdminConfirmation(body.confirmation, ["TRANSMITIR SEFAZ"], [
+        "TRANSMITIR HOMOLOGACAO"
+      ])
+    ) {
       return reply.code(400).send({
         message: "Confirmacao invalida. A transmissao nao foi realizada."
       });
@@ -1386,9 +1424,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
           "O documento precisa ter XML assinado, chave, assinatura valida e XSD valido."
       });
     }
-    if (document.ambiente !== "homologacao") {
+    if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
       return reply.code(403).send({
-        message: "Transmissao em producao permanece bloqueada."
+        message: "A liberacao global de producao esta desligada neste servidor."
       });
     }
 

@@ -60,6 +60,8 @@ export type ServiceConfig = {
   settings: {
     cscId?: string;
     autoTransmit?: boolean;
+    nfeLastNumber?: number;
+    nfeLastBatchId?: string;
     nfseLogin?: string;
     nfseProvider?: string;
     nfseMunicipalityCode?: string;

@@ -561,6 +561,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       payload: {
         crt: "1",
         serieNfe: 2,
+        nfeLastNumber: 123,
+        nfeLastBatchId: "411000687792025",
         ativo: true,
         autoTransmit: false
       }
@@ -572,8 +574,74 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       false
     );
     assert.equal(
+      saveNfeServiceConfig.json().service.settings.nfeLastNumber,
+      123
+    );
+    assert.equal(
+      saveNfeServiceConfig.json().service.settings.nfeLastBatchId,
+      "411000687792025"
+    );
+    assert.equal(
       app.store.findIssuerByCnpj(cnpj, "homologacao")?.serieNfe,
       2
+    );
+
+    const saveProductionEnvironment = await app.inject({
+      method: "POST",
+      url: `/admin/api/companies/${cnpj}/environments/producao`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        razaoSocial: "Empresa Integracao",
+        nomeFantasia: "Empresa Integracao",
+        uf: "PR",
+        ie: "1234567890",
+        crt: "1",
+        serieNfe: 1,
+        serieNfce: 1,
+        ativo: true
+      }
+    });
+    assert.equal(
+      saveProductionEnvironment.statusCode,
+      200,
+      saveProductionEnvironment.body
+    );
+
+    const saveProductionNfeServiceConfig = await app.inject({
+      method: "POST",
+      url: `/admin/api/companies/${cnpj}/services/nfe/producao`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        crt: "1",
+        serieNfe: 2,
+        nfeLastNumber: 7,
+        nfeLastBatchId: "411000000000001",
+        ativo: true,
+        autoTransmit: true
+      }
+    });
+    assert.equal(
+      saveProductionNfeServiceConfig.statusCode,
+      200,
+      saveProductionNfeServiceConfig.body
+    );
+    assert.equal(
+      saveProductionNfeServiceConfig.json().service.settings.autoTransmit,
+      true
+    );
+    assert.equal(
+      saveProductionNfeServiceConfig.json().service.settings.nfeLastNumber,
+      7
+    );
+    assert.equal(
+      saveProductionNfeServiceConfig.json().service.settings.nfeLastBatchId,
+      "411000000000001"
     );
 
     const saveServiceConfig = await app.inject({

@@ -828,6 +828,36 @@ const page = String.raw`<!doctype html>
       return state.snapshot.documents.filter(function(doc) { return doc.issuerCnpj === cnpj; });
     }
 
+    function fiscalProductionBlocked() {
+      return state.snapshot.runtime
+        ? state.snapshot.runtime.fiscalProductionBlocked !== false
+        : true;
+    }
+
+    function productionAllowedForAdmin() {
+      return !fiscalProductionBlocked();
+    }
+
+    function documentCanAutoProcess(doc) {
+      if (doc.status === 'autorizado' || doc.status === 'cancelado') return false;
+      if (doc.ambiente === 'homologacao') return true;
+      return doc.ambiente === 'producao' && productionAllowedForAdmin();
+    }
+
+    function documentCanTransmit(doc) {
+      if (!doc.signatureValid || !doc.xsdValid) return false;
+      if (doc.ambiente === 'homologacao') return true;
+      return doc.ambiente === 'producao' && productionAllowedForAdmin();
+    }
+
+    function transmissionLabel(environment, autoTransmit) {
+      if (environment === 'producao') {
+        if (fiscalProductionBlocked()) return 'Liberacao global pendente';
+        return autoTransmit ? 'Automatica em producao piloto' : 'Manual em producao piloto';
+      }
+      return autoTransmit ? 'Automatica em homologacao' : 'Dry-run / manual';
+    }
+
     function eventsFor(documentId) {
       return (state.snapshot.documentEvents || []).filter(function(event) {
         return event.documentId === documentId;
@@ -1336,11 +1366,20 @@ const page = String.raw`<!doctype html>
         return doc.tipoDocumento === 'NFe' && doc.ambiente === state.environment;
       });
       const lastDocument = docs.length ? docs[0] : null;
+      const lastAuthorizedDocument = docs.find(function(doc) {
+        return doc.status === 'autorizado' && doc.protocolo;
+      }) || null;
       const active = storedConfig ? storedConfig.active : true;
       const autoTransmit = storedConfig && storedConfig.settings
         ? storedConfig.settings.autoTransmit !== false
         : true;
+      const settings = storedConfig && storedConfig.settings ? storedConfig.settings : {};
+      const lastNfeNumber = settings.nfeLastNumber || (lastAuthorizedDocument ? lastAuthorizedDocument.numero : null);
+      const lastNfeBatch = settings.nfeLastBatchId || (lastAuthorizedDocument ? lastAuthorizedDocument.sefazBatchId : null);
       const production = state.environment === 'producao';
+      const productionStatus = production
+        ? fiscalProductionBlocked() ? 'Producao bloqueada' : 'Producao piloto'
+        : 'Homologacao';
 
       return '<section class="service-box"><div class="eyebrow">Configuracao do servico</div>' +
         '<h2>Nota Fiscal Eletronica</h2>' +
@@ -1351,9 +1390,9 @@ const page = String.raw`<!doctype html>
           '<button type="button" class="' + (production ? 'active' : '') +
             '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
-          info('Ambiente', production ? 'Producao bloqueada' : 'Homologacao') +
-          info('Ultima NF-e', lastDocument ? '#' + lastDocument.numero : 'Nenhuma') +
-          info('Ultimo lote', lastDocument && lastDocument.sefazBatchId ? lastDocument.sefazBatchId : 'Nenhum') +
+          info('Ambiente', productionStatus) +
+          info('Ultima NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
+          info('Ultimo lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
           '</div><form id="nfeServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -1366,6 +1405,13 @@ const page = String.raw`<!doctype html>
               '</select></label>' +
               '<label>Serie NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
+            '</div><div class="two-col">' +
+              '<label>Ultima NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
+                escapeHtml(settings.nfeLastNumber ? String(settings.nfeLastNumber) : '') + '" placeholder="' +
+                escapeHtml(lastAuthorizedDocument ? String(lastAuthorizedDocument.numero) : 'Ex.: 123') + '" /></label>' +
+              '<label>Ultimo lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
+                escapeHtml(settings.nfeLastBatchId ? String(settings.nfeLastBatchId) : '') + '" placeholder="' +
+                escapeHtml(lastAuthorizedDocument && lastAuthorizedDocument.sefazBatchId ? String(lastAuthorizedDocument.sefazBatchId) : 'Opcional') + '" /></label>' +
             '</div><div class="two-col">' +
               '<label>Servico<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
                 '>Ativo</option><option value="false"' + (!active ? ' selected' : '') + '>Inativo</option></select></label>' +
@@ -1531,11 +1577,9 @@ const page = String.raw`<!doctype html>
         providerPreset.issRate,
         forcePreset
       );
-      const autoTransmit = production
-        ? false
-        : forcePreset && typeof providerPreset.autoTransmit === 'boolean'
-          ? providerPreset.autoTransmit
-          : settings.autoTransmit !== false;
+      const autoTransmit = forcePreset && typeof providerPreset.autoTransmit === 'boolean'
+        ? providerPreset.autoTransmit
+        : settings.autoTransmit !== false;
 
       return '<section class="service-box"><div class="eyebrow">Configuracao municipal</div>' +
         '<h2>Nota Fiscal de Servico Eletronica</h2>' +
@@ -1551,7 +1595,7 @@ const page = String.raw`<!doctype html>
           compactInfo('Certificado A1', cert ? 'Ativo' : 'Nao cadastrado') +
           compactInfo('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha nao configurada') +
           compactInfo('Proximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Nao informado') +
-          compactInfo('Transmissao', production ? 'Producao bloqueada' : autoTransmit ? 'Automatica em homologacao' : 'Dry-run / manual') +
+          compactInfo('Transmissao', transmissionLabel(state.environment, autoTransmit)) +
           '</div><form id="nfseServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -1615,7 +1659,7 @@ const page = String.raw`<!doctype html>
                 '<option value="true"' + (testMode ? ' selected' : '') + '>Teste sem emissao (nfse_teste=1)</option>' +
                 '<option value="false"' + (!testMode ? ' selected' : '') + '>Emissao real</option>' +
               '</select></label>' +
-            '</div><div class="empty">Para transmissao automatica em homologacao, mantenha "Teste sem emissao (nfse_teste=1)". A producao continua bloqueada pela API.</div>') +
+            '</div><div class="empty">Em homologacao IPM, mantenha "Teste sem emissao (nfse_teste=1)". Para piloto em producao, troque para "Emissao real" apenas na empresa validada.</div>') +
             '<div class="section-head"><div><h3>RPS</h3><p>' +
               (isToledo ? 'Sequencia usada pelo lote Equiplano.' : 'Uso e sequencia precisam ser confirmados para Guaira antes da transmissao.') +
             '</p></div></div>' +
@@ -1638,12 +1682,18 @@ const page = String.raw`<!doctype html>
               '<label>Item do servico<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
               '<label>Subitem do servico<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
             '</div>' : '') +
-            '<label>Transmissao<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
+            '<label>Transmissao<select name="autoTransmit">' +
               '<option value="false"' + (!autoTransmit ? ' selected' : '') + '>Dry-run / manual</option>' +
-              '<option value="true"' + (!production && autoTransmit ? ' selected' : '') + '>Automatica em homologacao</option>' +
+              '<option value="true"' + (autoTransmit ? ' selected' : '') + '>' +
+                (production ? 'Automatica em producao piloto' : 'Automatica em homologacao') +
+              '</option>' +
             '</select></label>' +
             (isIpm ? '<div class="empty">No IPM, a opcao automatica transmite somente em homologacao e exige XML com nfse_teste=1.</div>' : '') +
-            (production ? '<div class="empty">A emissao NFS-e em producao permanece bloqueada por seguranca.</div>' : '') +
+            (production && fiscalProductionBlocked()
+              ? '<div class="empty">A liberacao global de producao ainda esta desligada neste servidor.</div>'
+              : production
+                ? '<div class="empty">Producao em modo piloto. Mantenha aberto apenas o municipio e o fluxo ja validados.</div>'
+                : '') +
             (!cert ? '<div class="empty">Voce pode salvar a configuracao agora, mas a emissao real exigira um certificado A1 ativo deste CNPJ.</div>' : '') +
             '<div><button type="submit" class="btn">Salvar configuracao NFS-e</button></div>' +
           '</form>' :
@@ -1663,11 +1713,20 @@ const page = String.raw`<!doctype html>
         return doc.tipoDocumento === 'NFe' && doc.ambiente === state.environment;
       });
       const lastDocument = docs.length ? docs[0] : null;
+      const lastAuthorizedDocument = docs.find(function(doc) {
+        return doc.status === 'autorizado' && doc.protocolo;
+      }) || null;
       const active = storedConfig ? storedConfig.active : true;
       const autoTransmit = storedConfig && storedConfig.settings
         ? storedConfig.settings.autoTransmit !== false
         : true;
+      const settings = storedConfig && storedConfig.settings ? storedConfig.settings : {};
+      const lastNfeNumber = settings.nfeLastNumber || (lastAuthorizedDocument ? lastAuthorizedDocument.numero : null);
+      const lastNfeBatch = settings.nfeLastBatchId || (lastAuthorizedDocument ? lastAuthorizedDocument.sefazBatchId : null);
       const production = state.environment === 'producao';
+      const productionStatus = production
+        ? fiscalProductionBlocked() ? 'Liberacao global pendente' : 'Producao piloto'
+        : 'Homologacao';
 
       return '<section class="service-box"><div class="eyebrow">Configuracao do servico</div>' +
         '<h2>Nota Fiscal Eletronica</h2>' +
@@ -1678,9 +1737,9 @@ const page = String.raw`<!doctype html>
           '<button type="button" class="' + (production ? 'active' : '') +
             '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
-          compactInfo('Ambiente', production ? 'Producao bloqueada' : 'Homologacao') +
-          compactInfo('Ultima NF-e', lastDocument ? '#' + lastDocument.numero : 'Nenhuma') +
-          compactInfo('Ultimo lote', lastDocument && lastDocument.sefazBatchId ? lastDocument.sefazBatchId : 'Nenhum') +
+          compactInfo('Ambiente', productionStatus) +
+          compactInfo('Ultima NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
+          compactInfo('Ultimo lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
           '</div><form id="nfeServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -1694,14 +1753,27 @@ const page = String.raw`<!doctype html>
               '<label>Serie NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
             '</div><div class="two-col">' +
+              '<label>Ultima NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
+                escapeHtml(settings.nfeLastNumber ? String(settings.nfeLastNumber) : '') + '" placeholder="' +
+                escapeHtml(lastAuthorizedDocument ? String(lastAuthorizedDocument.numero) : 'Ex.: 123') + '" /></label>' +
+              '<label>Ultimo lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
+                escapeHtml(settings.nfeLastBatchId ? String(settings.nfeLastBatchId) : '') + '" placeholder="' +
+                escapeHtml(lastAuthorizedDocument && lastAuthorizedDocument.sefazBatchId ? String(lastAuthorizedDocument.sefazBatchId) : 'Opcional') + '" /></label>' +
+            '</div><div class="two-col">' +
               '<label>Servico<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
                 '>Ativo</option><option value="false"' + (!active ? ' selected' : '') + '>Inativo</option></select></label>' +
-              '<label>Transmissao<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
-                '<option value="true"' + (!production && autoTransmit ? ' selected' : '') + '>Automatica</option>' +
-                '<option value="false"' + (production || !autoTransmit ? ' selected' : '') + '>Manual</option>' +
+              '<label>Transmissao<select name="autoTransmit">' +
+                '<option value="true"' + (autoTransmit ? ' selected' : '') + '>' +
+                  (production ? 'Automatica em producao piloto' : 'Automatica em homologacao') +
+                '</option>' +
+                '<option value="false"' + (!autoTransmit ? ' selected' : '') + '>Manual</option>' +
               '</select></label>' +
             '</div>' +
-            (production ? '<div class="empty">A transmissao em producao permanece bloqueada por seguranca.</div>' : '') +
+            (production && fiscalProductionBlocked()
+              ? '<div class="empty">A liberacao global de producao ainda esta desligada neste servidor.</div>'
+              : production
+                ? '<div class="empty">Producao em modo piloto. O ambiente nao deve bloquear venda ou devolucao so por ser producao.</div>'
+                : '') +
             '<div><button type="submit" class="btn">Salvar configuracao NF-e</button></div>' +
           '</form>' :
           '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
@@ -1793,8 +1865,7 @@ const page = String.raw`<!doctype html>
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
-      const canAutoProcess = doc.ambiente === 'homologacao' &&
-        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const canAutoProcess = documentCanAutoProcess(doc);
       return '<article class="document recent-document"><div class="document-summary">' +
         '<div class="document-head">' +
           '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
@@ -1840,8 +1911,7 @@ const page = String.raw`<!doctype html>
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
-      const canAutoProcess = doc.ambiente === 'homologacao' &&
-        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const canAutoProcess = documentCanAutoProcess(doc);
       return '<article class="document recent-document"><div class="document-summary">' +
         '<div class="document-head">' +
           '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
@@ -1887,9 +1957,8 @@ const page = String.raw`<!doctype html>
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
-      const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
-      const canAutoProcess = doc.ambiente === 'homologacao' &&
-        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const canTransmit = documentCanTransmit(doc);
+      const canAutoProcess = documentCanAutoProcess(doc);
       const tone = doc.status === 'autorizado' ? 'ok' :
         doc.status === 'processamento' ? 'warn' :
         doc.status === 'rejeitado' || doc.status === 'erro' ? 'bad' : '';
@@ -1923,7 +1992,7 @@ const page = String.raw`<!doctype html>
             '<button type="button" class="btn secondary" ' + (canTransmit ? '' : 'disabled') +
               ' onclick="prepareSefazAuthorization(\'' + doc.id + '\')">Validar lote</button>' +
             '<button type="button" class="btn danger" ' + (canTransmit ? '' : 'disabled') +
-              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir homologação</button>' +
+              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir SEFAZ</button>' +
             '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeição</button>' +
             (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
               doc.id + '\')">Baixar XML assinado</button>' : '') +
@@ -1960,9 +2029,8 @@ const page = String.raw`<!doctype html>
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
-      const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
-      const canAutoProcess = doc.ambiente === 'homologacao' &&
-        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const canTransmit = documentCanTransmit(doc);
+      const canAutoProcess = documentCanAutoProcess(doc);
       return '<article class="document recent-document"><div class="document-summary">' +
         '<div class="document-head">' +
           '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
@@ -2002,7 +2070,7 @@ const page = String.raw`<!doctype html>
             '<button type="button" class="btn secondary" ' + (canTransmit ? '' : 'disabled') +
               ' onclick="prepareSefazAuthorization(\'' + doc.id + '\')">Validar lote</button>' +
             '<button type="button" class="btn danger" ' + (canTransmit ? '' : 'disabled') +
-              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir homologaÃ§Ã£o</button>' +
+              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir SEFAZ</button>' +
             '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeiÃ§Ã£o</button>' +
             (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
               doc.id + '\')">Baixar XML assinado</button>' : '') +
@@ -2039,9 +2107,8 @@ const page = String.raw`<!doctype html>
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
-      const canTransmit = doc.signatureValid && doc.xsdValid && doc.ambiente === 'homologacao';
-      const canAutoProcess = doc.ambiente === 'homologacao' &&
-        doc.status !== 'autorizado' && doc.status !== 'cancelado';
+      const canTransmit = documentCanTransmit(doc);
+      const canAutoProcess = documentCanAutoProcess(doc);
       return '<article class="document recent-document"><div class="document-summary">' +
         '<div class="document-head">' +
           '<div class="document-heading"><div class="document-number">#' + doc.numero + '</div>' +
@@ -2081,7 +2148,7 @@ const page = String.raw`<!doctype html>
             '<button type="button" class="btn secondary" ' + (canTransmit ? '' : 'disabled') +
               ' onclick="prepareSefazAuthorization(\'' + doc.id + '\')">Validar lote</button>' +
             '<button type="button" class="btn danger" ' + (canTransmit ? '' : 'disabled') +
-              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir homologação</button>' +
+              ' onclick="transmitToSefaz(\'' + doc.id + '\')">Transmitir SEFAZ</button>' +
             '<button type="button" class="btn amber" onclick="rejectDocument(\'' + doc.id + '\')">Simular rejeição</button>' +
             (doc.xmlSigned ? '<button type="button" class="btn ghost" onclick="downloadSignedXml(\'' +
               doc.id + '\')">Baixar XML assinado</button>' : '') +
@@ -2614,6 +2681,7 @@ const page = String.raw`<!doctype html>
       const form = new FormData(event.currentTarget);
       const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
       const environment = String(form.get('environment'));
+      const nfeLastNumber = String(form.get('nfeLastNumber') || '').trim();
       const response = await fetch('/admin/api/companies/' + cnpj + '/services/nfe/' + environment, {
         method: 'POST',
         headers: {
@@ -2623,9 +2691,10 @@ const page = String.raw`<!doctype html>
         body: JSON.stringify({
           crt: form.get('crt'),
           serieNfe: Number(form.get('serieNfe') || 1),
+          nfeLastNumber: nfeLastNumber ? Number(nfeLastNumber) : undefined,
+          nfeLastBatchId: form.get('nfeLastBatchId'),
           ativo: String(form.get('ativo')) === 'true',
-          autoTransmit: environment === 'homologacao' &&
-            String(form.get('autoTransmit')) === 'true'
+          autoTransmit: String(form.get('autoTransmit')) === 'true'
         })
       });
       setResponse(await response.json());
@@ -2684,8 +2753,7 @@ const page = String.raw`<!doctype html>
             subitem: form.get('serviceSubItem'),
             aliquota_iss: Number(form.get('issRate'))
           },
-          transmissao_automatica: environment === 'homologacao' &&
-            String(form.get('autoTransmit')) === 'true'
+          transmissao_automatica: String(form.get('autoTransmit')) === 'true'
         })
       });
       setResponse(await response.json());
@@ -2738,14 +2806,18 @@ const page = String.raw`<!doctype html>
     }
 
     async function processDocumentAutomatically(id) {
+      const doc = state.snapshot.documents.find(function(item) { return item.id === id; });
+      const environment = doc ? doc.ambiente : 'homologacao';
       const confirmation = prompt(
-        'Esta acao assina, valida e transmite a NFC-e para a SEFAZ-PR em HOMOLOGACAO. Digite PROCESSAR HOMOLOGACAO para continuar:'
+        'Esta acao assina, valida e transmite o documento fiscal em ' +
+        String(environment).toUpperCase() +
+        '. Digite PROCESSAR FISCAL para continuar:'
       );
-      if (confirmation !== 'PROCESSAR HOMOLOGACAO') {
+      if (confirmation !== 'PROCESSAR FISCAL') {
         setResponse('Processamento cancelado.');
         return;
       }
-      setResponse('Assinando, validando e transmitindo a NFC-e...');
+      setResponse('Assinando, validando e transmitindo o documento fiscal...');
       const response = await fetch('/admin/api/documents/' + id + '/process-automatic', {
         method: 'POST',
         headers: {
@@ -2793,14 +2865,18 @@ const page = String.raw`<!doctype html>
     }
 
     async function transmitToSefaz(id) {
+      const doc = state.snapshot.documents.find(function(item) { return item.id === id; });
+      const environment = doc ? doc.ambiente : 'homologacao';
       const confirmation = prompt(
-        'Esta ação enviará a NFC-e para a SEFAZ-PR em HOMOLOGAÇÃO. Digite TRANSMITIR HOMOLOGACAO para continuar:'
+        'Esta acao enviara o documento fiscal para a SEFAZ em ' +
+        String(environment).toUpperCase() +
+        '. Digite TRANSMITIR SEFAZ para continuar:'
       );
-      if (confirmation !== 'TRANSMITIR HOMOLOGACAO') {
-        setResponse('Transmissão cancelada.');
+      if (confirmation !== 'TRANSMITIR SEFAZ') {
+        setResponse('Transmissao cancelada.');
         return;
       }
-      setResponse('Transmitindo para a SEFAZ-PR em homologação...');
+      setResponse('Transmitindo para a SEFAZ...');
       const response = await fetch('/admin/api/documents/' + id + '/sefaz-authorize', {
         method: 'POST',
         headers: {
