@@ -617,6 +617,10 @@ Tarefas geradas pelo diagnostico inicial:
      (`finNFe=3`) ganharam contrato automatizado explicito: com `NFref` valido
      e sem `IBSCBS`, o payload NF-e passa pela regra compartilhada; com
      `IBSCBS`, continua bloqueado ate existir perfil RTC proprio
+   - andamento em `2026-07-02`: a emissao real de ajuste da Autoeletrica/NHT
+     foi validada em homologacao com a `nfe-7.xml` (`finNFe=3`, `tpNF=1`,
+     `natOp=AJUSTE`, `CFOP=5949`, `NFref` da nota origem e `cStat=100`),
+     fechando junto com o complemento o ciclo de finalidades referenciadas
 3. manter producao bloqueada ate esses pontos terem evidencia tecnica ou decisao
    formal de fora de escopo
 
@@ -634,17 +638,17 @@ Matriz viva de homologacao:
 - itens satisfeitos no escopo atual: NF-e PR/Otica com autorizacao, DANFE A4,
   cancelamento e inutilizacao; NFC-e PR/Otica e Autoeletrica para operacao
   interna; guarda NFC-e interestadual; NF-e devolucao Autoeletrica/NHT em
-  homologacao com `NFref`; NFS-e Toledo/Equiplano
+  homologacao com `NFref`; NF-e complemento e ajuste em homologacao com
+  `NFref` valido e sem `IBSCBS`; NFS-e Toledo/Equiplano
 - bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
   `tpImp` diferente de `1`
 - itens que ainda bloqueiam producao pela matriz: conciliacao legal fina da
-  classificacao RTC por tipo de operacao, complemento/ajuste referenciado em
-  NF-e/NFC-e,
+  classificacao RTC por tipo de operacao,
   retries/processamento distribuido e consulta/cancelamento Guaira/IPM em
   cenario municipal reconhecido
-- complemento/ajuste ainda seguem como lacuna de homologacao real: o contrato
-  automatizado impede os erros estruturais conhecidos, mas falta uma emissao
-  real controlada em homologacao antes de reclassificar a matriz como satisfeita
+- complemento/ajuste agora estao fechados na homologacao controlada: o contrato
+  automatizado e as emissoes reais validaram as duas finalidades referenciadas
+  sem `IBSCBS`, entao a matriz foi reclassificada como satisfeita nesse ponto
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
   visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
   deve denunciar a mudanca
