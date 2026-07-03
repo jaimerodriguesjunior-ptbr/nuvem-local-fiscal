@@ -5,7 +5,7 @@ atuais, preservando o contrato externo sempre que isso for seguro.
 
 ## Estado atual
 
-Em `17/06/2026`, o estado real deste repo e:
+Em `2026-07-03`, o estado real deste repo e:
 
 - `NFC-e` em homologacao funcionando ponta a ponta
 - `NF-e` em homologacao funcionando ponta a ponta
@@ -16,7 +16,9 @@ Em `17/06/2026`, o estado real deste repo e:
 - persistencia principal em `Supabase`
 - certificados A1 e configuracoes por empresa/ambiente persistidos
 - VPS homologada com HTTPS, `systemd`, Nginx e admin protegido
-- producao fiscal ainda bloqueada neste servico
+- producao fiscal controlada pode ser ligada por
+  `FISCAL_PRODUCTION_ENABLED=true`; na VPS atual o `/ready` retorna
+  `fiscalProductionBlocked=false` para piloto controlado do MVP
 
 O documento principal do projeto e [`NUVEMLOCALFISCAL.md`](NUVEMLOCALFISCAL.md).
 Ele deve ser tratado como a fonte mais completa do estado operacional.
@@ -113,10 +115,15 @@ O roteiro de VPS com `systemd`, Nginx, HTTPS e backup esta em
 
 ## Observacoes operacionais
 
-- este repo e homologado; producao continua bloqueada por seguranca
-- os sistemas clientes ainda podem permanecer na Nuvem Fiscal em producao
-- a atualizacao para regras novas de julho de 2026 ainda nao foi tratada neste
-  repo como trabalho fechado; isso fica para a proxima etapa
+- este repo continua tratando producao ampla como etapa controlada, nao abertura
+  geral
+- sistemas clientes publicados ainda podem permanecer na Nuvem Fiscal em
+  producao; a Autoeletrica local foi preparada para piloto controlado apontando
+  producao para a Nuvem Local Fiscal
+- o MVP de julho de 2026 esta limitado a `NFC-e` venda mesma UF, `NF-e`
+  venda/devolucao e `NFS-e` nas pracas ja mapeadas
+- RTC/`IBSCBS` esta harmonizado entre homologacao e producao nos fluxos MVP
+  exercitados pela Autoeletrica local; fluxos fora do MVP continuam fechados
 - o pacote XSD local da NF-e/NFC-e e `PL_010c`, publicado em `26/03/2026`, mas
   isso nao deve ser lido sozinho como garantia de aderencia completa a todas as
   reformas fiscais novas

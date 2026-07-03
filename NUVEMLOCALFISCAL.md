@@ -38,6 +38,28 @@ Escopo MVP operacional deste mes:
 - `NF-e` complemento, ajuste, credito/debito e demais finalidades permanecem guardadas como conhecimento homologado, mas fechadas no MVP ate necessidade real
 - a decisao comercial deste mes e funcionalidade essencial primeiro; versao por data/hora fica como evolucao posterior
 
+Atualizacao operacional de `2026-07-03`:
+- a Nuvem Local Fiscal passou a ter uma chave explicita de liberacao de
+  producao: `FISCAL_PRODUCTION_ENABLED`
+- por padrao, producao fiscal permanece fechada; quando
+  `FISCAL_PRODUCTION_ENABLED=true`, `/ready` retorna
+  `fiscalProductionBlocked=false` e a transmissao fiscal em producao fica
+  habilitada para o piloto controlado
+- a VPS `https://fiscal.mentebinaria.com` foi atualizada no commit
+  `5999431 feat: gate production fiscal transmission` e esta ativa com
+  `fiscalProductionBlocked=false`
+- a Autoeletrica local foi preparada para apontar `production` para a Nuvem
+  Local Fiscal, sem deploy do sistema cliente publicado
+- a Autoeletrica recebeu o commit local `ec63317 feat: enable RTC groups in
+  production MVP flows`; a regra `IBSCBS`/RTC usada em homologacao agora tambem
+  vale em producao para os fluxos MVP de venda/devolucao, sem abrir novos
+  fluxos fora do escopo
+- auditoria de 2026-07-03: para `NF-e`/`NFC-e` do MVP, homologacao e producao
+  seguem a mesma esteira de payload/regra; as diferencas esperadas sao
+  `tpAmb`, `ambiente`, URL/credencial, numeracao por ambiente e CSRT por
+  ambiente. Para `NFS-e`, ainda existem diferencas municipais/configuracoes por
+  ambiente, especialmente Toledo/Equiplano.
+
 ---
 
 ## 0. Marco atual validado em 2026-06-13
@@ -59,7 +81,9 @@ Estado operacional atual:
 - o projeto ja esta versionado em Git e publicado no GitHub em `main`
 - a VPS de homologacao ja esta provisionada na DigitalOcean, com dominio, HTTPS, Nginx, `systemd`, Supabase e admin protegido
 - dominio homologacao atual: `https://fiscal.mentebinaria.com`
-- `/ready` em producao controlada retorna `persistence=supabase` e `fiscalProductionBlocked=true`
+- `/ready` em producao controlada retorna `persistence=supabase`; desde
+  `2026-07-03`, com `FISCAL_PRODUCTION_ENABLED=true` na VPS, retorna
+  `fiscalProductionBlocked=false`
 - a Otica Prisma e a Autoeletrica/NHT Centro Automotivo ja emitiram documentos reais em homologacao pela VPS
 
 Marco NF-e homologacao validado:
@@ -139,14 +163,20 @@ Licoes praticas da Autoeletrica para outros programas:
 - no app cliente, vale manter a regra de negocio simples: `NFCe` para venda interna e `NFe` para venda interestadual
 - se outro programa reaproveitar o mesmo emissor base, ele deve herdar essas mesmas guardas para nao repetir o mesmo erro em producao
 
-Detalhe do `IBSCBS` usado na Autoeletrica em homologacao:
-- o payload de homologacao da NFC-e recebeu um grupo RTC apenas no caminho homologacao do cliente
+Detalhe historico do `IBSCBS` usado na Autoeletrica:
+- em `2026-07-02`, o payload de homologacao da NFC-e recebeu um grupo RTC
+  apenas no caminho homologacao do cliente
 - o grupo entrou como `IBSCBS` no item e `IBSCBSTot` no total, junto com `CST`, `cClassTrib`, `gIBSCBS`, `gIBSUF`, `gIBSMun`, `gCBS`, `vBC`, `vIBS`, `vIBSUF`, `vIBSMun` e `vCBS`
 - em `2026-07-02`, depois da NF-e de venda comum da Autoeletrica ser
   autorizada em homologacao sem RTC (`cStat=100`, CFOP `5102`, `finNFe=1`),
   o app cliente passou a montar `IBSCBS` tambem para NF-e modelo `55` somente
   em homologacao e somente para venda comum (`finNFe=1`, CFOP `5101`,
-  `5102`, `6101` ou `6102`); producao permanece sem esse grupo
+  `5102`, `6101` ou `6102`)
+- em `2026-07-03`, essa restricao de ambiente foi removida na Autoeletrica
+  local: homologacao e producao agora usam a mesma regra RTC para os fluxos MVP
+  de `NF-e` venda, `NF-e` devolucao, `NF-e` assistida quando os parametros forem
+  de venda/devolucao, e `NFC-e` venda mesma UF. A regra continua bloqueando
+  generalizacao fora do MVP.
 - a primeira tentativa de NF-e venda com `IBSCBS` na Autoeletrica foi barrada
   pela Nuvem Local antes da SEFAZ com `missing_rtc_municipality` em
   `infNFe.ide.cMunFGIBS`; a correcao no app cliente foi incluir `cMunFGIBS`
@@ -227,7 +257,9 @@ Endpoints compativeis ja exercitados:
 
 Configuracoes persistidas:
 - empresa/ambiente: UF, IE, CRT, serie NF-e e serie NFC-e
-- configuracao NF-e por ambiente: servico ativo/inativo e transmissao automatica; producao continua bloqueada
+- configuracao NF-e por ambiente: servico ativo/inativo e transmissao
+  automatica; desde `2026-07-03`, producao controlada depende da chave global
+  `FISCAL_PRODUCTION_ENABLED=true`
 - certificado A1 ativo por CNPJ
 - configuracao NFC-e por ambiente: CSC ID e CSC criptografado
 - configuracao NFS-e por ambiente: login e senha da prefeitura criptografada, provedor/municipio, dados Equiplano e sequencia de RPS/lote
@@ -243,8 +275,10 @@ Configuracoes persistidas:
   sendo promovida pela primeira vez para um provedor municipal; trocar entre
   Guaira/IPM e Toledo/Equiplano exige dados novos e nao reaproveita segredo do
   provedor anterior
-- producao NFS-e segue bloqueada pelo perfil do motor de regras; liberar
-  producao deve ser uma mudanca explicita de perfil, com teste e evidencia
+- historicamente, producao NFS-e ficava bloqueada pelo perfil do motor de
+  regras; desde `2026-07-03`, a chave global
+  `FISCAL_PRODUCTION_ENABLED=true` remove o bloqueio geral, mas cada municipio
+  continua exigindo configuracao correta por ambiente, teste e evidencia
   regulatoria da data vigente
 - a NFS-e Toledo/Equiplano foi validada ponta a ponta em homologacao em 2026-06-13:
   - `POST /nfse/dps` aceita payload estilo Nuvem Fiscal
@@ -253,7 +287,9 @@ Configuracoes persistidas:
   - `GET /nfse/:id/pdf` gera o PDF local da NFS-e com dados municipais, prestador, tomador, servico e impostos
   - `POST /nfse/:id/cancelamento` e o alias `/nfse/:id/cancelar` transmitem cancelamento municipal
   - `GET /nfse/:id/cancelamento/xml` disponibiliza o XML de cancelamento
-  - producao NFS-e permanece bloqueada
+  - historicamente, producao NFS-e permanecia bloqueada; para piloto controlado
+    em `2026-07-03`, a liberacao geral passou a ser feita por
+    `FISCAL_PRODUCTION_ENABLED=true`, sem dispensar configuracao municipal real
   - o conector gera `enviarLoteRpsEnvio`, assina com o A1 salvo, suporta SOAP 1.1 e persiste request/response municipal
   - a transmissao municipal exige configuracao Toledo completa mais `autoTransmit=true`
   - a UI admin NFS-e foi liberada apos aprovacao explicita, com configuracao Toledo/Equiplano por ambiente, credenciais, RPS/lote, servico padrao e transmissao segura
@@ -328,10 +364,12 @@ Configuracoes persistidas:
 - cancelamentos com justificativa, evento assinado, resposta SEFAZ, protocolo e data de registro
 - a aba NF-e do admin e propositalmente enxuta; Documentos e Logs e debug possuem filtros e downloads de XML autorizado, DANFE, cancelamento e inutilizacao
 
-Checkpoint regulatorio em `2026-07-01`:
+Checkpoint regulatorio historico em `2026-07-01`:
 - foi feita uma revisao de aderencia legal considerando a data corrente `2026-07-01`
 - conclusao operacional: a base esta consistente para homologacao controlada de `NF-e` e `NFC-e` no PR, mas ainda nao pode ser tratada como emissor plenamente aderente para uso fiscal real em producao
-- a producao continua bloqueada no codigo e deve permanecer assim ate segunda ordem
+- naquela data, a producao continuava bloqueada no codigo e deveria permanecer
+  assim ate segunda ordem; em `2026-07-03`, essa segunda ordem virou a chave
+  operacional `FISCAL_PRODUCTION_ENABLED=true` para piloto controlado do MVP
 - `NFS-e` continua sendo frente municipal/provedor-especifica; nao deve ser vendida internamente como cobertura legal ampla do Brasil
 - o schema local ja carrega campos ligados a reforma tributaria e evolucoes recentes do leiaute, incluindo `IBSCBS`, `IBSCBSTot`, `cMunFGIBS`, `idCSRT` e `hashCSRT`
 - porem, ter o schema atualizado nao basta: e obrigatorio provar que a homologacao esta aderente ao comportamento exigido na data vigente, inclusive regras novas de `NF-e`/`NFC-e`, antes de qualquer liberacao de producao
@@ -408,8 +446,10 @@ Itens minimos do checklist:
   normalizacao, assinatura, validacao, transmissao, consulta, erro e retry
 - `MENSAGENS`: traduzir rejeicoes criticas para mensagens operacionais claras,
   preservando o retorno tecnico original para auditoria
-- `PROD-GATE`: manter `fiscalProductionBlocked=true` ate o checklist aplicavel
-  estar fechado e documentado
+- `PROD-GATE`: manter uma chave operacional visivel em `/ready`; antes da
+  liberacao controlada ela deve retornar `fiscalProductionBlocked=true`, e no
+  piloto de `2026-07-03` retorna `false` somente porque
+  `FISCAL_PRODUCTION_ENABLED=true` esta ativo na VPS
 
 Primeiro recorte recomendado:
 1. validar `NFE-XSD`, `RT-BASE` e `RT-XML` em XML NF-e e NFC-e de homologacao
@@ -696,9 +736,14 @@ Matriz viva de homologacao:
   cliente ficam para a etapa posterior, programa por programa
 
 Limites atuais:
-- transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
-- producao permanece bloqueada por seguranca
-- homologacao ainda precisa de uma trilha formal de aderencia continua a reforma tributaria e aos ajustes SINIEF vigentes na data da retomada; emitir em homologacao com sucesso nao e criterio suficiente, por si so, para liberar producao
+- transmissao automatica pode processar NFC-e/NF-e em homologacao quando
+  habilitada; desde `2026-07-03`, producao controlada pode ser ligada por
+  `FISCAL_PRODUCTION_ENABLED=true`
+- producao ampla continua fora do escopo; a liberacao atual e apenas para
+  piloto controlado do MVP, com acompanhamento e fallback
+- homologacao continua sendo a trilha de prova, mas em `2026-07-03` foi feita
+  a harmonizacao da Autoeletrica local para que os testes reais de producao do
+  MVP usem a mesma regra RTC/`IBSCBS` validada em homologacao
 - NFS-e Toledo/Equiplano possui configuracao no admin e fluxo homologado de emissao, consulta, XML, PDF e cancelamento
 - em `2026-07-03`, a empresa Toledo da Autoeletrica retornou `nfse-5.xml` com
   `nrNfse=5`, `cdAutenticacao` e `dtEmissaoNfs`, reforcando que o caminho
@@ -735,8 +780,9 @@ Limites atuais:
   local `127.0.0.1:9443` na DigitalOcean; a Nuvem Local usa esse listener por
   `NFSE_IPM_CONNECT_HOST=127.0.0.1` e `NFSE_IPM_CONNECT_PORT=9443`
 - o motor de regras NFS-e ja impede cadastro com provedor incompativel com o
-  IBGE informado, aplica defaults municipais seguros e mantem producao bloqueada
-  por perfil
+  IBGE informado e aplica defaults municipais seguros; em producao controlada,
+  a chave global `FISCAL_PRODUCTION_ENABLED=true` remove o bloqueio geral, mas
+  NFS-e continua exigindo configuracao municipal correta por ambiente
 - a lista de empresas possui a acao `Nova empresa`, que cria o primeiro ambiente fiscal e abre o cadastro para certificado e servicos
 - NF-e homologacao ja emite, possui DANFE A4 inicial e cancelamento real validado
 - cancelamento real esta habilitado apenas em homologacao para documentos autorizados
@@ -765,7 +811,8 @@ Proximo foco:
    checklist de ativacao por empresa, cobrindo cadastro fiscal, certificado,
    CSC quando NFC-e, servicos, credenciais municipais quando NFS-e, smoke em
    homologacao e fallback de suporte
-3. preparar piloto controlado com 1 ou 2 lojas reais usando somente os fluxos
+3. em andamento em `2026-07-03`: preparar piloto controlado com a Autoeletrica
+   local apontando producao para a Nuvem Local Fiscal, usando somente os fluxos
    ja homologados do MVP, com acompanhamento proximo e fallback para Nuvem
    Fiscal enquanto ela ainda estiver disponivel
 4. cancelar uma NFS-e Guaira/IPM em homologacao para fechar o fluxo de
