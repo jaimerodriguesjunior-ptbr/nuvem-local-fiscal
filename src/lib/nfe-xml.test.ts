@@ -418,7 +418,7 @@ test("ordena os campos internos apos round-trip por jsonb e valida no XSD", () =
           }
         },
         transp: { modFrete: 9 },
-        pag: { detPag: [{ tPag: "01", vPag: 270 }] },
+        pag: { vTroco: Number.NaN, detPag: [{ tPag: "01", vPag: 270 }] },
         infRespTec: {
           CNPJ: "65667543000102",
           fone: "44999261487",
@@ -440,6 +440,11 @@ test("ordena os campos internos apos round-trip por jsonb e valida no XSD", () =
   const validation = validateNfeXml(result.signedXml);
   assert.deepEqual(validation.errors, []);
   assert.equal(validation.valid, true);
+  assert.match(
+    result.unsignedXml,
+    /<pag><detPag><tPag>01<\/tPag><vPag>270<\/vPag><\/detPag><vTroco>0<\/vTroco><\/pag>/
+  );
+  assert.doesNotMatch(result.unsignedXml, /NaN/);
 });
 
 test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {

@@ -196,6 +196,7 @@ const elementOrder: Record<string, string[]> = {
     "idCSRT",
     "hashCSRT"
   ],
+  pag: ["detPag", "vTroco"],
   detPag: ["indPag", "tPag", "xPag", "vPag", "card"]
 };
 
@@ -396,6 +397,7 @@ function applyPaymentCompatibility(infNFe: JsonObject) {
     return;
   }
 
+  const ide = infNFe.ide as JsonObject | undefined;
   const payment = infNFe.pag as JsonObject;
   const originalDetails = Array.isArray(payment.detPag)
     ? payment.detPag
@@ -411,6 +413,14 @@ function applyPaymentCompatibility(infNFe: JsonObject) {
     ) {
       (detail as JsonObject).vPag = 0;
     }
+  }
+
+  const changeValue = Number(payment.vTroco);
+  if (payment.vTroco !== undefined && !Number.isFinite(changeValue)) {
+    delete payment.vTroco;
+  }
+  if (String(ide?.mod ?? "") === "65" && payment.vTroco === undefined) {
+    payment.vTroco = 0;
   }
 }
 
