@@ -17,6 +17,20 @@ export type HomologationMatrixItem = {
 
 export const homologationMatrix: HomologationMatrixItem[] = [
   {
+    id: "mvp-operational-scope",
+    area: "Platform",
+    instance: "Todos os clientes Simples Nacional do portfolio atual",
+    flow: "Escopo operacional do MVP fiscal deste mes",
+    status: "satisfied",
+    evidence: [
+      "portfolio atual usa NFC-e, NFS-e e algumas NF-e de venda/devolucao",
+      "NF-e MVP aceita finNFe=1 e finNFe=4; complemento, ajuste, credito e debito ficam fechados por padrao",
+      "NFC-e MVP aceita apenas finNFe=1, mesma UF e emissao online",
+      "NFS-e MVP permanece limitado aos provedores municipais cadastrados no motor de regras"
+    ],
+    nextAction: "Usar este escopo como checklist de piloto controlado por empresa."
+  },
+  {
     id: "nfe-pr-otica-controlled-emission",
     area: "NFe",
     instance: "Otica Prisma / SEFAZ-PR",

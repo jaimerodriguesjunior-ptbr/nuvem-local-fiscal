@@ -27,6 +27,14 @@ test("itens de bloqueio por escopo nao contam como pendencia escondida", () => {
   );
 });
 
+test("MVP operacional fica registrado como escopo satisfeito", () => {
+  const item = homologationMatrix.find((matrixItem) => matrixItem.id === "mvp-operational-scope");
+
+  assert.equal(item?.status, "satisfied");
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("NF-e MVP aceita")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("NFC-e MVP aceita")), true);
+});
+
 test("devolucao NF-e homologada fica registrada como fluxo satisfeito", () => {
   const item = homologationMatrix.find(
     (matrixItem) => matrixItem.id === "nfe-pr-autoeletrica-return-reference"

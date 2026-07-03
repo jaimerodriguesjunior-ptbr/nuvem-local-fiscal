@@ -28,6 +28,11 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function nfeMvpFinalityAllowed(value: unknown) {
+  const finality = text(value || "1");
+  return finality === "1" || finality === "4";
+}
+
 function pushIssue(
   issues: NfeValidationIssue[],
   code: string,
@@ -67,6 +72,15 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
       "unsupported_nfe_danfe_print_type",
       "infNFe.ide.tpImp",
       "DANFE NF-e local esta validado apenas para tpImp=1 (A4 retrato); outros formatos exigem decisao e layout proprios."
+    );
+  }
+
+  if (!nfeMvpFinalityAllowed(ide.finNFe)) {
+    pushIssue(
+      issues,
+      "unsupported_mvp_nfe_finality",
+      "infNFe.ide.finNFe",
+      "MVP fiscal aceita NF-e de venda normal ou devolucao; outras finalidades exigem suporte tecnico e homologacao propria."
     );
   }
 

@@ -28,6 +28,15 @@ Direcao atual do produto:
 - tipos de emissao fora desse MVP ficam bloqueados ate necessidade real, teste e decisao explicita
 - quando um cliente precisar de um tipo novo, o fluxo sera aberto pontualmente e validado antes de seguir
 
+Escopo MVP operacional deste mes:
+- clientes atuais: todos no Simples Nacional
+- documentos usados: `NFC-e`, `NFS-e` e, em algumas lojas, `NF-e`
+- `NFC-e`: aberta somente para venda normal, mesma UF e emissao online
+- `NFS-e`: aberta somente para provedores municipais ja mapeados no motor de regras
+- `NF-e`: aberta para venda normal e devolucao com documento referenciado
+- `NF-e` complemento, ajuste, credito/debito e demais finalidades permanecem guardadas como conhecimento homologado, mas fechadas no MVP ate necessidade real
+- a decisao comercial deste mes e funcionalidade essencial primeiro; versao por data/hora fica como evolucao posterior
+
 ---
 
 ## 0. Marco atual validado em 2026-06-13

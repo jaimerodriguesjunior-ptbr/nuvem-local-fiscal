@@ -142,9 +142,10 @@ test("bloqueia NFC-e com finalidade referenciada sem NFref", () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.issues.some((issue) => issue.code === "missing_document_reference"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "unsupported_mvp_nfce_finality"), true);
 });
 
-test("aceita NFC-e com finalidade referenciada e NFref valido", () => {
+test("bloqueia NFC-e referenciada no MVP mesmo com NFref valido", () => {
   const payload = validNfcePayload();
   (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
   (payload.infNFe.ide as Record<string, unknown>).NFref = [
@@ -156,8 +157,8 @@ test("aceita NFC-e com finalidade referenciada e NFref valido", () => {
     expectedIssuerCnpj: "35181069000143"
   });
 
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.issues, []);
+  assert.equal(result.ok, false);
+  assert.equal(result.issues.some((issue) => issue.code === "unsupported_mvp_nfce_finality"), true);
 });
 
 test("bloqueia CNPJ alfanumerico em NFC-e enquanto o fluxo nao suporta NT 2026.004", () => {

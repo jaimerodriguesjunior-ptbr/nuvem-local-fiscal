@@ -59,7 +59,7 @@ test("NF-e aceita documento referenciado por chave fiscal valida", () => {
   assert.deepEqual(result.issues, []);
 });
 
-test("NF-e aceita complemento e ajuste com NFref valido sem RTC", () => {
+test("NF-e bloqueia complemento e ajuste no MVP mesmo com NFref valido", () => {
   for (const finality of [2, 3]) {
     const result = validateNfeEmissionPayload(
       minimalNfePayload({
@@ -68,8 +68,11 @@ test("NF-e aceita complemento e ajuste com NFref valido sem RTC", () => {
       })
     );
 
-    assert.equal(result.ok, true);
-    assert.deepEqual(result.issues, []);
+    assert.equal(result.ok, false);
+    assert.equal(
+      result.issues.some((issue) => issue.code === "unsupported_mvp_nfe_finality"),
+      true
+    );
   }
 });
 

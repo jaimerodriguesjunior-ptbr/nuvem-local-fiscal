@@ -31,6 +31,11 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function nfceMvpFinalityAllowed(value: unknown) {
+  const finality = text(value || "1");
+  return finality === "1";
+}
+
 function hasText(value: unknown) {
   return text(value).length > 0;
 }
@@ -132,6 +137,15 @@ export function validateNfceEmissionPayload(
         "invalid_print_type",
         "infNFe.ide.tpImp",
         "NFC-e deve usar tpImp=4 no layout de DANFE NFC-e."
+      );
+    }
+
+    if (!nfceMvpFinalityAllowed(ide.finNFe)) {
+      pushIssue(
+        issues,
+        "unsupported_mvp_nfce_finality",
+        "infNFe.ide.finNFe",
+        "MVP fiscal aceita NFC-e somente para venda normal; outras finalidades exigem suporte tecnico e homologacao propria."
       );
     }
   }
