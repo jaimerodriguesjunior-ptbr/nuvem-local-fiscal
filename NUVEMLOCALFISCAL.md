@@ -698,8 +698,9 @@ Limites atuais:
   NFS-e real de homologacao e registrar o retorno municipal
 - a primeira tentativa de cancelamento da NFS-e Guaira `203` retornou codigo
   `206 - Nenhuma NFSe foi encontrada na base de dados utilizando os parametros
-  para pesquisa informados`; o XML de cancelamento passou a enviar tambem o
-  cadastro economico do prestador, igual ao fallback de consulta por numero
+  para pesquisa informados`; a tentativa seguinte com `<cadastro>` no XML de
+  cancelamento mostrou erro de schema IPM, entao esse campo ficou descartado
+  para cancelamento e o fluxo segue aberto para novo teste com o formato certo
 - o caso municipal `229` de tomador com cadastro economico ja esta absorvido no
   backend compartilhado, sem exigir tratamento especial nos sistemas clientes
 - a consulta Guaira/IPM foi implementada por codigo de autenticidade, com
@@ -749,7 +750,7 @@ Proximo foco:
 6. fechar retries agendados e estrategia de processamento distribuido antes de
    qualquer uso fiscal amplo
 7. cancelar uma NFS-e Guaira/IPM em homologacao para fechar o fluxo de
-   cancelamento municipal no MVP, agora com `cadastro` no XML de cancelamento
+   cancelamento municipal no MVP, usando o XML no formato aceito pelo schema IPM
 8. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
    ou outro servidor com saida aceita pela IPM
 9. depois do cancelamento Guaira/IPM, nao abrir novos testes NFS-e municipais

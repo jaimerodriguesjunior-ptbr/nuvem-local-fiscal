@@ -264,7 +264,6 @@ test("builds Guaira IPM cancellation XML", () => {
   const xml = buildGuairaIpmCancellationXml({
     cnpj: "35181069000143",
     tomCode: "7571",
-    economicRegistration: "324743",
     number: "184",
     series: "1",
     reason: "Cancelamento de teste de homologacao."
@@ -276,7 +275,6 @@ test("builds Guaira IPM cancellation XML", () => {
   assert.match(xml, /<observacao>Cancelamento de teste de homologacao\.<\/observacao>/);
   assert.match(xml, /<cpfcnpj>35181069000143<\/cpfcnpj>/);
   assert.match(xml, /<cidade>7571<\/cidade>/);
-  assert.match(xml, /<cadastro>324743<\/cadastro>/);
 });
 
 test("parses Guaira IPM cancellation success response", () => {

@@ -367,7 +367,6 @@ export function buildGuairaIpmNumberConsultationXml(
 export function buildGuairaIpmCancellationXml(input: {
   cnpj: string;
   tomCode: string;
-  economicRegistration?: string;
   number: string;
   series: string;
   reason: string;
@@ -377,7 +376,6 @@ export function buildGuairaIpmCancellationXml(input: {
   const number = digitsOnly(input.number);
   const series = digitsOnly(input.series);
   const tomCode = digitsOnly(input.tomCode);
-  const economicRegistration = digitsOnly(input.economicRegistration);
   const reason = input.reason.trim();
   if (
     cnpj.length !== 14 ||
@@ -391,9 +389,6 @@ export function buildGuairaIpmCancellationXml(input: {
     throw new Error("Dados invalidos para cancelamento NFS-e Guaira/IPM.");
   }
   const signatureId = input.requiresSignature ? ' id="nota"' : "";
-  const registrationTag = economicRegistration
-    ? `\n    <cadastro>${economicRegistration}</cadastro>`
-    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfse${signatureId}>
   <nf>
@@ -405,7 +400,6 @@ export function buildGuairaIpmCancellationXml(input: {
   <prestador>
     <cpfcnpj>${cnpj}</cpfcnpj>
     <cidade>${tomCode}</cidade>
-    ${registrationTag.trimStart()}
   </prestador>
 </nfse>`;
 }
@@ -1013,7 +1007,6 @@ export async function cancelGuairaIpmNfse(
   const cancellationXml = buildGuairaIpmCancellationXml({
     cnpj: settings.cnpj,
     tomCode: settings.tomCode,
-    economicRegistration: settings.economicRegistration,
     number,
     series,
     reason,
