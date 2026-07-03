@@ -21,6 +21,13 @@ Fora do v1:
 - imitar 100% da Nuvem Fiscal
 - dashboard bonito antes da base estar estavel
 
+Direcao atual do produto:
+- a base continua guardando a visao completa para evolucoes futuras
+- a fase atual nao e mais construir tudo de uma vez
+- o rumo agora e um MVP fiscal com `venda` e `devolucao` bem fechados
+- tipos de emissao fora desse MVP ficam bloqueados ate necessidade real, teste e decisao explicita
+- quando um cliente precisar de um tipo novo, o fluxo sera aberto pontualmente e validado antes de seguir
+
 ---
 
 ## 0. Marco atual validado em 2026-06-13
@@ -705,6 +712,7 @@ Limites atuais:
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
+0. consolidar o MVP fiscal como base oficial: `venda` e `devolucao` abertos, demais fluxos fechados por padrao ate necessidade real
 1. reconciliar `NFE-XSD`/`RT-BASE` com os pacotes e notas tecnicas oficiais
    vigentes na data da retomada, antes de qualquer liberacao de producao
 2. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a
