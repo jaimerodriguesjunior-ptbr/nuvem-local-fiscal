@@ -20,6 +20,11 @@ function asObject(value: unknown): JsonObject | null {
     : null;
 }
 
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
+}
+
 function rootInfNFe(payload: JsonObject) {
   return asObject(payload.infNFe) ?? payload;
 }
@@ -28,9 +33,18 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
+const nfeMvpSaleCfops = new Set(["5101", "5102", "6101", "6102"]);
+const nfeMvpReturnCfops = new Set(["5202", "6202"]);
+
 function nfeMvpFinalityAllowed(value: unknown) {
   const finality = text(value || "1");
   return finality === "1" || finality === "4";
+}
+
+function nfeMvpCfopAllowed(finality: string, cfop: string) {
+  if (finality === "1") return nfeMvpSaleCfops.has(cfop);
+  if (finality === "4") return nfeMvpReturnCfops.has(cfop);
+  return false;
 }
 
 function pushIssue(
@@ -83,6 +97,24 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
       "MVP fiscal aceita NF-e de venda normal ou devolucao; outras finalidades exigem suporte tecnico e homologacao propria."
     );
   }
+
+  const finality = text(ide.finNFe || "1");
+  const details = asArray(infNFe.det);
+  details.forEach((detail, index) => {
+    const item = asObject(detail);
+    const product = asObject(item?.prod);
+    const cfop = text(product?.CFOP);
+    if (!cfop || !nfeMvpFinalityAllowed(finality) || nfeMvpCfopAllowed(finality, cfop)) {
+      return;
+    }
+
+    pushIssue(
+      issues,
+      "unsupported_mvp_nfe_cfop",
+      `infNFe.det[${index}].prod.CFOP`,
+      `MVP fiscal aceita NF-e somente para venda/devolucao ja homologadas; CFOP ${cfop} exige suporte tecnico e homologacao propria.`
+    );
+  });
 
   return { ok: issues.length === 0, issues };
 }

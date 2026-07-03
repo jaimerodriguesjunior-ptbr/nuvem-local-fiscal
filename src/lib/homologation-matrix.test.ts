@@ -33,6 +33,10 @@ test("MVP operacional fica registrado como escopo satisfeito", () => {
   assert.equal(item?.status, "satisfied");
   assert.equal(item?.evidence.some((evidence) => evidence.includes("NF-e MVP aceita")), true);
   assert.equal(item?.evidence.some((evidence) => evidence.includes("NFC-e MVP aceita")), true);
+  assert.equal(
+    item?.evidence.some((evidence) => evidence.includes("mvp-activation-checklist")),
+    true
+  );
 });
 
 test("devolucao NF-e homologada fica registrada como fluxo satisfeito", () => {

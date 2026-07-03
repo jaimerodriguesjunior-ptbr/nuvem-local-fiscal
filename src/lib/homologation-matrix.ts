@@ -26,9 +26,10 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "portfolio atual usa NFC-e, NFS-e e algumas NF-e de venda/devolucao",
       "NF-e MVP aceita finNFe=1 e finNFe=4; complemento, ajuste, credito e debito ficam fechados por padrao",
       "NFC-e MVP aceita apenas finNFe=1, mesma UF e emissao online",
-      "NFS-e MVP permanece limitado aos provedores municipais cadastrados no motor de regras"
+      "NFS-e MVP permanece limitado aos provedores municipais cadastrados no motor de regras",
+      "src/lib/mvp-activation-checklist.ts define o checklist operacional de ativacao por empresa"
     ],
-    nextAction: "Usar este escopo como checklist de piloto controlado por empresa."
+    nextAction: "Usar o checklist programatico para ativar cada empresa antes do piloto controlado."
   },
   {
     id: "nfe-pr-otica-controlled-emission",

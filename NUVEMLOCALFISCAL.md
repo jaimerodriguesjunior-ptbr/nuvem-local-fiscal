@@ -34,6 +34,7 @@ Escopo MVP operacional deste mes:
 - `NFC-e`: aberta somente para venda normal, mesma UF e emissao online
 - `NFS-e`: aberta somente para provedores municipais ja mapeados no motor de regras; Guaira/IPM e Toledo/Equiplano ficaram validados para emissao no MVP em 2026-07-03
 - `NF-e`: aberta para venda normal e devolucao com documento referenciado, tanto pelos templates dedicados quanto pela tela `Outra operacao` quando os parametros fiscais forem de venda/devolucao
+- CFOPs NF-e abertos no MVP atual: venda `5101`, `5102`, `6101`, `6102`; devolucao `5202`, `6202`. Outros CFOPs ficam bloqueados ate suporte tecnico homologar o fluxo especifico.
 - `NF-e` complemento, ajuste, credito/debito e demais finalidades permanecem guardadas como conhecimento homologado, mas fechadas no MVP ate necessidade real
 - a decisao comercial deste mes e funcionalidade essencial primeiro; versao por data/hora fica como evolucao posterior
 
@@ -757,11 +758,13 @@ Limites atuais:
 Proximo foco:
 0. tratar este MVP como base oficial de trabalho do mes: `NFC-e` venda mesma
    UF, `NF-e` venda/devolucao e `NFS-e` nas pracas ja validadas
-1. fechar no motor de regras o bloqueio explicito de emissao fora do MVP, com
-   mensagem operacional orientando o cliente a procurar suporte tecnico
-2. montar checklist de ativacao por empresa: certificado, CSC quando NFC-e,
-   servicos ativos, ambiente, sequencia, credenciais municipais quando NFS-e e
-   smoke minimo por tipo de documento usado pela loja
+1. concluido em `2026-07-03`: o motor de regras bloqueia NF-e fora do MVP por
+   finalidade e por CFOP, com mensagem orientando suporte tecnico e homologacao
+   propria
+2. concluido em `2026-07-03`: `src/lib/mvp-activation-checklist.ts` define o
+   checklist de ativacao por empresa, cobrindo cadastro fiscal, certificado,
+   CSC quando NFC-e, servicos, credenciais municipais quando NFS-e, smoke em
+   homologacao e fallback de suporte
 3. preparar piloto controlado com 1 ou 2 lojas reais usando somente os fluxos
    ja homologados do MVP, com acompanhamento proximo e fallback para Nuvem
    Fiscal enquanto ela ainda estiver disponivel

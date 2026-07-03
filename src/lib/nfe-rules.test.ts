@@ -16,6 +16,23 @@ function minimalNfePayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function nfePayloadWithItem(
+  ideOverrides: Record<string, unknown>,
+  cfop: string
+) {
+  const payload = minimalNfePayload(ideOverrides);
+  Object.assign(payload.infNFe, {
+    det: [
+      {
+        prod: {
+          CFOP: cfop
+        }
+      }
+    ]
+  });
+  return payload;
+}
+
 test("NF-e aceita modelo 55 com DANFE A4 retrato", () => {
   const result = validateNfeEmissionPayload(minimalNfePayload());
 
@@ -59,8 +76,26 @@ test("NF-e aceita documento referenciado por chave fiscal valida", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("NF-e bloqueia CFOP fora do MVP de venda e devolucao", () => {
+  const sale = validateNfeEmissionPayload(nfePayloadWithItem({ finNFe: 1 }, "5949"));
+  const returnNfe = validateNfeEmissionPayload(
+    nfePayloadWithItem(
+      {
+        finNFe: 4,
+        NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+      },
+      "6202"
+    )
+  );
+
+  assert.equal(sale.ok, false);
+  assert.equal(sale.issues.some((issue) => issue.code === "unsupported_mvp_nfe_cfop"), true);
+  assert.equal(returnNfe.ok, true);
+  assert.deepEqual(returnNfe.issues, []);
+});
+
 test("NF-e bloqueia complemento e ajuste no MVP mesmo com NFref valido", () => {
-  for (const finality of [2, 3]) {
+  for (const finality of [2, 3, 5, 6]) {
     const result = validateNfeEmissionPayload(
       minimalNfePayload({
         finNFe: finality,
