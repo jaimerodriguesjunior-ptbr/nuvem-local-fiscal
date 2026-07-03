@@ -122,11 +122,12 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "IBSCBS regular exige CST, cClassTrib, IBS UF, IBS municipio, CBS, bases e totais",
       "IBSCBS monofasico e tratado como grupo proprio para CST 620",
       "venda comum de mercadoria com finNFe=1 e CFOP 5101/5102/6101/6102 exige par 000/000001 quando IBSCBS for informado",
-      "finalidades referenciadas 2/3/4/5/6 bloqueiam IBSCBS ate existir perfil RTC operacional explicito",
+      "devolucao NF-e com finNFe=4 e CFOP 5202/6202 possui perfil RTC operacional inicial para par 000/000001",
+      "finalidades referenciadas 2/3/5/6 bloqueiam IBSCBS ate existir perfil RTC operacional explicito",
       "IS exige CSTIS, cClassTribIS, valores de calculo e ISTot quando informado",
       "a classificacao legal por tipo de operacao e a tabela oficial de IS ainda dependem da fonte vigente e dos dados do cliente"
     ],
-    nextAction: "Homologar perfil RTC real de devolucao/complemento/ajuste e carregar fonte oficial de IS."
+    nextAction: "Carregar fonte oficial de IS e homologar perfil RTC real somente para fluxos fora do MVP quando houver demanda."
   },
   {
     id: "referenciamento-nfe-nfce",
@@ -139,12 +140,15 @@ export const homologationMatrix: HomologationMatrixItem[] = [
       "validacao compartilhada exige NFref para finalidades 2, 3, 4, 5 e 6",
       "contrato automatizado valida chave referenciada, ECF e formatos basicos de NF antiga/produtor",
       "POST /nfe bloqueia finalidade referenciada sem NFref antes de criar documento",
-      "contrato automatizado aceita complemento e ajuste com NFref valido quando o payload nao traz IBSCBS",
-      "NF-e devolucao da Autoeletrica foi homologada com NFref na nfe-4.xml",
+      "contrato automatizado aceita devolucao com NFref valido e IBSCBS no perfil RTC do MVP",
+      "contrato automatizado mantem complemento e ajuste fora do MVP quando o payload traz IBSCBS",
+      "NF-e devolucao da Autoeletrica foi homologada com NFref na nfe-4.xml e com RTC na nfe-8.xml",
+      "NF-e venda por Outra operacao da Autoeletrica foi homologada com RTC na nfe-10.xml",
+      "NF-e devolucao por Outra operacao da Autoeletrica foi homologada com NFref e RTC na nfe-12.xml",
       "NF-e complemento da Autoeletrica foi homologada com NFref na nfe-5.xml",
       "NF-e ajuste da Autoeletrica foi homologada com NFref na nfe-7.xml"
     ],
-    nextAction: "Manter complemento, ajuste e devolucao como smoke obrigatorio quando outro programa ativar NF-e referenciada."
+    nextAction: "Manter venda e devolucao como smoke do MVP; complemento e ajuste ficam como historico para abrir somente sob demanda."
   },
   {
     id: "retry-queue-distributed-processing",

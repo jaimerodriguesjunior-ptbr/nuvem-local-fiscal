@@ -33,7 +33,7 @@ Escopo MVP operacional deste mes:
 - documentos usados: `NFC-e`, `NFS-e` e, em algumas lojas, `NF-e`
 - `NFC-e`: aberta somente para venda normal, mesma UF e emissao online
 - `NFS-e`: aberta somente para provedores municipais ja mapeados no motor de regras; Guaira/IPM e Toledo/Equiplano ficaram validados para emissao no MVP em 2026-07-03
-- `NF-e`: aberta para venda normal e devolucao com documento referenciado
+- `NF-e`: aberta para venda normal e devolucao com documento referenciado, tanto pelos templates dedicados quanto pela tela `Outra operacao` quando os parametros fiscais forem de venda/devolucao
 - `NF-e` complemento, ajuste, credito/debito e demais finalidades permanecem guardadas como conhecimento homologado, mas fechadas no MVP ate necessidade real
 - a decisao comercial deste mes e funcionalidade essencial primeiro; versao por data/hora fica como evolucao posterior
 
@@ -538,6 +538,12 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   operacional proprio para NF-e modelo `55`: `finNFe=4` com CFOP `5202` ou
   `6202` passa a aceitar `IBSCBS` com `CST=000` e `cClassTrib=000001`, mantendo
   complemento e ajuste bloqueados ate perfil proprio
+- em `2026-07-03`, a Autoeletrica/NHT comprovou esse perfil em homologacao:
+  `nfe-8.xml` autorizou devolucao por template com `NFref`, `CFOP=5202`,
+  `IBSCBS`, `cMunFGIBS` e `cStat=100`; `nfe-10.xml` autorizou venda pela tela
+  `Outra operacao` com `CFOP=5102`, `IBSCBS` e `cStat=100`; `nfe-12.xml`
+  autorizou devolucao pela tela `Outra operacao` com `NFref`, `CFOP=5202`,
+  `IBSCBS`, `cMunFGIBS` e `cStat=100`
 - no programa cliente base Autoeletrica, a harmonizacao de RTC deve cobrir
   apenas os fluxos abertos no MVP: venda e devolucao. Isso inclui os templates
   dedicados e a tela `Outra operacao` somente quando os parametros fiscais
@@ -563,9 +569,9 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   chave (`refNFe`, `refNFeSig`, `refCTe`), NF antiga, produtor rural e ECF
   passam por validacao estrutural antes de criar documento fiscal
 - o contrato HTTP cobre `/nfe` com finalidade referenciada sem `NFref` retornando
-  `400` sem alterar a contagem de documentos; a Autoeletrica/NHT ja fechou os
-  cenarios reais de devolucao, complemento e ajuste em homologacao com `NFref`
-  e sem `IBSCBS`
+  `400` sem alterar a contagem de documentos; a Autoeletrica/NHT ja fechou
+  devolucao do MVP com `NFref` e `IBSCBS`, enquanto complemento e ajuste ficam
+  apenas como historico homologado sem `IBSCBS`
 - a lacuna de RTC agora ficou mais estreita: devolucao tem perfil inicial no
   MVP, enquanto complemento, ajuste, credito e debito continuam exigindo perfil
   RTC operacional proprio antes de aceitar classificacao tributaria
@@ -667,17 +673,20 @@ Matriz viva de homologacao:
     decisao formal
 - itens satisfeitos no escopo atual: NF-e PR/Otica com autorizacao, DANFE A4,
   cancelamento e inutilizacao; NFC-e PR/Otica e Autoeletrica para operacao
-  interna; guarda NFC-e interestadual; NF-e devolucao Autoeletrica/NHT em
-  homologacao com `NFref`; NF-e complemento e ajuste em homologacao com
-  `NFref` valido e sem `IBSCBS`; NFS-e Toledo/Equiplano
+  interna; guarda NFC-e interestadual; NF-e venda e devolucao Autoeletrica/NHT
+  em homologacao com RTC/`IBSCBS`, incluindo template e tela `Outra operacao`;
+  NFS-e Toledo/Equiplano; NFS-e Guaira/IPM para emissao
+- itens homologados apenas como historico fora do MVP: NF-e complemento e
+  ajuste em homologacao com `NFref` valido e sem `IBSCBS`; esses fluxos nao
+  devem ficar abertos por padrao neste mes
 - bloqueios intencionais de escopo: NFC-e offline `tpEmis=9` e NF-e com
   `tpImp` diferente de `1`
-- itens que ainda bloqueiam producao pela matriz: conciliacao legal fina da
-  classificacao RTC por tipo de operacao, retries/processamento distribuido e
-  cancelamento Guaira/IPM com evidencia real
-- complemento/ajuste agora estao fechados na homologacao controlada: o contrato
-  automatizado e as emissoes reais validaram as duas finalidades referenciadas
-  sem `IBSCBS`, entao a matriz foi reclassificada como satisfeita nesse ponto
+- itens que ainda exigem fechamento antes de uma operacao ampla: conciliacao
+  legal fina da classificacao RTC fora do MVP, retries/processamento
+  distribuido e cancelamento Guaira/IPM com evidencia real
+- complemento/ajuste nao sao foco operacional agora: o contrato automatizado e
+  as emissoes reais validaram conhecimento util para o futuro, mas esses fluxos
+  permanecem fechados ate demanda real e novo perfil fiscal
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
   visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
   deve denunciar a mudanca
@@ -736,35 +745,33 @@ Limites atuais:
 - a classificacao RTC ja possui catalogo local versionado, bloqueio para pares
   desconhecidos e catalogo oficial IBS/CBS derivado de
   `classificacoes-tributarias-02-07-2026_17-44-56.json`; a venda comum de
-  mercadoria ja possui conciliacao inicial com `000/000001`; finalidades
-  referenciadas bloqueiam `IBSCBS` ate perfil proprio, enquanto os demais tipos
-  de operacao reais dos clientes e a fonte oficial de IS continuam pendentes
+  mercadoria e a devolucao de mercadoria ja possuem conciliacao inicial com
+  `000/000001`; complemento, ajuste, credito e debito bloqueiam `IBSCBS` ate
+  perfil proprio, enquanto os demais tipos de operacao reais dos clientes e a
+  fonte oficial de IS continuam pendentes
 - a checagem de saude fiscal e diagnostica; ela nao substitui emissao de teste homologada
 - para persistir inutilizacoes no Supabase, aplicar a migracao `supabase/migrations/20260611_002_fiscal_inutilizations.sql`
 - para persistir cancelamentos no Supabase, aplicar a migracao `supabase/migrations/20260611_003_fiscal_cancellations.sql`
 - a migracao `supabase/migrations/20260613_001_nfse_provider_artifacts.sql` foi aplicada manualmente no Supabase em 2026-06-13
 
 Proximo foco:
-0. consolidar o MVP fiscal como base oficial: `venda` e `devolucao` abertos, demais fluxos fechados por padrao ate necessidade real
-1. reconciliar `NFE-XSD`/`RT-BASE` com os pacotes e notas tecnicas oficiais
-   vigentes na data da retomada, antes de qualquer liberacao de producao
-2. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a
-   mudancas normativas recentes, incluindo contingencia, `DANFE Simplificado -
-   Tipo 2`, campos novos do leiaute e perfis RTC reais ainda nao conciliados
-3. transformar cada item do checklist em regra/teste quando couber, mantendo o
-   motor de regras como ponto central de decisao
-4. manter compatibilidade com payloads dos sistemas clientes; nao alterar
-   cliente sem necessidade
-5. manter producao bloqueada na Nuvem Local Fiscal ate o checklist ter evidencia
-   tecnica e regulatoria suficiente
-6. fechar retries agendados e estrategia de processamento distribuido antes de
-   qualquer uso fiscal amplo
-7. cancelar uma NFS-e Guaira/IPM em homologacao para fechar o fluxo de
+0. tratar este MVP como base oficial de trabalho do mes: `NFC-e` venda mesma
+   UF, `NF-e` venda/devolucao e `NFS-e` nas pracas ja validadas
+1. fechar no motor de regras o bloqueio explicito de emissao fora do MVP, com
+   mensagem operacional orientando o cliente a procurar suporte tecnico
+2. montar checklist de ativacao por empresa: certificado, CSC quando NFC-e,
+   servicos ativos, ambiente, sequencia, credenciais municipais quando NFS-e e
+   smoke minimo por tipo de documento usado pela loja
+3. preparar piloto controlado com 1 ou 2 lojas reais usando somente os fluxos
+   ja homologados do MVP, com acompanhamento proximo e fallback para Nuvem
+   Fiscal enquanto ela ainda estiver disponivel
+4. cancelar uma NFS-e Guaira/IPM em homologacao para fechar o fluxo de
    cancelamento municipal no MVP, usando o XML no formato aceito pelo schema IPM
-8. definir se a rota IPM permanente sera tunel reverso monitorado, gateway fixo
-   ou outro servidor com saida aceita pela IPM
-9. depois do cancelamento Guaira/IPM, nao abrir novos testes NFS-e municipais
-   sem demanda real de cliente
+5. manter complemento, ajuste, remessa, doacao, transferencia, retorno e demais
+   operacoes fechadas por padrao; abrir apenas sob demanda real, com prazo,
+   teste especifico e registro neste documento
+6. deixar virada de versao por data/hora para depois da estabilizacao do MVP
+   operacional deste mes
 ---
 
 ## 1. Objetivo do projeto

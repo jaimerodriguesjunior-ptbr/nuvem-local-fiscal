@@ -44,15 +44,19 @@ test("devolucao NF-e homologada fica registrada como fluxo satisfeito", () => {
   assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-4.xml")), true);
 });
 
-test("referenciamento NF-e fica satisfeito com devolucao, complemento e ajuste homologados", () => {
+test("referenciamento NF-e registra MVP de venda/devolucao e historico fora do MVP", () => {
   const item = homologationMatrix.find(
     (matrixItem) => matrixItem.id === "referenciamento-nfe-nfce"
   );
 
   assert.equal(item?.status, "satisfied");
   assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-4.xml")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-8.xml")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-10.xml")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-12.xml")), true);
   assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-5.xml")), true);
   assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-7.xml")), true);
+  assert.equal(item?.nextAction.includes("complemento e ajuste ficam como historico"), true);
 });
 
 test("NFS-e MVP registra Toledo satisfeito e Guaira com cancelamento aberto", () => {
