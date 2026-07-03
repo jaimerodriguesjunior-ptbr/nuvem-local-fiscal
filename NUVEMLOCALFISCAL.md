@@ -534,6 +534,16 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   (complemento, ajuste, devolucao, credito ou debito) passaram a bloquear
   `IBSCBS` ate existir perfil RTC operacional explicito; isso impede que uma
   devolucao/complemento/ajuste reaproveite por acidente a regra de venda comum
+- em `2026-07-03`, a devolucao de mercadoria entrou no MVP RTC como perfil
+  operacional proprio para NF-e modelo `55`: `finNFe=4` com CFOP `5202` ou
+  `6202` passa a aceitar `IBSCBS` com `CST=000` e `cClassTrib=000001`, mantendo
+  complemento e ajuste bloqueados ate perfil proprio
+- no programa cliente base Autoeletrica, a harmonizacao de RTC deve cobrir
+  apenas os fluxos abertos no MVP: venda e devolucao. Isso inclui os templates
+  dedicados e a tela `Outra operacao` somente quando os parametros fiscais
+  representarem venda (`finNFe=1` + CFOP de venda) ou devolucao (`finNFe=4` +
+  CFOP `5202`/`6202`); demais operacoes continuam fora do escopo ate decisao
+  propria
 - testes automatizados cobrem o bloqueio de par RTC desconhecido, par de
   Imposto Seletivo desconhecido, classificacao oficial nao liberada para
   NF-e/NFC-e, codigos `220` excluidos do catalogo ativo e grupo monofasico do
@@ -556,9 +566,9 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   `400` sem alterar a contagem de documentos; a Autoeletrica/NHT ja fechou os
   cenarios reais de devolucao, complemento e ajuste em homologacao com `NFref`
   e sem `IBSCBS`
-- se essas finalidades referenciadas trouxerem `IBSCBS`, o emissor continua
-  exigindo um perfil RTC operacional proprio antes de aceitar a classificacao
-  tributaria; essa e a lacuna que permanece, nao o referenciamento em si
+- a lacuna de RTC agora ficou mais estreita: devolucao tem perfil inicial no
+  MVP, enquanto complemento, ajuste, credito e debito continuam exigindo perfil
+  RTC operacional proprio antes de aceitar classificacao tributaria
 - em `2026-07-02`, `RETRY-FILA` ganhou a primeira politica compartilhada em
   `src/lib/retry-rules.ts`: falhas externas incertas de autorizacao SEFAZ
   (`timeout`, `socket`, `ECONNRESET`, HTTP 5xx e similares) sao classificadas

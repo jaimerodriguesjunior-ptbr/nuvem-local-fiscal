@@ -3,7 +3,7 @@ type JsonObject = Record<string, unknown>;
 export type RtcOperationClassificationExpectation = {
   cst: string;
   classCode: string;
-  profile: "standard_taxable_goods_sale";
+  profile: "standard_taxable_goods_sale" | "referenced_goods_return";
   reason: string;
 };
 
@@ -14,6 +14,7 @@ export type RtcUnmappedOperationProfile = {
 };
 
 const standardTaxableGoodsSaleCfops = new Set(["5101", "5102", "6101", "6102"]);
+const referencedGoodsReturnCfops = new Set(["5202", "6202"]);
 const referencedFinalities = new Set(["2", "3", "4", "5", "6"]);
 
 function asObject(value: unknown): JsonObject | null {
@@ -37,16 +38,28 @@ export function expectedRtcClassificationForItem(
   const cfop = text(product?.CFOP);
 
   if (!["55", "65"].includes(model)) return null;
-  if (finality !== "1") return null;
-  if (!standardTaxableGoodsSaleCfops.has(cfop)) return null;
 
-  return {
-    cst: "000",
-    classCode: "000001",
-    profile: "standard_taxable_goods_sale",
-    reason:
-      "Venda comum de mercadoria tributada integralmente, identificada por finNFe=1 e CFOP de venda."
-  };
+  if (finality === "1" && standardTaxableGoodsSaleCfops.has(cfop)) {
+    return {
+      cst: "000",
+      classCode: "000001",
+      profile: "standard_taxable_goods_sale",
+      reason:
+        "Venda comum de mercadoria tributada integralmente, identificada por finNFe=1 e CFOP de venda."
+    };
+  }
+
+  if (model === "55" && finality === "4" && referencedGoodsReturnCfops.has(cfop)) {
+    return {
+      cst: "000",
+      classCode: "000001",
+      profile: "referenced_goods_return",
+      reason:
+        "Devolucao de mercadoria em NF-e, identificada por finNFe=4 e CFOP de devolucao."
+    };
+  }
+
+  return null;
 }
 
 export function unmappedRtcOperationProfileForItem(

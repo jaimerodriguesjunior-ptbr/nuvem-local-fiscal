@@ -133,14 +133,28 @@ test("bloqueia venda comum com classificacao oficial divergente do perfil operac
   );
 });
 
-test("bloqueia IBSCBS em finalidade referenciada enquanto nao houver perfil operacional RTC", () => {
-  for (const finality of [2, 3, 4]) {
+test("aceita IBSCBS em NF-e de devolucao com perfil operacional RTC", () => {
+  const payload = rtcPayload();
+  (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
+  (payload.infNFe.ide as Record<string, unknown>).NFref = [
+    { refNFe: "41260612345678000195550010000001231000001234" }
+  ];
+  payload.infNFe.det[0].prod.CFOP = "5202";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
+test("bloqueia IBSCBS em finalidade referenciada sem perfil operacional RTC", () => {
+  for (const finality of [2, 3]) {
     const payload = rtcPayload();
     (payload.infNFe.ide as Record<string, unknown>).finNFe = finality;
     (payload.infNFe.ide as Record<string, unknown>).NFref = [
       { refNFe: "41260612345678000195550010000001231000001234" }
     ];
-    payload.infNFe.det[0].prod.CFOP = finality === 4 ? "5202" : "5102";
+    payload.infNFe.det[0].prod.CFOP = "5102";
 
     const result = validateRtcPayload(payload);
 
