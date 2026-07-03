@@ -7,6 +7,7 @@ import { DOMParser, XMLSerializer, type Element } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
 
 import { decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
+import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
 
 type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
@@ -281,7 +282,7 @@ export async function cancelDocumentAtSefaz(
       `Cancelamento de ${input.documentType} ainda nao configurado para a UF ${uf || "(vazia)"}.`
     );
   }
-  if (input.ambiente !== "homologacao") {
+  if (input.ambiente === "producao" && !config.fiscalProductionEnabled) {
     throw new Error("Cancelamento em producao permanece bloqueado nesta etapa.");
   }
 

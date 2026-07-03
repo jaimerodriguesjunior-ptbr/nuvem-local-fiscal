@@ -1,4 +1,5 @@
 import type { Environment, Issuer, ServiceConfig } from "../types.js";
+import { config } from "../config.js";
 
 export type NfseProviderId = "guaira-ipm" | "toledo-equiplano";
 
@@ -211,7 +212,11 @@ export function validateNfseRuntimePolicy(input: {
   if (!profile) {
     return { allowed: false, reason: "Provedor NFS-e nao configurado." };
   }
-  if (input.ambiente === "producao" && !profile.productionTransmissionEnabled) {
+  if (
+    input.ambiente === "producao" &&
+    !profile.productionTransmissionEnabled &&
+    !config.fiscalProductionEnabled
+  ) {
     return {
       allowed: false,
       reason: `${profile.displayName} em producao ainda esta bloqueado pelo motor de regras.`

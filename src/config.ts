@@ -65,7 +65,9 @@ export const config = {
   nfseIpmConnectHost: process.env.NFSE_IPM_CONNECT_HOST ?? "",
   nfseIpmConnectPort: process.env.NFSE_IPM_CONNECT_PORT ?? "",
   autoTransmitHomologation:
-    (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true"
+    (process.env.AUTO_TRANSMIT_HOMOLOGATION ?? "true").toLowerCase() === "true",
+  fiscalProductionEnabled:
+    (process.env.FISCAL_PRODUCTION_ENABLED ?? "false").toLowerCase() === "true"
 };
 
 export function validateServerConfig() {

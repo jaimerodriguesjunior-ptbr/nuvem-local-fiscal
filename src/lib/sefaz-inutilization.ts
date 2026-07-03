@@ -7,6 +7,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
 
 import { decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
+import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
 
 type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
@@ -239,7 +240,7 @@ export async function inutilizeNumberRangeAtSefaz(
       `Inutilizacao de ${input.documentType} ainda nao configurada para a UF ${uf || "(vazia)"}.`
     );
   }
-  if (input.ambiente !== "homologacao") {
+  if (input.ambiente === "producao" && !config.fiscalProductionEnabled) {
     throw new Error("Transmissao em producao permanece bloqueada nesta etapa.");
   }
 

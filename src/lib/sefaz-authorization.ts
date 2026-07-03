@@ -13,6 +13,7 @@ import { parseXml } from "libxmljs2";
 
 import { decryptCertificateBundle } from "./certificates.js";
 import { nfeSchemaPackageDirectory } from "./nfe-schema-package.js";
+import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
 
 type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
@@ -259,7 +260,7 @@ export async function authorizeNfeAtSefaz(input: {
       `Autorizacao de ${input.documentType} ainda nao configurada para a UF ${uf || "(vazia)"}.`
     );
   }
-  if (input.ambiente !== "homologacao") {
+  if (input.ambiente === "producao" && !config.fiscalProductionEnabled) {
     throw new Error("Transmissao em producao permanece bloqueada nesta etapa.");
   }
 

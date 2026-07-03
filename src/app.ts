@@ -31,7 +31,7 @@ export function buildApp() {
   app.get("/health", async () => ({
     status: "ok",
     appEnv: config.env,
-    fiscalProductionBlocked: true,
+    fiscalProductionBlocked: !config.fiscalProductionEnabled,
     timestamp: new Date().toISOString()
   }));
 
@@ -39,7 +39,7 @@ export function buildApp() {
     status: "ready",
     persistence:
       config.supabaseUrl && config.supabaseServiceRoleKey ? "supabase" : "local",
-    fiscalProductionBlocked: true,
+    fiscalProductionBlocked: !config.fiscalProductionEnabled,
     timestamp: new Date().toISOString()
   }));
 

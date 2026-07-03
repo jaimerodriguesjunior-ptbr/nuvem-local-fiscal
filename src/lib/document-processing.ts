@@ -115,7 +115,14 @@ export async function processHomologationDocument(
       error: "Use o conector municipal de NFS-e para processar este documento."
     };
   }
-  if (document.ambiente !== "homologacao") {
+  if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
+    return {
+      document,
+      transmitted: false,
+      error: "Transmissao em producao permanece bloqueada nesta etapa."
+    };
+  }
+  if (document.ambiente !== "homologacao" && document.ambiente !== "producao") {
     return { document, transmitted: false, error: null };
   }
   if (["autorizado", "cancelado"].includes(document.status)) {

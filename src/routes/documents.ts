@@ -1019,7 +1019,7 @@ async function handleCreateInutilization(
         "Informe CNPJ, ano, serie, numero_inicial, numero_final e justificativa com pelo menos 15 caracteres."
     });
   }
-  if (ambiente !== "homologacao") {
+  if (ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Inutilizacao em producao permanece bloqueada nesta etapa."
     });
@@ -1308,15 +1308,16 @@ async function handleCreateDocument(
         "Configure o CSC ID e o CSC da NFC-e para este ambiente antes da emissao."
     });
   }
-  if (
-    ambiente === "homologacao" &&
-    config.autoTransmitHomologation &&
+  const shouldTransmitNow =
     autoTransmit &&
-    !app.store.findActiveCertificate(issuerCnpj)
-  ) {
+    (
+      (ambiente === "homologacao" && config.autoTransmitHomologation) ||
+      (ambiente === "producao" && config.fiscalProductionEnabled)
+    );
+  if (shouldTransmitNow && !app.store.findActiveCertificate(issuerCnpj)) {
     return reply.code(409).send({
       message:
-        "Cadastre um certificado A1 ativo para o emitente antes da emissao em homologacao."
+        "Cadastre um certificado A1 ativo para o emitente antes da emissao."
     });
   }
   const nfceConfigEncrypted =
@@ -1335,11 +1336,7 @@ async function handleCreateDocument(
   });
   await app.store.waitForPersistence();
 
-  if (
-    ambiente === "homologacao" &&
-    config.autoTransmitHomologation &&
-    autoTransmit
-  ) {
+  if (shouldTransmitNow) {
     const processed =
       tipoDocumento === "NFCe"
         ? await processHomologationNfce(app.store, document.id)
@@ -1450,7 +1447,7 @@ async function handleCreateNfseDps(
       message: "Informe infDPS.prest.CNPJ ou emitenteCnpj para a NFS-e."
     });
   }
-  if (ambiente === "producao") {
+  if (ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Emissao NFS-e em producao permanece bloqueada nesta etapa.",
       error: {
@@ -1557,7 +1554,7 @@ async function handleCancelDocument(
       }
     });
   }
-  if (document.ambiente !== "homologacao") {
+  if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Cancelamento em producao permanece bloqueado nesta etapa.",
       error: {
@@ -1696,7 +1693,7 @@ async function handleCancelNfse(
       message: "Somente uma NFS-e autorizada pode ser cancelada."
     });
   }
-  if (document.ambiente !== "homologacao") {
+  if (document.ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Cancelamento NFS-e em producao permanece bloqueado."
     });
