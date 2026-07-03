@@ -107,6 +107,10 @@ Compatibilidade aplicada na Autoeletrica:
 - essas mudancas foram feitas para preservar a premissa de trocar ambiente por `.env` e evitar cadastro manual repetitivo quando a integracao cliente estiver madura
 
 Licoes praticas da Autoeletrica para outros programas:
+- nesta fase, a Autoeletrica/NHT esta sendo usada como laboratorio real da
+  Nuvem Local Fiscal; o objetivo principal nao e deixar a Autoeletrica como
+  produto final perfeito agora, e sim descobrir e fechar lacunas do emissor
+  compartilhado antes de levar a regra para outros programas
 - NFC-e em homologacao com cliente da mesma UF foi validada ponta a ponta depois dos ajustes de homologacao
 - NFC-e com cliente de outra UF nao deve seguir como NFC-e; a regra certa e bloquear cedo e orientar NF-e
 - a validacao de UF precisa acontecer antes de consumir numeracao fiscal, tanto na tela quanto no backend
@@ -533,12 +537,12 @@ Diagnostico inicial do recorte `NFE-XSD` / `RT-BASE` / `RT-XML` em
   chave (`refNFe`, `refNFeSig`, `refCTe`), NF antiga, produtor rural e ECF
   passam por validacao estrutural antes de criar documento fiscal
 - o contrato HTTP cobre `/nfe` com finalidade referenciada sem `NFref` retornando
-  `400` sem alterar a contagem de documentos; isso fecha a guarda local, mas
-  ainda falta homologar um cenario real de devolucao/complemento/ajuste com
-  cliente antes de remover o bloqueio de producao da matriz
-- alem disso, se essas finalidades referenciadas trouxerem `IBSCBS`, o emissor
-  agora exige um perfil RTC operacional proprio antes de aceitar a classificacao
-  tributaria
+  `400` sem alterar a contagem de documentos; a Autoeletrica/NHT ja fechou os
+  cenarios reais de devolucao, complemento e ajuste em homologacao com `NFref`
+  e sem `IBSCBS`
+- se essas finalidades referenciadas trouxerem `IBSCBS`, o emissor continua
+  exigindo um perfil RTC operacional proprio antes de aceitar a classificacao
+  tributaria; essa e a lacuna que permanece, nao o referenciamento em si
 - em `2026-07-02`, `RETRY-FILA` ganhou a primeira politica compartilhada em
   `src/lib/retry-rules.ts`: falhas externas incertas de autorizacao SEFAZ
   (`timeout`, `socket`, `ECONNRESET`, HTTP 5xx e similares) sao classificadas
@@ -652,6 +656,9 @@ Matriz viva de homologacao:
 - `src/lib/homologation-matrix.test.ts` garante que esses bloqueios continuam
   visiveis; se alguem marcar producao como pronta sem fechar a matriz, o teste
   deve denunciar a mudanca
+- a Autoeletrica deve continuar aparecendo na matriz como fonte de evidencia
+  operacional da Nuvem Local Fiscal; ajustes finos de produto em cada sistema
+  cliente ficam para a etapa posterior, programa por programa
 
 Limites atuais:
 - transmissao automatica pode processar NFC-e/NF-e em homologacao quando habilitada; producao permanece bloqueada
@@ -702,7 +709,7 @@ Proximo foco:
    vigentes na data da retomada, antes de qualquer liberacao de producao
 2. revisar e testar na homologacao os pontos de `NF-e`/`NFC-e` mais sensiveis a
    mudancas normativas recentes, incluindo contingencia, `DANFE Simplificado -
-   Tipo 2`, referenciamento entre documentos e campos novos do leiaute
+   Tipo 2`, campos novos do leiaute e perfis RTC reais ainda nao conciliados
 3. transformar cada item do checklist em regra/teste quando couber, mantendo o
    motor de regras como ponto central de decisao
 4. manter compatibilidade com payloads dos sistemas clientes; nao alterar

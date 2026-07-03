@@ -15,7 +15,6 @@ test("matriz de homologacao mantem producao bloqueada enquanto lacunas criticas 
   assert.equal(summary.total, homologationMatrix.length);
   assert.deepEqual(summary.blockingIds, [
     "rt-classification-contract",
-    "referenciamento-nfe-nfce",
     "retry-queue-distributed-processing",
     "nfse-guaira-ipm-consulta-cancelamento"
   ]);
@@ -35,6 +34,17 @@ test("devolucao NF-e homologada fica registrada como fluxo satisfeito", () => {
 
   assert.equal(item?.status, "satisfied");
   assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-4.xml")), true);
+});
+
+test("referenciamento NF-e fica satisfeito com devolucao, complemento e ajuste homologados", () => {
+  const item = homologationMatrix.find(
+    (matrixItem) => matrixItem.id === "referenciamento-nfe-nfce"
+  );
+
+  assert.equal(item?.status, "satisfied");
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-4.xml")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-5.xml")), true);
+  assert.equal(item?.evidence.some((evidence) => evidence.includes("nfe-7.xml")), true);
 });
 
 test("cada item da matriz possui evidencia e proximo passo operacional", () => {

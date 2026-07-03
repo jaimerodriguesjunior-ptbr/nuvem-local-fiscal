@@ -119,16 +119,18 @@ export const homologationMatrix: HomologationMatrixItem[] = [
     area: "Platform",
     instance: "Todos os clientes",
     flow: "NF-e/NFC-e com documentos referenciados",
-    status: "blocks_production",
+    status: "satisfied",
     evidence: [
       "checklist regulatorio exige devolucao, complemento, ajuste e vinculacao entre documentos",
       "validacao compartilhada exige NFref para finalidades 2, 3, 4, 5 e 6",
       "contrato automatizado valida chave referenciada, ECF e formatos basicos de NF antiga/produtor",
       "POST /nfe bloqueia finalidade referenciada sem NFref antes de criar documento",
       "contrato automatizado aceita complemento e ajuste com NFref valido quando o payload nao traz IBSCBS",
-      "NF-e devolucao da Autoeletrica foi homologada com NFref, mas complemento/ajuste ainda nao"
+      "NF-e devolucao da Autoeletrica foi homologada com NFref na nfe-4.xml",
+      "NF-e complemento da Autoeletrica foi homologada com NFref na nfe-5.xml",
+      "NF-e ajuste da Autoeletrica foi homologada com NFref na nfe-7.xml"
     ],
-    nextAction: "Homologar cenario real de complemento ou ajuste com cliente antes de producao."
+    nextAction: "Manter complemento, ajuste e devolucao como smoke obrigatorio quando outro programa ativar NF-e referenciada."
   },
   {
     id: "retry-queue-distributed-processing",
