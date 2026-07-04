@@ -1163,19 +1163,19 @@ const page = String.raw`<!doctype html>
       const prod = company.environments.producao;
       const base = hom || prod;
       return '<section class="surface"><h2>Dados cadastrais</h2>' +
-        '<p class="small">Informacoes compartilhadas pela empresa e registros disponiveis por ambiente.</p>' +
+        '<p class="small">Informações compartilhadas pela empresa e registros disponíveis por ambiente.</p>' +
         '<div class="actions"><button type="button" class="btn secondary" onclick="openNfceSettings()">Configurar NFC-e e CSC</button></div>' +
         '<div class="compact-info-grid">' +
           compactInfo('CNPJ', formatCnpj(company.cnpj)) +
-          compactInfo('Razao social', company.razaoSocial) +
+          compactInfo('Razão social', company.razaoSocial) +
           compactInfo('Nome fantasia', company.nomeFantasia) +
-          compactInfo('UF', base ? base.uf : 'Nao informado') +
-          compactInfo('Inscricao estadual', base ? base.ie || 'Nao informada' : 'Nao informada') +
-          compactInfo('Regime tributario', base ? 'CRT ' + (base.crt || 'nao informado') : 'Nao informado') +
-        '</div><div class="section-head"><div><h3>Ambientes</h3><p>Um cadastro, duas configuracoes fiscais independentes.</p></div></div>' +
+          compactInfo('UF', base ? base.uf : 'Não informado') +
+          compactInfo('Inscrição estadual', base ? base.ie || 'Não informada' : 'Não informada') +
+          compactInfo('Regime tributário', base ? 'CRT ' + (base.crt || 'não informado') : 'Não informado') +
+        '</div><div class="section-head"><div><h3>Ambientes</h3><p>Um cadastro, duas configurações fiscais independentes.</p></div></div>' +
         '<div class="two-col">' +
-          environmentEditor(company, hom, 'Homologacao', 'homologacao') +
-          environmentEditor(company, prod, 'Producao', 'producao') +
+          environmentEditor(company, hom, 'Homologação', 'homologacao') +
+          environmentEditor(company, prod, 'Produção', 'producao') +
         '</div></section>' + responseConsole();
     }
 
@@ -1185,20 +1185,20 @@ const page = String.raw`<!doctype html>
           '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
           '<input type="hidden" name="environment" value="' + environment + '" />' +
           '<div class="two-col">' +
-            '<label>Razao social<input name="razaoSocial" value="' + escapeHtml(company.razaoSocial) + '" required /></label>' +
+            '<label>Razão social<input name="razaoSocial" value="' + escapeHtml(company.razaoSocial) + '" required /></label>' +
             '<label>Nome fantasia<input name="nomeFantasia" value="' + escapeHtml(company.nomeFantasia) + '" required /></label>' +
           '</div>' +
           '<div class="two-col">' +
             '<label>UF<input name="uf" maxlength="2" value="' + escapeHtml(issuer ? issuer.uf : '') + '" required /></label>' +
-            '<label>Inscricao estadual<input name="ie" value="' + escapeHtml(issuer ? issuer.ie : '') + '" /></label>' +
+            '<label>Inscrição estadual<input name="ie" value="' + escapeHtml(issuer ? issuer.ie : '') + '" /></label>' +
           '</div>' +
           '<div class="two-col">' +
-            '<label>CRT / regime tributario<input name="crt" value="' + escapeHtml(issuer ? issuer.crt : '') + '" placeholder="1 para Simples Nacional" required /></label>' +
-            '<label>Serie NF-e<input type="number" min="1" name="serieNfe" value="' + escapeHtml(String(issuer ? issuer.serieNfe : 1)) + '" required /></label>' +
+            '<label>CRT / regime tributário<input name="crt" value="' + escapeHtml(issuer ? issuer.crt : '') + '" placeholder="1 para Simples Nacional" required /></label>' +
+            '<label>Série NF-e<input type="number" min="1" name="serieNfe" value="' + escapeHtml(String(issuer ? issuer.serieNfe : 1)) + '" required /></label>' +
           '</div>' +
           '<div class="two-col">' +
-            '<label>Serie NFC-e<input type="number" min="1" name="serieNfce" value="' + escapeHtml(String(issuer ? issuer.serieNfce : 1)) + '" required /></label>' +
-            '<label>Situacao<select name="ativo"><option value="true"' + (issuer?.ativo !== false ? ' selected' : '') + '>Ativo</option><option value="false"' + (issuer?.ativo === false ? ' selected' : '') + '>Inativo</option></select></label>' +
+            '<label>Série NFC-e<input type="number" min="1" name="serieNfce" value="' + escapeHtml(String(issuer ? issuer.serieNfce : 1)) + '" required /></label>' +
+            '<label>Situação<select name="ativo"><option value="true"' + (issuer?.ativo !== false ? ' selected' : '') + '>Ativo</option><option value="false"' + (issuer?.ativo === false ? ' selected' : '') + '>Inativo</option></select></label>' +
           '</div>' +
           '<div><button type="submit" class="btn">Salvar ambiente</button></div>' +
         '</form></section>';
@@ -1378,21 +1378,21 @@ const page = String.raw`<!doctype html>
       const lastNfeBatch = settings.nfeLastBatchId || (lastAuthorizedDocument ? lastAuthorizedDocument.sefazBatchId : null);
       const production = state.environment === 'producao';
       const productionStatus = production
-        ? fiscalProductionBlocked() ? 'Producao bloqueada' : 'Producao piloto'
-        : 'Homologacao';
+        ? fiscalProductionBlocked() ? 'Produção bloqueada' : 'Produção piloto'
+        : 'Homologação';
 
-      return '<section class="service-box"><div class="eyebrow">Configuracao do servico</div>' +
-        '<h2>Nota Fiscal Eletronica</h2>' +
-        '<p class="small">Parametros da NF-e separados por ambiente. Operacoes e detalhes tecnicos ficam em Documentos e Logs.</p>' +
+      return '<section class="service-box"><div class="eyebrow">Configuração do serviço</div>' +
+        '<h2>Nota Fiscal Eletrônica</h2>' +
+        '<p class="small">Parâmetros da NF-e separados por ambiente. Operações e detalhes técnicos ficam em Documentos e Logs.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
           '<button type="button" class="' + (production ? 'active' : '') +
-            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
           info('Ambiente', productionStatus) +
-          info('Ultima NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
-          info('Ultimo lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
+          info('Última NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
+          info('Último lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
           '</div><form id="nfeServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -1403,25 +1403,25 @@ const page = String.raw`<!doctype html>
                 '<option value="3"' + (issuer.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
                 '<option value="4"' + (issuer.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
               '</select></label>' +
-              '<label>Serie NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
+              '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Ultima NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
+              '<label>Última NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
                 escapeHtml(settings.nfeLastNumber ? String(settings.nfeLastNumber) : '') + '" placeholder="' +
                 escapeHtml(lastAuthorizedDocument ? String(lastAuthorizedDocument.numero) : 'Ex.: 123') + '" /></label>' +
-              '<label>Ultimo lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
+              '<label>Último lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
                 escapeHtml(settings.nfeLastBatchId ? String(settings.nfeLastBatchId) : '') + '" placeholder="' +
                 escapeHtml(lastAuthorizedDocument && lastAuthorizedDocument.sefazBatchId ? String(lastAuthorizedDocument.sefazBatchId) : 'Opcional') + '" /></label>' +
             '</div><div class="two-col">' +
-              '<label>Servico<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
+              '<label>Serviço<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
                 '>Ativo</option><option value="false"' + (!active ? ' selected' : '') + '>Inativo</option></select></label>' +
-              '<label>Transmissao<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
-                '<option value="true"' + (!production && autoTransmit ? ' selected' : '') + '>Automatica</option>' +
+              '<label>Transmissão<select name="autoTransmit"' + (production ? ' disabled' : '') + '>' +
+                '<option value="true"' + (!production && autoTransmit ? ' selected' : '') + '>Automática</option>' +
                 '<option value="false"' + (production || !autoTransmit ? ' selected' : '') + '>Manual</option>' +
               '</select></label>' +
             '</div>' +
-            (production ? '<div class="empty">A transmissao em producao permanece bloqueada por seguranca.</div>' : '') +
-            '<div><button type="submit" class="btn">Salvar configuracao NF-e</button></div>' +
+            (production ? '<div class="empty">A transmissão em produção permanece bloqueada por segurança.</div>' : '') +
+            '<div><button type="submit" class="btn">Salvar configuração NF-e</button></div>' +
           '</form>' :
           '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
         '</section>' + responseConsole();
@@ -1434,54 +1434,54 @@ const page = String.raw`<!doctype html>
       const docs = documentsFor(company.cnpj).filter(function(doc) {
         return doc.tipoDocumento === 'NFCe' && doc.ambiente === state.environment;
       });
-      return '<section class="service-box"><div class="eyebrow">Servico ativo</div><h2>Nota Fiscal de Consumidor Eletronica</h2>' +
-        '<p class="small">Configuracao e diagnostico separados por ambiente.</p>' +
+      return '<section class="service-box"><div class="eyebrow">Serviço ativo</div><h2>Nota Fiscal de Consumidor Eletrônica</h2>' +
+        '<p class="small">Configuração e diagnóstico separados por ambiente.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
           '<button type="button" class="' + (state.environment === 'producao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
         (issuer ? '<div class="info-grid">' +
-          info('Situacao', issuer.ativo ? 'Ativo' : 'Inativo') +
-          info('Serie NFC-e', String(issuer.serieNfce)) +
-          info('Certificado', cert ? 'A1 ativo' : 'Nao cadastrado') +
-          info('CSC ID', serviceConfig && serviceConfig.settings && serviceConfig.settings.cscId ? String(serviceConfig.settings.cscId) : 'Nao configurado') +
-          info('CSC', serviceConfig && serviceConfig.hasSecrets ? 'Configurado' : 'Nao configurado') +
+          info('Situação', issuer.ativo ? 'Ativo' : 'Inativo') +
+          info('Série NFC-e', String(issuer.serieNfce)) +
+          info('Certificado', cert ? 'A1 ativo' : 'Não cadastrado') +
+          info('CSC ID', serviceConfig && serviceConfig.settings && serviceConfig.settings.cscId ? String(serviceConfig.settings.cscId) : 'Não configurado') +
+          info('CSC', serviceConfig && serviceConfig.hasSecrets ? 'Configurado' : 'Não configurado') +
           info('UF autorizadora', issuer.uf) +
           info('Documentos', String(docs.length)) +
-          info('Ultima emissao', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
-          '</div><div class="section-head"><div><h3>Configuracao NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
+          info('Última emissão', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
+          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
           '<form id="nfceServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
               '<label>CSC ID<input name="cscId" value="' + escapeHtml(serviceConfig && serviceConfig.settings ? String(serviceConfig.settings.cscId || '') : '') + '" required /></label>' +
-              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Ja configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
+              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
             '</div>' +
-            '<div><button type="submit" class="btn">Salvar configuracao NFC-e</button></div>' +
-          '</form><div class="section-head"><div><h3>Inutilizacao de numeracao</h3><p>Use quando uma numeracao foi pulada e nao sera mais emitida.</p></div></div>' +
+            '<div><button type="submit" class="btn">Salvar configuração NFC-e</button></div>' +
+          '</form><div class="section-head"><div><h3>Inutilização de numeração</h3><p>Use quando uma numeração foi pulada e não será mais emitida.</p></div></div>' +
           '<form id="inutilizationForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
-              '<label>Serie<input type="number" min="1" name="serie" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
+              '<label>Série<input type="number" min="1" name="serie" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
               '<label>Ano<input type="number" min="2000" max="2099" name="ano" value="' + new Date().getFullYear() + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Numero inicial<input type="number" min="1" name="numeroInicial" required /></label>' +
-              '<label>Numero final<input type="number" min="1" name="numeroFinal" required /></label>' +
+              '<label>Número inicial<input type="number" min="1" name="numeroInicial" required /></label>' +
+              '<label>Número final<input type="number" min="1" name="numeroFinal" required /></label>' +
             '</div>' +
-            '<label>Justificativa<input name="justificativa" minlength="15" placeholder="Ex: Falha operacional na sequencia de numeracao" required /></label>' +
-            '<div><button type="submit" class="btn danger" ' + (cert ? '' : 'disabled') + '>Inutilizar em homologacao</button></div>' +
+            '<label>Justificativa<input name="justificativa" minlength="15" placeholder="Ex: Falha operacional na sequência de numeração" required /></label>' +
+            '<div><button type="submit" class="btn danger" ' + (cert ? '' : 'disabled') + '>Inutilizar em homologação</button></div>' +
           '</form><div class="actions"><button type="button" class="btn" ' +
             (cert ? '' : 'disabled') + ' onclick="checkSefazStatus(\'' + escapeHtml(issuer.id) +
             '\')">Consultar disponibilidade SEFAZ</button>' +
           '<button type="button" class="btn secondary" onclick="runFiscalHealthCheck(\'' +
             escapeHtml(company.cnpj) + '\', \'' + escapeHtml(state.environment) +
-            '\')">Checar saude fiscal</button>' +
+            '\')">Checar saúde fiscal</button>' +
           '<button type="button" class="btn secondary" onclick="openCompanyDocuments(\'' +
             escapeHtml(company.cnpj) + '\')">Ver documentos da empresa</button></div>' +
           renderFiscalHealthPanel(company) :
-          '<div class="empty">Este ambiente ainda nao possui um registro fiscal para a empresa.</div>') +
+          '<div class="empty">Este ambiente ainda não possui um registro fiscal para a empresa.</div>') +
         '</section>' + responseConsole();
     }
 
@@ -1581,49 +1581,49 @@ const page = String.raw`<!doctype html>
         ? providerPreset.autoTransmit
         : settings.autoTransmit !== false;
 
-      return '<section class="service-box"><div class="eyebrow">Configuracao municipal</div>' +
-        '<h2>Nota Fiscal de Servico Eletronica</h2>' +
-        '<p class="small">Escolha o conector do municipio. Guaira usa IPM/Atende.Net; Toledo usa Equiplano. Os contratos nao sao intercambiaveis.</p>' +
+      return '<section class="service-box"><div class="eyebrow">Configuração municipal</div>' +
+        '<h2>Nota Fiscal de Serviço Eletrônica</h2>' +
+        '<p class="small">Escolha o conector do município. Guaíra usa IPM/Atende.Net; Toledo usa Equiplano. Os contratos não são intercambiáveis.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
           '<button type="button" class="' + (production ? 'active' : '') +
-            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
-          compactInfo('Provedor', serviceConfig ? provider : 'Nao configurado') +
-          compactInfo('Municipio', municipalityName || 'Nao informado') +
-          compactInfo('Certificado A1', cert ? 'Ativo' : 'Nao cadastrado') +
-          compactInfo('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha nao configurada') +
-          compactInfo('Proximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Nao informado') +
-          compactInfo('Transmissao', transmissionLabel(state.environment, autoTransmit)) +
+          compactInfo('Provedor', serviceConfig ? provider : 'Não configurado') +
+          compactInfo('Município', municipalityName || 'Não informado') +
+          compactInfo('Certificado A1', cert ? 'Ativo' : 'Não cadastrado') +
+          compactInfo('Credencial', serviceConfig && serviceConfig.hasSecrets ? 'Senha configurada' : 'Senha não configurada') +
+          compactInfo('Próximo RPS', settings.nfseNextRpsNumber ? String(settings.nfseNextRpsNumber) : 'Não informado') +
+          compactInfo('Transmissão', transmissionLabel(state.environment, autoTransmit)) +
           '</div><form id="nfseServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
-            '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificacao do municipio e credenciais do servico municipal.</p></div></div>' +
+            '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificação do município e credenciais do serviço municipal.</p></div></div>' +
             '<div class="two-col">' +
               '<label>Provedor<select name="provider" onchange="setNfseProvider(this.value)">' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
-                '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaira / IPM Atende.Net</option>' +
+                '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
               '</select></label>' +
-              '<label>Codigo IBGE do municipio<input name="municipalityCode" inputmode="numeric" value="' +
+              '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
                 escapeHtml(municipalityCode || '') + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Municipio<input name="municipalityName" value="' +
+              '<label>Município<input name="municipalityName" value="' +
                 escapeHtml(municipalityName || '') + '" required /></label>' +
-              '<label>Inscricao municipal / cadastro economico<input name="municipalRegistration" value="' +
+              '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
                 escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Login / usuario da prefeitura<input name="login" value="' +
+              '<label>Login / usuário da prefeitura<input name="login" value="' +
                 escapeHtml(settings.nfseLogin || '') + '" required autocomplete="off" /></label>' +
               '<label>Senha da prefeitura<input type="password" name="password" placeholder="' +
-                (serviceConfig && serviceConfig.hasSecrets ? 'Ja configurada. Preencha apenas para trocar.' : 'Informe a senha') +
+                (serviceConfig && serviceConfig.hasSecrets ? 'Já configurada. Preencha apenas para trocar.' : 'Informe a senha') +
                 '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
             '</div>' +
             (isToledo ?
             '<div class="section-head"><div><h3>Equiplano</h3><p>Contrato SOAP/XML exclusivo de Toledo.</p></div></div>' +
             '<div class="two-col">' +
               '<label>ID da entidade<input name="entityId" value="' + escapeHtml(entityId || '') + '" required /></label>' +
-              '<label>Formato da requisicao<select name="requestFormat">' +
+              '<label>Formato da requisição<select name="requestFormat">' +
                 '<option value="soap"' + (requestFormat !== 'xml' ? ' selected' : '') + '>SOAP 1.1</option>' +
                 '<option value="xml"' + (requestFormat === 'xml' ? ' selected' : '') + '>XML direto</option>' +
               '</select></label>' +
@@ -1631,71 +1631,71 @@ const page = String.raw`<!doctype html>
               escapeHtml(endpoint || '') + '" required /></label>' +
             '<label>SOAP Action<input name="soapAction" value="' +
               escapeHtml(soapAction || '') + '" /></label>' :
-            '<div class="section-head"><div><h3>IPM / Atende.Net</h3><p>Parametros municipais de Guaira. Os valores sugeridos vieram de exportacoes locais e ainda devem ser confirmados no portal.</p></div></div>' +
+            '<div class="section-head"><div><h3>IPM / Atende.Net</h3><p>Parâmetros municipais de Guaíra. Os valores sugeridos vieram de exportações locais e ainda devem ser confirmados no portal.</p></div></div>' +
             '<label>Endpoint IPM<input type="url" name="endpoint" value="' +
               escapeHtml(endpoint || '') + '" required /></label>' +
             '<div class="two-col">' +
-              '<label>Codigo TOM<input name="tomCode" inputmode="numeric" value="' +
+              '<label>Código TOM<input name="tomCode" inputmode="numeric" value="' +
                 escapeHtml(tomCode || '') + '" required /></label>' +
-              '<label>Cadastro economico<input name="economicRegistration" value="' +
+              '<label>Cadastro econômico<input name="economicRegistration" value="' +
                 escapeHtml(settings.nfseEconomicRegistration || settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
             '</div><div class="two-col">' +
               '<label>Atividade / CNAE<input name="activityCode" inputmode="numeric" value="' +
                 escapeHtml(activityCode || '') + '" required /></label>' +
-              '<label>Situacao tributaria<select name="taxSituation">' +
+              '<label>Situação tributária<select name="taxSituation">' +
                 '<option value="0"' + (taxSituation === '0' ? ' selected' : '') + '>0 - Tributada integralmente</option>' +
-                '<option value="1"' + (taxSituation === '1' ? ' selected' : '') + '>1 - Tributada com ISSRF publico</option>' +
-                '<option value="2"' + (taxSituation === '2' ? ' selected' : '') + '>2 - Substituicao tributaria</option>' +
+                '<option value="1"' + (taxSituation === '1' ? ' selected' : '') + '>1 - Tributada com ISSRF público</option>' +
+                '<option value="2"' + (taxSituation === '2' ? ' selected' : '') + '>2 - Substituição tributária</option>' +
                 '<option value="6"' + (taxSituation === '6' ? ' selected' : '') + '>6 - Isenta</option>' +
                 '<option value="7"' + (taxSituation === '7' ? ' selected' : '') + '>7 - Imune</option>' +
-                '<option value="14"' + (taxSituation === '14' ? ' selected' : '') + '>14 - Nao tributada</option>' +
+                '<option value="14"' + (taxSituation === '14' ? ' selected' : '') + '>14 - Não tributada</option>' +
               '</select></label>' +
             '</div><div class="two-col">' +
               '<label>Assinatura digital<select name="requiresSignature">' +
-                '<option value="false"' + (!requiresSignature ? ' selected' : '') + '>Nao confirmada / nao exigir</option>' +
-                '<option value="true"' + (requiresSignature ? ' selected' : '') + '>Exigida pelo municipio</option>' +
+                '<option value="false"' + (!requiresSignature ? ' selected' : '') + '>Não confirmada / não exigir</option>' +
+                '<option value="true"' + (requiresSignature ? ' selected' : '') + '>Exigida pelo município</option>' +
               '</select></label>' +
               '<label>Modo do XML<select name="testMode">' +
-                '<option value="true"' + (testMode ? ' selected' : '') + '>Teste sem emissao (nfse_teste=1)</option>' +
-                '<option value="false"' + (!testMode ? ' selected' : '') + '>Emissao real</option>' +
+                '<option value="true"' + (testMode ? ' selected' : '') + '>Teste sem emissão (nfse_teste=1)</option>' +
+                '<option value="false"' + (!testMode ? ' selected' : '') + '>Emissão real</option>' +
               '</select></label>' +
-            '</div><div class="empty">Em homologacao IPM, mantenha "Teste sem emissao (nfse_teste=1)". Para piloto em producao, troque para "Emissao real" apenas na empresa validada.</div>') +
+            '</div><div class="empty">Em homologação IPM, mantenha "Teste sem emissão (nfse_teste=1)". Para piloto em produção, troque para "Emissão real" apenas na empresa validada.</div>') +
             '<div class="section-head"><div><h3>RPS</h3><p>' +
-              (isToledo ? 'Sequencia usada pelo lote Equiplano.' : 'Uso e sequencia precisam ser confirmados para Guaira antes da transmissao.') +
+              (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Serie RPS<input name="rpsSeries" value="' + escapeHtml(rpsSeries) + '" /></label>' +
+              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(rpsSeries) + '" /></label>' +
               '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(rpsIssuer) + '" /></label>' +
             '</div><div class="two-col">' +
-              '<label>Proximo numero RPS<input type="number" min="1" name="nextRpsNumber" value="' +
+              '<label>Próximo número RPS<input type="number" min="1" name="nextRpsNumber" value="' +
                 escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" /></label>' +
-              '<label>Proximo lote<input type="number" min="1" name="nextLotNumber" value="' +
+              '<label>Próximo lote<input type="number" min="1" name="nextLotNumber" value="' +
                 escapeHtml(String(settings.nfseNextLotNumber || 1)) + '"' + (isIpm ? ' disabled' : '') + ' /></label>' +
             '</div>' +
-            '<div class="section-head"><div><h3>Servico padrao</h3><p>Valores usados quando o sistema cliente nao informar um detalhe opcional.</p></div></div>' +
+            '<div class="section-head"><div><h3>Serviço padrão</h3><p>Valores usados quando o sistema cliente não informar um detalhe opcional.</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Codigo do servico<input name="serviceCode" value="' +
+              '<label>Código do serviço<input name="serviceCode" value="' +
                 escapeHtml(serviceCode || '') + '" required /></label>' +
-              '<label>Aliquota ISS (%)<input type="number" min="0.01" max="100" step="0.0001" name="issRate" value="' +
+              '<label>Alíquota ISS (%)<input type="number" min="0.01" max="100" step="0.0001" name="issRate" value="' +
                 escapeHtml(String(issRate || '')) + '" required /></label>' +
             '</div>' + (isToledo ? '<div class="two-col">' +
-              '<label>Item do servico<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
-              '<label>Subitem do servico<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
+              '<label>Item do serviço<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
+              '<label>Subitem do serviço<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
             '</div>' : '') +
-            '<label>Transmissao<select name="autoTransmit">' +
+            '<label>Transmissão<select name="autoTransmit">' +
               '<option value="false"' + (!autoTransmit ? ' selected' : '') + '>Dry-run / manual</option>' +
               '<option value="true"' + (autoTransmit ? ' selected' : '') + '>' +
-                (production ? 'Automatica em producao piloto' : 'Automatica em homologacao') +
+                (production ? 'Automática em produção piloto' : 'Automática em homologação') +
               '</option>' +
             '</select></label>' +
-            (isIpm ? '<div class="empty">No IPM, use nfse_teste=1 em homologacao. Em producao piloto validada, use Emissao real sem nfse_teste=1.</div>' : '') +
+            (isIpm ? '<div class="empty">No IPM, use nfse_teste=1 em homologação. Em produção piloto validada, use Emissão real sem nfse_teste=1.</div>' : '') +
             (production && fiscalProductionBlocked()
-              ? '<div class="empty">A liberacao global de producao ainda esta desligada neste servidor.</div>'
+              ? '<div class="empty">A liberação global de produção ainda está desligada neste servidor.</div>'
               : production
-                ? '<div class="empty">Producao em modo piloto. Mantenha aberto apenas o municipio e o fluxo ja validados.</div>'
+                ? '<div class="empty">Produção em modo piloto. Mantenha aberto apenas o município e o fluxo já validados.</div>'
                 : '') +
-            (!cert ? '<div class="empty">Voce pode salvar a configuracao agora, mas a emissao real exigira um certificado A1 ativo deste CNPJ.</div>' : '') +
-            '<div><button type="submit" class="btn">Salvar configuracao NFS-e</button></div>' +
+            (!cert ? '<div class="empty">Você pode salvar a configuração agora, mas a emissão real exigirá um certificado A1 ativo deste CNPJ.</div>' : '') +
+            '<div><button type="submit" class="btn">Salvar configuração NFS-e</button></div>' +
           '</form>' :
           '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
         '</section>' + responseConsole();
@@ -1725,21 +1725,21 @@ const page = String.raw`<!doctype html>
       const lastNfeBatch = settings.nfeLastBatchId || (lastAuthorizedDocument ? lastAuthorizedDocument.sefazBatchId : null);
       const production = state.environment === 'producao';
       const productionStatus = production
-        ? fiscalProductionBlocked() ? 'Liberacao global pendente' : 'Producao piloto'
-        : 'Homologacao';
+        ? fiscalProductionBlocked() ? 'Liberação global pendente' : 'Produção piloto'
+        : 'Homologação';
 
-      return '<section class="service-box"><div class="eyebrow">Configuracao do servico</div>' +
-        '<h2>Nota Fiscal Eletronica</h2>' +
-        '<p class="small">Parametros da NF-e separados por ambiente. Operacoes e detalhes tecnicos ficam em Documentos e Logs.</p>' +
+      return '<section class="service-box"><div class="eyebrow">Configuração do serviço</div>' +
+        '<h2>Nota Fiscal Eletrônica</h2>' +
+        '<p class="small">Parâmetros da NF-e separados por ambiente. Operações e detalhes técnicos ficam em Documentos e Logs.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
           '<button type="button" class="' + (production ? 'active' : '') +
-            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
           compactInfo('Ambiente', productionStatus) +
-          compactInfo('Ultima NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
-          compactInfo('Ultimo lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
+          compactInfo('Última NF-e', lastNfeNumber ? '#' + lastNfeNumber : 'Nenhuma') +
+          compactInfo('Último lote', lastNfeBatch ? String(lastNfeBatch) : 'Nenhum') +
           '</div><form id="nfeServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
@@ -1750,31 +1750,31 @@ const page = String.raw`<!doctype html>
                 '<option value="3"' + (issuer.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
                 '<option value="4"' + (issuer.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
               '</select></label>' +
-              '<label>Serie NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
+              '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Ultima NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
+              '<label>Última NF-e autorizada<input type="number" min="1" name="nfeLastNumber" value="' +
                 escapeHtml(settings.nfeLastNumber ? String(settings.nfeLastNumber) : '') + '" placeholder="' +
                 escapeHtml(lastAuthorizedDocument ? String(lastAuthorizedDocument.numero) : 'Ex.: 123') + '" /></label>' +
-              '<label>Ultimo lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
+              '<label>Último lote SEFAZ<input inputmode="numeric" name="nfeLastBatchId" value="' +
                 escapeHtml(settings.nfeLastBatchId ? String(settings.nfeLastBatchId) : '') + '" placeholder="' +
                 escapeHtml(lastAuthorizedDocument && lastAuthorizedDocument.sefazBatchId ? String(lastAuthorizedDocument.sefazBatchId) : 'Opcional') + '" /></label>' +
             '</div><div class="two-col">' +
-              '<label>Servico<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
+              '<label>Serviço<select name="ativo"><option value="true"' + (active ? ' selected' : '') +
                 '>Ativo</option><option value="false"' + (!active ? ' selected' : '') + '>Inativo</option></select></label>' +
-              '<label>Transmissao<select name="autoTransmit">' +
+              '<label>Transmissão<select name="autoTransmit">' +
                 '<option value="true"' + (autoTransmit ? ' selected' : '') + '>' +
-                  (production ? 'Automatica em producao piloto' : 'Automatica em homologacao') +
+                  (production ? 'Automática em produção piloto' : 'Automática em homologação') +
                 '</option>' +
                 '<option value="false"' + (!autoTransmit ? ' selected' : '') + '>Manual</option>' +
               '</select></label>' +
             '</div>' +
             (production && fiscalProductionBlocked()
-              ? '<div class="empty">A liberacao global de producao ainda esta desligada neste servidor.</div>'
+              ? '<div class="empty">A liberação global de produção ainda está desligada neste servidor.</div>'
               : production
-                ? '<div class="empty">Producao em modo piloto. O ambiente nao deve bloquear venda ou devolucao so por ser producao.</div>'
+                ? '<div class="empty">Produção em modo piloto. O ambiente não deve bloquear venda ou devolução só por ser produção.</div>'
                 : '') +
-            '<div><button type="submit" class="btn">Salvar configuracao NF-e</button></div>' +
+            '<div><button type="submit" class="btn">Salvar configuração NF-e</button></div>' +
           '</form>' :
           '<div class="empty">Cadastre primeiro os dados fiscais deste ambiente.</div>') +
         '</section>' + responseConsole();
@@ -1787,68 +1787,68 @@ const page = String.raw`<!doctype html>
       const docs = documentsFor(company.cnpj).filter(function(doc) {
         return doc.tipoDocumento === 'NFCe' && doc.ambiente === state.environment;
       });
-      return '<section class="service-box"><div class="eyebrow">Servico ativo</div><h2>Nota Fiscal de Consumidor Eletronica</h2>' +
-        '<p class="small">Configuracao e diagnostico separados por ambiente.</p>' +
+      return '<section class="service-box"><div class="eyebrow">Serviço ativo</div><h2>Nota Fiscal de Consumidor Eletrônica</h2>' +
+        '<p class="small">Configuração e diagnóstico separados por ambiente.</p>' +
         '<div class="env-toggle"><div class="tabs">' +
           '<button type="button" class="' + (state.environment === 'homologacao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'homologacao\')">Homologacao</button>' +
+            '" onclick="setEnvironment(\'homologacao\')">Homologação</button>' +
           '<button type="button" class="' + (state.environment === 'producao' ? 'active' : '') +
-            '" onclick="setEnvironment(\'producao\')">Producao</button></div></div>' +
+            '" onclick="setEnvironment(\'producao\')">Produção</button></div></div>' +
         (issuer ? '<div class="compact-info-grid">' +
-          compactInfo('Situacao', issuer.ativo ? 'Ativo' : 'Inativo') +
-          compactInfo('Serie NFC-e', String(issuer.serieNfce)) +
-          compactInfo('Certificado', cert ? 'A1 ativo' : 'Nao cadastrado') +
-          compactInfo('CSC ID', serviceConfig && serviceConfig.settings && serviceConfig.settings.cscId ? String(serviceConfig.settings.cscId) : 'Nao configurado') +
-          compactInfo('CSC', serviceConfig && serviceConfig.hasSecrets ? 'Configurado' : 'Nao configurado') +
+          compactInfo('Situação', issuer.ativo ? 'Ativo' : 'Inativo') +
+          compactInfo('Série NFC-e', String(issuer.serieNfce)) +
+          compactInfo('Certificado', cert ? 'A1 ativo' : 'Não cadastrado') +
+          compactInfo('CSC ID', serviceConfig && serviceConfig.settings && serviceConfig.settings.cscId ? String(serviceConfig.settings.cscId) : 'Não configurado') +
+          compactInfo('CSC', serviceConfig && serviceConfig.hasSecrets ? 'Configurado' : 'Não configurado') +
           compactInfo('UF autorizadora', issuer.uf) +
           compactInfo('Documentos', String(docs.length)) +
-          compactInfo('Ultima emissao', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
-          '</div><div class="section-head"><div><h3>Configuracao NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
+          compactInfo('Última emissão', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
+          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
           '<form id="nfceServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
               '<label>CSC ID<input name="cscId" value="' + escapeHtml(serviceConfig && serviceConfig.settings ? String(serviceConfig.settings.cscId || '') : '') + '" required /></label>' +
-              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Ja configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
+              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
             '</div>' +
-            '<div><button type="submit" class="btn">Salvar configuracao NFC-e</button></div>' +
-          '</form><div class="section-head"><div><h3>Inutilizacao de numeracao</h3><p>Use quando uma numeracao foi pulada e nao sera mais emitida.</p></div></div>' +
+            '<div><button type="submit" class="btn">Salvar configuração NFC-e</button></div>' +
+          '</form><div class="section-head"><div><h3>Inutilização de numeração</h3><p>Use quando uma numeração foi pulada e não será mais emitida.</p></div></div>' +
           '<form id="inutilizationForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
-              '<label>Serie<input type="number" min="1" name="serie" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
+              '<label>Série<input type="number" min="1" name="serie" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
               '<label>Ano<input type="number" min="2000" max="2099" name="ano" value="' + new Date().getFullYear() + '" required /></label>' +
             '</div><div class="two-col">' +
-              '<label>Numero inicial<input type="number" min="1" name="numeroInicial" required /></label>' +
-              '<label>Numero final<input type="number" min="1" name="numeroFinal" required /></label>' +
+              '<label>Número inicial<input type="number" min="1" name="numeroInicial" required /></label>' +
+              '<label>Número final<input type="number" min="1" name="numeroFinal" required /></label>' +
             '</div>' +
-            '<label>Justificativa<input name="justificativa" minlength="15" placeholder="Ex: Falha operacional na sequencia de numeracao" required /></label>' +
-            '<div><button type="submit" class="btn danger" ' + (cert ? '' : 'disabled') + '>Inutilizar em homologacao</button></div>' +
+            '<label>Justificativa<input name="justificativa" minlength="15" placeholder="Ex: Falha operacional na sequência de numeração" required /></label>' +
+            '<div><button type="submit" class="btn danger" ' + (cert ? '' : 'disabled') + '>Inutilizar em homologação</button></div>' +
           '</form><div class="actions"><button type="button" class="btn" ' +
             (cert ? '' : 'disabled') + ' onclick="checkSefazStatus(\'' + escapeHtml(issuer.id) +
             '\')">Consultar disponibilidade SEFAZ</button>' +
           '<button type="button" class="btn secondary" onclick="runFiscalHealthCheck(\'' +
             escapeHtml(company.cnpj) + '\', \'' + escapeHtml(state.environment) +
-            '\')">Checar saude fiscal</button>' +
+            '\')">Checar saúde fiscal</button>' +
           '<button type="button" class="btn secondary" onclick="openCompanyDocuments(\'' +
             escapeHtml(company.cnpj) + '\')">Ver documentos da empresa</button></div>' +
           renderFiscalHealthPanel(company) :
-          '<div class="empty">Este ambiente ainda nao possui um registro fiscal para a empresa.</div>') +
+          '<div class="empty">Este ambiente ainda não possui um registro fiscal para a empresa.</div>') +
         '</section>' + responseConsole();
     }
 
     function renderFiscalHealthPanel(company) {
       const health = currentFiscalHealthFor(company);
       if (!health) {
-        return '<div class="empty">Use "Checar saude fiscal" para validar empresa, A1, CSC, SEFAZ e ultima NFC-e.</div>';
+        return '<div class="empty">Use "Checar saúde fiscal" para validar empresa, A1, CSC, SEFAZ e última NFC-e.</div>';
       }
-      return '<section class="surface"><div class="section-head"><div><h3>Saude fiscal NFC-e</h3><p>' +
+      return '<section class="surface"><div class="section-head"><div><h3>Saúde fiscal NFC-e</h3><p>' +
         escapeHtml(health.message) + '</p></div>' +
-        badge(health.ok ? 'OK' : 'Atencao', health.ok ? 'ok' : 'warn') +
+        badge(health.ok ? 'OK' : 'Atenção', health.ok ? 'ok' : 'warn') +
         '</div><div class="info-grid">' + health.checks.map(function(check) {
           return '<div class="info"><span>' + escapeHtml(check.name) + '</span><strong>' +
-            escapeHtml(check.ok ? 'OK' : 'Atencao') + '</strong><small>' +
+            escapeHtml(check.ok ? 'OK' : 'Atenção') + '</strong><small>' +
             escapeHtml(check.message) + '</small></div>';
         }).join('') + '</div></section>';
     }
