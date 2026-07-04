@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<retorno>
+	<mensagem>
+		<codigo>00001 - Sucesso</codigo>
+	</mensagem>
+		<numero_nfse>203</numero_nfse>
+	<serie_nfse>1</serie_nfse>
+	<data_nfse>03/07/2026</data_nfse>
+	<hora_nfse>18:14:49</hora_nfse>
+	<situacao_codigo_nfse>1</situacao_codigo_nfse>
+	<situacao_descricao_nfse>Emitida</situacao_descricao_nfse>
+	<link_nfse>https://guaira.atende.net/autoatendimento/servicos/consulta-de-autenticidade-de-nota-fiscal-eletronica-nfse/detalhar/1/identificador/7571030726181449060351810692026077397194</link_nfse>
+	<cod_verificador_autenticidade>7571030726181449060351810692026077397194</cod_verificador_autenticidade>
+</retorno>

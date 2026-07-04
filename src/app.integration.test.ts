@@ -164,6 +164,93 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(saveCompany.statusCode, 201, saveCompany.body);
     assert.equal(saveCompany.json().cpf_cnpj, cnpj);
     assert.equal(saveCompany.json().endereco.codigo_municipio, "4106902");
+    assert.equal(app.store.findIssuerByCnpj(cnpj, "homologacao")?.razaoSocial, "Empresa Integracao");
+    assert.equal(app.store.findIssuerByCnpj(cnpj, "producao")?.razaoSocial, "Empresa Integracao");
+
+    const updateCompanyBothEnvironments = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        cpf_cnpj: cnpj,
+        nome_razao_social: "Empresa Integracao Atualizada",
+        nome_fantasia: "Empresa Atualizada",
+        inscricao_estadual: "1234567890",
+        regime_tributario: 1,
+        endereco: {
+          logradouro: "Rua de Teste",
+          numero: "200",
+          bairro: "Centro",
+          codigo_municipio: "4106902",
+          cidade: "Curitiba",
+          uf: "PR",
+          cep: "80000000",
+          pais: "BRASIL"
+        }
+      }
+    });
+    assert.equal(
+      updateCompanyBothEnvironments.statusCode,
+      200,
+      updateCompanyBothEnvironments.body
+    );
+    assert.equal(
+      app.store.findIssuerByCnpj(cnpj, "homologacao")?.razaoSocial,
+      "Empresa Integracao Atualizada"
+    );
+    assert.equal(
+      app.store.findIssuerByCnpj(cnpj, "producao")?.razaoSocial,
+      "Empresa Integracao Atualizada"
+    );
+
+    const preserveCompanyFieldsWhenBlank = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        cpf_cnpj: cnpj,
+        nome_razao_social: "Empresa Integracao Atualizada",
+        nome_fantasia: "Empresa Atualizada",
+        inscricao_estadual: "",
+        inscricao_municipal: "",
+        regime_tributario: "",
+        endereco: {
+          uf: "",
+          cidade: "",
+          codigo_municipio: "",
+          cep: ""
+        }
+      }
+    });
+    assert.equal(
+      preserveCompanyFieldsWhenBlank.statusCode,
+      200,
+      preserveCompanyFieldsWhenBlank.body
+    );
+    assert.equal(app.store.findIssuerByCnpj(cnpj, "homologacao")?.uf, "PR");
+    assert.equal(app.store.findIssuerByCnpj(cnpj, "producao")?.uf, "PR");
+    assert.equal(
+      app.store.findIssuerByCnpj(cnpj, "homologacao")?.ie,
+      "1234567890"
+    );
+    assert.equal(
+      app.store.findIssuerByCnpj(cnpj, "producao")?.ie,
+      "1234567890"
+    );
+    const homAddress = app.store.findIssuerByCnpj(cnpj, "homologacao")?.metadata?.endereco as
+      | Record<string, unknown>
+      | undefined;
+    const prodAddress = app.store.findIssuerByCnpj(cnpj, "producao")?.metadata?.endereco as
+      | Record<string, unknown>
+      | undefined;
+    assert.equal(homAddress?.cidade, "Curitiba");
+    assert.equal(prodAddress?.cidade, "Curitiba");
 
     const saveOfficialNfceConfig = await app.inject({
       method: "PUT",
@@ -400,6 +487,89 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(toledoConfigWithRuleDefaults.statusCode, 200, toledoConfigWithRuleDefaults.body);
     assert.equal(toledoConfigWithRuleDefaults.json().equiplano.endpoint, "https://www.esnfs.com.br:9443//homologacaows/services/Enfs");
     assert.equal(toledoConfigWithRuleDefaults.json().equiplano.soap_action, "http://services.enfsws.es/esRecepcionarLoteRps");
+
+    const preserveToledoConfigWhenBlank = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        prefeitura: {
+          login: ""
+        },
+        equiplano: {
+          inscricao_municipal: ""
+        }
+      }
+    });
+    assert.equal(
+      preserveToledoConfigWhenBlank.statusCode,
+      200,
+      preserveToledoConfigWhenBlank.body
+    );
+
+    const toledoConfigAfterBlankUpdate = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=homologacao`,
+      headers: bearer
+    });
+    assert.equal(
+      toledoConfigAfterBlankUpdate.statusCode,
+      200,
+      toledoConfigAfterBlankUpdate.body
+    );
+    assert.equal(toledoConfigAfterBlankUpdate.json().prefeitura.login, "970339");
+    assert.equal(
+      toledoConfigAfterBlankUpdate.json().equiplano.inscricao_municipal,
+      "970339"
+    );
+
+    const updateIncompleteProductionToledoConfig = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "producao",
+        municipio: {
+          codigo_ibge: "4127700",
+          nome: "Toledo"
+        },
+        inscricao_municipal: "970339",
+        prefeitura: {
+          inscricao_municipal: "970339"
+        }
+      }
+    });
+    assert.equal(
+      updateIncompleteProductionToledoConfig.statusCode,
+      200,
+      updateIncompleteProductionToledoConfig.body
+    );
+
+    const incompleteProductionToledoConfig = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=producao`,
+      headers: bearer
+    });
+    assert.equal(
+      incompleteProductionToledoConfig.statusCode,
+      200,
+      incompleteProductionToledoConfig.body
+    );
+    assert.equal(
+      incompleteProductionToledoConfig.json().equiplano.inscricao_municipal,
+      "970339"
+    );
+    assert.equal(
+      incompleteProductionToledoConfig.json().prefeitura.senha_configurada,
+      false
+    );
 
     const mismatchedMunicipalityProvider = await app.inject({
       method: "PUT",

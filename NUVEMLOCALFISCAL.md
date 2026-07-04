@@ -155,7 +155,7 @@ Marco VPS e multiplos clientes:
 
 Compatibilidade aplicada na Autoeletrica:
 - `src/lib/nuvemfiscal.ts` passou a respeitar `NUVEMFISCAL_HOM_AUTH_URL`, mantendo auth oficial como fallback
-- cadastro fiscal sincroniza homologacao por padrao; producao so sincroniza se `NUVEMFISCAL_SYNC_PRODUCTION=true`
+- cadastro fiscal enviado por `/empresas` sem `ambiente` e salvo/atualizado em homologacao e producao na Nuvem Local, preservando a compatibilidade com clientes que antes separavam ambientes apenas por URL
 - upload de certificado pela tela de configuracoes envia para homologacao
 - a rota de upload adapta o payload para a Nuvem Local quando a URL e local/VPS (`fileName`, `pfxBase64`, `password`)
 - essas mudancas foram feitas para preservar a premissa de trocar ambiente por `.env` e evitar cadastro manual repetitivo quando a integracao cliente estiver madura

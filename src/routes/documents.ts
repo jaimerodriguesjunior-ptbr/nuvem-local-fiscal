@@ -228,12 +228,30 @@ function parseEnvironment(value: unknown): Environment {
   return value === "producao" ? "producao" : "homologacao";
 }
 
+function parseCompanyUpsertEnvironments(value: unknown): Environment[] {
+  if (value === "producao" || value === "homologacao") {
+    return [value];
+  }
+
+  return ["homologacao", "producao"];
+}
+
 function firstNonEmptyText(...values: unknown[]) {
   for (const value of values) {
     const text = String(value ?? "").trim();
     if (text) return text;
   }
   return "";
+}
+
+function definedNestedRecord(input: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => {
+      if (value === undefined || value === null) return false;
+      if (typeof value === "string") return value.trim().length > 0;
+      return true;
+    })
+  );
 }
 
 function usedToledoSequenceFromDocuments(
@@ -594,8 +612,18 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const hasMunicipalPassword = Boolean(
       password || (reusableExistingSettings && existingServiceConfig?.secretsEncrypted)
     );
+    const hasPartialConfigData = Boolean(
+      providerInput ||
+        municipalityCode ||
+        firstNonEmptyText(
+          equiplano.inscricao_municipal,
+          body.inscricao_municipal,
+          prefeitura.inscricao_municipal
+        )
+    );
+    const allowIncompleteExistingUpdate = !login && !password && hasPartialConfigData;
 
-    if (!effectiveLogin || !hasMunicipalPassword) {
+    if ((!effectiveLogin || !hasMunicipalPassword) && !allowIncompleteExistingUpdate) {
       return reply.code(400).send({
         message: "Informe login e senha da prefeitura para a NFS-e."
       });
@@ -611,7 +639,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         ""
     ).trim();
 
-    if (isToledoProvider && !effectiveIdEntidade) {
+    if (isToledoProvider && !effectiveIdEntidade && !allowIncompleteExistingUpdate) {
       return reply.code(400).send({
         message: "Informe id_entidade para NFS-e Toledo/Equiplano."
       });
@@ -761,9 +789,12 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       hasPassword: hasMunicipalPassword,
       settings: nfseSettings
     });
-    if (configValidation.errors.length) {
+    const validationErrors = allowIncompleteExistingUpdate
+      ? configValidation.errors.filter((error) => error.startsWith("Municipio "))
+      : configValidation.errors;
+    if (validationErrors.length) {
       return reply.code(400).send({
-        message: configValidation.errors.join(" ")
+        message: validationErrors.join(" ")
       });
     }
 
@@ -872,30 +903,44 @@ async function handleUpsertCompany(
     typeof body.endereco === "object" && body.endereco !== null
       ? (body.endereco as Record<string, unknown>)
       : {};
-  const environment = parseEnvironment(body.ambiente);
+  const environments = parseCompanyUpsertEnvironments(body.ambiente);
+  const normalizedAddress = definedNestedRecord({
+    logradouro: firstNonEmptyText(endereco.logradouro),
+    numero: firstNonEmptyText(endereco.numero),
+    complemento: firstNonEmptyText(endereco.complemento),
+    bairro: firstNonEmptyText(endereco.bairro),
+    codigo_municipio: firstNonEmptyText(endereco.codigo_municipio, body.codigo_municipio),
+    cidade: firstNonEmptyText(endereco.cidade, body.cidade),
+    uf: firstNonEmptyText(endereco.uf, body.uf).toUpperCase(),
+    cep: firstNonEmptyText(endereco.cep),
+    pais: firstNonEmptyText(endereco.pais)
+  });
 
   if (cnpj.length !== 14) {
     return reply.code(400).send({ message: "Informe cpf_cnpj/CNPJ valido." });
   }
 
-  const issuer = app.store.upsertIssuerEnvironment(cnpj, environment, {
-    razaoSocial: String(body.nome_razao_social ?? body.razao_social ?? `Emitente ${cnpj}`),
-    nomeFantasia: String(
-      body.nome_fantasia ?? body.nome_razao_social ?? body.razao_social ?? `Emitente ${cnpj}`
-    ),
-    uf: String(endereco.uf ?? body.uf ?? "").toUpperCase(),
-    ie: String(body.inscricao_estadual ?? body.ie ?? ""),
-    crt: String(body.regime_tributario ?? body.crt ?? ""),
-    ativo: body.ativo === false ? false : true,
-    metadata: {
-      email: body.email,
-      inscricao_municipal: body.inscricao_municipal,
-      endereco
-    }
-  });
+  const issuers = environments.map((environment) =>
+    app.store.upsertIssuerEnvironment(cnpj, environment, {
+      razaoSocial:
+        firstNonEmptyText(body.nome_razao_social, body.razao_social) || `Emitente ${cnpj}`,
+      nomeFantasia:
+        firstNonEmptyText(body.nome_fantasia, body.nome_razao_social, body.razao_social) ||
+        `Emitente ${cnpj}`,
+      uf: firstNonEmptyText(endereco.uf, body.uf).toUpperCase() || undefined,
+      ie: firstNonEmptyText(body.inscricao_estadual, body.ie) || undefined,
+      crt: firstNonEmptyText(body.regime_tributario, body.crt) || undefined,
+      ativo: body.ativo === false ? false : true,
+      metadata: definedNestedRecord({
+        email: firstNonEmptyText(body.email) || undefined,
+        inscricao_municipal: firstNonEmptyText(body.inscricao_municipal) || undefined,
+        endereco: Object.keys(normalizedAddress).length ? normalizedAddress : undefined
+      })
+    })
+  );
   await app.store.waitForPersistence();
 
-  return reply.code(request.method === "POST" ? 201 : 200).send(mapCompanyResponse(issuer));
+  return reply.code(request.method === "POST" ? 201 : 200).send(mapCompanyResponse(issuers[0]));
 }
 
 function mapCompanyResponse(issuer: import("../types.js").Issuer) {
