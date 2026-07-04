@@ -646,6 +646,14 @@ const page = String.raw`<!doctype html>
       text-align: center;
       background: rgba(255,253,248,.5);
     }
+    .tab-alert {
+      color: var(--red);
+      font-size: 13px;
+      margin-left: 5px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
     .small { color: var(--muted); font-size: 12px; }
     .breadcrumb {
       width: auto;
@@ -814,6 +822,64 @@ const page = String.raw`<!doctype html>
           serviceConfig.ambiente === ambiente &&
           serviceConfig.serviceType === serviceType &&
           serviceConfig.active;
+      });
+    }
+
+    function isNfceIncomplete(company) {
+      const cert = certificateFor(company.cnpj);
+      if (!cert) return true;
+      return ['homologacao', 'producao'].some(function(env) {
+        const issuer = company.environments[env];
+        if (!issuer || !issuer.ativo) return true;
+        const sc = state.snapshot.serviceConfigs.find(function(item) {
+          return item.cnpj === company.cnpj &&
+            item.ambiente === env &&
+            item.serviceType === 'NFCE';
+        });
+        if (!sc || !sc.active) return true;
+        const settings = sc.settings || {};
+        if (!settings.cscId || !sc.hasSecrets) return true;
+        return false;
+      });
+    }
+
+    function isNfeIncomplete(company) {
+      const cert = certificateFor(company.cnpj);
+      if (!cert) return true;
+      return ['homologacao', 'producao'].some(function(env) {
+        const issuer = company.environments[env];
+        if (!issuer || !issuer.ativo) return true;
+        const sc = state.snapshot.serviceConfigs.find(function(item) {
+          return item.cnpj === company.cnpj &&
+            item.ambiente === env &&
+            item.serviceType === 'NFE';
+        });
+        if (!sc || !sc.active) return true;
+        return false;
+      });
+    }
+
+    function isNfseIncomplete(company) {
+      return ['homologacao', 'producao'].some(function(env) {
+        const issuer = company.environments[env];
+        if (!issuer || !issuer.ativo) return true;
+        const sc = state.snapshot.serviceConfigs.find(function(item) {
+          return item.cnpj === company.cnpj &&
+            item.ambiente === env &&
+            item.serviceType === 'NFSE';
+        });
+        if (!sc || !sc.active) return true;
+        const settings = sc.settings || {};
+        const provider = settings.nfseProvider || '';
+        if (!provider) return true;
+        if (provider === 'toledo-equiplano') {
+          const cert = certificateFor(company.cnpj);
+          if (!cert) return true;
+          if (!settings.nfseIdEntidade || !settings.nfseMunicipalityCode) return true;
+        } else if (provider === 'guaira-ipm') {
+          if (!settings.nfseLogin || !sc.hasSecrets || !settings.nfseMunicipalityCode) return true;
+        }
+        return false;
       });
     }
 
@@ -1121,8 +1187,13 @@ const page = String.raw`<!doctype html>
     function renderServices(company) {
       const services = [['nfce', 'NFC-e'], ['nfe', 'NF-e'], ['nfse', 'NFS-e']];
       return '<div class="tabs service-picker">' + services.map(function(service) {
+        let isInc = false;
+        if (service[0] === 'nfce') isInc = isNfceIncomplete(company);
+        if (service[0] === 'nfe') isInc = isNfeIncomplete(company);
+        if (service[0] === 'nfse') isInc = isNfseIncomplete(company);
+        const badge = isInc ? ' <span class="tab-alert" title="Configuração pendente ou incompleta">●</span>' : '';
         return '<button type="button" class="' + (state.service === service[0] ? 'active' : '') +
-          '" onclick="setService(\'' + service[0] + '\')">' + service[1] + '</button>';
+          '" onclick="setService(\'' + service[0] + '\')">' + service[1] + badge + '</button>';
       }).join('') + '</div>' +
       (state.service === 'nfce' ? renderNfceService(company) :
         state.service === 'nfe' ? renderNfeServicePanel(company) :
@@ -1207,8 +1278,13 @@ const page = String.raw`<!doctype html>
     function renderServicesPanel(company) {
       const services = [['nfce', 'NFC-e'], ['nfe', 'NF-e'], ['nfse', 'NFS-e']];
       return '<div class="tabs service-picker">' + services.map(function(service) {
+        let isInc = false;
+        if (service[0] === 'nfce') isInc = isNfceIncomplete(company);
+        if (service[0] === 'nfe') isInc = isNfeIncomplete(company);
+        if (service[0] === 'nfse') isInc = isNfseIncomplete(company);
+        const badge = isInc ? ' <span class="tab-alert" title="Configuração pendente ou incompleta">●</span>' : '';
         return '<button type="button" class="' + (state.service === service[0] ? 'active' : '') +
-          '" onclick="setService(\'' + service[0] + '\')">' + service[1] + '</button>';
+          '" onclick="setService(\'' + service[0] + '\')">' + service[1] + badge + '</button>';
       }).join('') + '</div>' +
       (state.service === 'nfce' ? renderNfceServicePanelFixed(company) :
         state.service === 'nfe' ? renderNfeServicePanelFixed(company) :
@@ -1230,9 +1306,10 @@ const page = String.raw`<!doctype html>
       const providerKey = company.cnpj + ':' + state.environment;
       const provider = state.nfseProviderOverrides[providerKey] || (guairaMunicipality
         ? 'guaira-ipm'
-        : storedProvider || 'toledo-equiplano');
+        : storedProvider || '');
       const isToledo = provider === 'toledo-equiplano';
       const isIpm = provider === 'guaira-ipm';
+      const isBlank = !isToledo && !isIpm;
       const storedIpmConfig = storedProvider === 'guaira-ipm';
       const ipmServiceCode = storedIpmConfig ? settings.nfseDefaultServiceCode : '140101';
       const ipmIssRate = storedIpmConfig ? settings.nfseDefaultAliquotaIss : 2.01;
@@ -1258,14 +1335,15 @@ const page = String.raw`<!doctype html>
             '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificação do município e credenciais do serviço municipal.</p></div></div>' +
             '<div class="two-col">' +
               '<label>Provedor<select name="provider" onchange="setNfseProvider(this.value)">' +
+                '<option value=""' + (isBlank ? ' selected' : '') + '>— Selecione um provedor —</option>' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
                 '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
               '</select></label>' +
               '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
-                escapeHtml(isIpm ? '4108809' : settings.nfseMunicipalityCode || '4127700') + '" required /></label>' +
+                escapeHtml(isIpm ? '4108809' : isToledo ? (settings.nfseMunicipalityCode || '4127700') : (settings.nfseMunicipalityCode || '')) + '" /></label>' +
             '</div><div class="two-col">' +
               '<label>Município<input name="municipalityName" value="' +
-                escapeHtml(isIpm ? 'Guaíra' : settings.nfseMunicipalityName || 'Toledo') + '" required /></label>' +
+                escapeHtml(isIpm ? 'Guaíra' : isToledo ? (settings.nfseMunicipalityName || 'Toledo') : (settings.nfseMunicipalityName || '')) + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
                 escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
             '</div><div class="two-col">' +
@@ -1500,12 +1578,13 @@ const page = String.raw`<!doctype html>
       const providerKey = company.cnpj + ':' + state.environment;
       const provider = state.nfseProviderOverrides[providerKey] || (guairaMunicipality
         ? 'guaira-ipm'
-        : storedProvider || 'toledo-equiplano');
+        : storedProvider || '');
       const providerPreset = getNfseProviderPreset(provider);
       const forcePreset = Boolean(state.nfseProviderOverrides[providerKey]) &&
         state.nfseProviderOverrides[providerKey] !== storedProvider;
       const isToledo = provider === 'toledo-equiplano';
       const isIpm = provider === 'guaira-ipm';
+      const isBlank = !isToledo && !isIpm;
       const municipalityCode = pickNfsePresetValue(
         settings.nfseMunicipalityCode,
         providerPreset.municipalityCode,
@@ -1602,16 +1681,17 @@ const page = String.raw`<!doctype html>
             '<div class="section-head"><div><h3>Prefeitura e provedor</h3><p>Identificação do município e credenciais do serviço municipal.</p></div></div>' +
             '<div class="two-col">' +
               '<label>Provedor<select name="provider" onchange="setNfseProvider(this.value)">' +
+                '<option value=""' + (isBlank ? ' selected' : '') + '>— Selecione um provedor —</option>' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
                 '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
               '</select></label>' +
               '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
-                escapeHtml(municipalityCode || '') + '" required /></label>' +
+                escapeHtml(municipalityCode || '') + '" /></label>' +
             '</div><div class="two-col">' +
               '<label>Município<input name="municipalityName" value="' +
-                escapeHtml(municipalityName || '') + '" required /></label>' +
+                escapeHtml(municipalityName || '') + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
-                escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
+                escapeHtml(settings.nfseInscricaoMunicipal || '') + '" /></label>' +
             '</div><div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
                 escapeHtml(settings.nfseLogin || '') + '" required autocomplete="off" /></label>' +
