@@ -77,7 +77,7 @@ test("NF-e aceita documento referenciado por chave fiscal valida", () => {
 });
 
 test("NF-e bloqueia CFOP fora do MVP de venda e devolucao", () => {
-  const sale = validateNfeEmissionPayload(nfePayloadWithItem({ finNFe: 1 }, "5949"));
+  const sale = validateNfeEmissionPayload(nfePayloadWithItem({ finNFe: 1 }, "5656"));
   const returnNfe = validateNfeEmissionPayload(
     nfePayloadWithItem(
       {
@@ -92,6 +92,17 @@ test("NF-e bloqueia CFOP fora do MVP de venda e devolucao", () => {
   assert.equal(sale.issues.some((issue) => issue.code === "unsupported_mvp_nfe_cfop"), true);
   assert.equal(returnNfe.ok, true);
   assert.deepEqual(returnNfe.issues, []);
+});
+
+test("NF-e aceita remessa em garantia como operacao normal sem RTC", () => {
+  for (const cfop of ["5915", "5949", "6915", "6949"]) {
+    const result = validateNfeEmissionPayload(
+      nfePayloadWithItem({ finNFe: 1 }, cfop)
+    );
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.issues, []);
+  }
 });
 
 test("NF-e bloqueia complemento e ajuste no MVP mesmo com NFref valido", () => {

@@ -33,7 +33,16 @@ function text(value: unknown) {
   return String(value ?? "").trim();
 }
 
-const nfeMvpSaleCfops = new Set(["5101", "5102", "6101", "6102"]);
+const nfeMvpSaleCfops = new Set([
+  "5101",
+  "5102",
+  "6101",
+  "6102",
+  "5915",
+  "5949",
+  "6915",
+  "6949"
+]);
 const nfeMvpReturnCfops = new Set(["5202", "6202"]);
 
 function nfeMvpFinalityAllowed(value: unknown) {
