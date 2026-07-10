@@ -113,6 +113,10 @@ teste fiscal mais sensivel.
 O roteiro de VPS com `systemd`, Nginx, HTTPS e backup esta em
 [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
 
+O acesso SSH operacional da VPS fiscal e `root@191.252.205.29`. Consulte o
+roteiro antes de qualquer acesso ou deploy; enderecos usados por tuneis IPM
+nao substituem essa VPS.
+
 ## Observacoes operacionais
 
 - este repo continua tratando producao ampla como etapa controlada, nao abertura

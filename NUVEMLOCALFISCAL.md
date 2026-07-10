@@ -73,6 +73,42 @@ Atualizacao operacional de `2026-07-03`:
   a NFS-e de Guaira falhou porque a configuracao de producao estava apontando
   para Toledo/Equiplano; a configuracao operacional correta e Guaira/IPM.
 
+Atualizacao operacional de `2026-07-04`:
+- nenhum deploy novo foi feito agora na `autoeletrica` nem na `gestao-otica-pro`;
+  os clientes publicados continuam apontando para a Nuvem Fiscal em producao
+- o trabalho atual esta sendo feito fora do deploy, para fechar o estado do
+  emissor local e preparar a proxima rodada de ativacao com menos risco
+- a `autoeletrica` ja recebeu ajustes locais de sincronizacao por ambiente,
+  mas ainda expõe mais fluxos de NF-e do que o MVP que queremos manter aberto
+- a `gestao-otica-pro` ja tem motor de NF-e com RTC/IBSCBS, mas a casca
+  operacional da tela fiscal ainda esta muito centrada em NFC-e e precisa de
+  amarracao antes de ser tratada como pronta para uso de NF-e em producao
+- a conclusao pratica deste momento e: nao abrir novos fluxos, nao mexer em
+  producao publicada e usar a Nuvem Local como base de validacao do que deve
+  ficar aberto no MVP
+
+Atualizacao operacional de `2026-07-04` (segunda parte):
+- a `autoeletrica` teve a UI de NF-e restrita ao escopo do MVP: os flags
+  `isRemessaConsertoMvp`, `isRemessaGarantiaMvp`, `isRetornoConsertoMvp`,
+  `isRetornoGarantiaMvp`, `isTransferenciaMvp` e `isBonusMvp` foram
+  definidos como `false` em `app/(admin)/fiscal/nfe/page.tsx`, impedindo
+  emissao de remessa/retorno, transferencia e bonificacao/doacao pela tela;
+  `isEmissionSupported` agora so permite `venda comum`; devolucao continua
+  acessivel pelo caminho `return` e pelo modo `advanced` com `finNFe=4`; as
+  funcoes de emissao no motor (`fiscal_emission.ts`) permanecem intactas e
+  podem ser reativadas por flag quando houver decisao explicita
+- a `gestao-otica-pro` teve a casca operacional da tela fiscal corrigida
+  para suportar NF-e alem de NFC-e:
+  - `consultarNFe()` foi criada em `src/lib/actions/fiscal.actions.ts`,
+    similar a `consultarNFCe()` porem consultando `/nfe/{uuid}` e salvando
+    XML localmente
+  - `cancelarNota()` recebeu branch especifico para NF-e com prazo de 24
+    horas (NFC-e continua com 30 minutos), usando o endpoint
+    `/nfe/{uuid}/cancelamento`
+  - o dashboard fiscal (`src/app/dashboard/loja/[storeId]/fiscal/page.tsx`)
+    agora faz smart polling e refresh de status usando a funcao correta por
+    `tipo_documento` (`NFCe` ou `NFe`)
+
 ---
 
 ## 0. Marco atual validado em 2026-06-13

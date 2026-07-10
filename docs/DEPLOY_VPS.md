@@ -8,9 +8,29 @@ Deploy validado em 2026-06-13:
 
 - dominio: `https://fiscal.mentebinaria.com`
 - VPS: DigitalOcean / Ubuntu 24.04
+- acesso SSH operacional: `ssh root@191.252.205.29`
 - persistencia: Supabase
 - clientes homologacao ja validados pela VPS: Otica Prisma e Autoeletrica/NHT
 - producao fiscal: bloqueada
+
+> O IP `147.182.214.129` pertence ao fluxo de tunel IPM e nao e o destino de
+> administracao/deploy desta VPS. Para verificar ou publicar a Nuvem Local
+> Fiscal, use exclusivamente `root@191.252.205.29`.
+
+## Checagem obrigatoria antes de deploy
+
+Na VPS, confirme o commit e o estado limpo antes de atualizar. Nao deixe uma
+correcao fiscal aplicada apenas no working tree do servidor: primeiro registre
+o mesmo codigo no Git, envie ao remoto e so entao faca o deploy.
+
+```bash
+ssh root@191.252.205.29
+cd /opt/nuvem-local-fiscal
+git rev-parse --short HEAD
+git status --short
+systemctl is-active nuvem-local-fiscal.service
+curl -fsS http://127.0.0.1:3001/ready
+```
 
 ## Requisitos
 

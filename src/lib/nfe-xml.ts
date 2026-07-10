@@ -434,13 +434,46 @@ function centsFromFiscalValue(value: unknown) {
 }
 
 function fiscalValueFromCents(cents: number) {
-  return Number((cents / 100).toFixed(2));
+  return (cents / 100).toFixed(2);
 }
 
-function fiscalValueOrZero(value: unknown) {
+function fiscalValueText(value: unknown) {
+  return fiscalValueFromCents(centsFromFiscalValue(value));
+}
+
+function fiscalValueTextOrZero(value: unknown) {
   return value === undefined || value === null || value === ""
-    ? 0
-    : value;
+    ? "0.00"
+    : fiscalValueText(value);
+}
+
+function normalizeRegularRtcDecimals(regularRtc: JsonObject) {
+  regularRtc.vBC = fiscalValueText(regularRtc.vBC);
+  regularRtc.vIBS = fiscalValueText(regularRtc.vIBS);
+
+  const gIBSUF =
+    typeof regularRtc.gIBSUF === "object" && regularRtc.gIBSUF !== null
+      ? (regularRtc.gIBSUF as JsonObject)
+      : undefined;
+  if (gIBSUF) {
+    gIBSUF.vIBSUF = fiscalValueText(gIBSUF.vIBSUF);
+  }
+
+  const gIBSMun =
+    typeof regularRtc.gIBSMun === "object" && regularRtc.gIBSMun !== null
+      ? (regularRtc.gIBSMun as JsonObject)
+      : undefined;
+  if (gIBSMun) {
+    gIBSMun.vIBSMun = fiscalValueText(gIBSMun.vIBSMun);
+  }
+
+  const gCBS =
+    typeof regularRtc.gCBS === "object" && regularRtc.gCBS !== null
+      ? (regularRtc.gCBS as JsonObject)
+      : undefined;
+  if (gCBS) {
+    gCBS.vCBS = fiscalValueText(gCBS.vCBS);
+  }
 }
 
 function applyRtcTotalCompatibility(infNFe: JsonObject) {
@@ -478,6 +511,7 @@ function applyRtcTotalCompatibility(infNFe: JsonObject) {
 
     foundRegularRtc = true;
     const regularRtc = regular as JsonObject;
+    normalizeRegularRtcDecimals(regularRtc);
     const gIBSUF =
       typeof regularRtc.gIBSUF === "object" && regularRtc.gIBSUF !== null
         ? (regularRtc.gIBSUF as JsonObject)
@@ -532,25 +566,25 @@ function applyRtcTotalCompatibility(infNFe: JsonObject) {
     vBCIBSCBS: fiscalValueFromCents(totals.vBCIBSCBS),
     gIBS: {
       gIBSUF: {
-        vDif: fiscalValueOrZero(previousGIBSUF.vDif),
-        vDevTrib: fiscalValueOrZero(previousGIBSUF.vDevTrib),
+        vDif: fiscalValueTextOrZero(previousGIBSUF.vDif),
+        vDevTrib: fiscalValueTextOrZero(previousGIBSUF.vDevTrib),
         vIBSUF: fiscalValueFromCents(totals.vIBSUF)
       },
       gIBSMun: {
-        vDif: fiscalValueOrZero(previousGIBSMun.vDif),
-        vDevTrib: fiscalValueOrZero(previousGIBSMun.vDevTrib),
+        vDif: fiscalValueTextOrZero(previousGIBSMun.vDif),
+        vDevTrib: fiscalValueTextOrZero(previousGIBSMun.vDevTrib),
         vIBSMun: fiscalValueFromCents(totals.vIBSMun)
       },
       vIBS: fiscalValueFromCents(totals.vIBS || totals.vIBSUF + totals.vIBSMun),
-      vCredPres: fiscalValueOrZero(previousGIBS.vCredPres),
-      vCredPresCondSus: fiscalValueOrZero(previousGIBS.vCredPresCondSus)
+      vCredPres: fiscalValueTextOrZero(previousGIBS.vCredPres),
+      vCredPresCondSus: fiscalValueTextOrZero(previousGIBS.vCredPresCondSus)
     },
     gCBS: {
-      vDif: fiscalValueOrZero(previousGCBS.vDif),
-      vDevTrib: fiscalValueOrZero(previousGCBS.vDevTrib),
+      vDif: fiscalValueTextOrZero(previousGCBS.vDif),
+      vDevTrib: fiscalValueTextOrZero(previousGCBS.vDevTrib),
       vCBS: fiscalValueFromCents(totals.vCBS),
-      vCredPres: fiscalValueOrZero(previousGCBS.vCredPres),
-      vCredPresCondSus: fiscalValueOrZero(previousGCBS.vCredPresCondSus)
+      vCredPres: fiscalValueTextOrZero(previousGCBS.vCredPres),
+      vCredPresCondSus: fiscalValueTextOrZero(previousGCBS.vCredPresCondSus)
     }
   };
 
