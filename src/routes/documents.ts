@@ -1935,6 +1935,7 @@ function recordValue(value: unknown) {
 
 function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const payload = recordValue(document.payloadOriginal);
+  const normalizedPayload = recordValue(document.payloadNormalizado);
   const infDps = recordValue(payload.infDPS);
   const toma = recordValue(infDps.toma);
   const tomaEnd = recordValue(toma.end);
@@ -1949,6 +1950,9 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const issuerAddress = recordValue(issuerMetadata.endereco);
   const authorizedXml = document.xml ?? "";
   const isGuairaIpm = document.providerName === "guaira-ipm";
+  const isLegacyImported =
+    normalizedPayload.importado === true &&
+    normalizedPayload.origem === "nuvem-fiscal-legado";
   const authentication =
     authorizedXml.match(/<cdAutenticacao>([^<]+)<\/cdAutenticacao>/i)?.[1] ??
     authorizedXml.match(
@@ -1965,6 +1969,10 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
     document.providerReference ?? ""
   ).split(":");
   const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
+  const serviceDescription = String(cServ.xDescServ ?? "");
+  const serviceTableDescription = isLegacyImported
+    ? "Servico conforme discriminacao abaixo"
+    : serviceDescription;
   const serviceValue = Number(vServPrest.vServ ?? 0);
   const aliquota = Number(tribMun.pAliq ?? 0);
   const issValue = Number(((serviceValue * aliquota) / 100).toFixed(2));
@@ -2116,13 +2124,13 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const headers = ["Cod.", "Descricao", "Vl.Servico", "Desconto", "Deducao", "Base Calc.", "Aliq."];
   headers.forEach((header, index) => center(columns[index], columns[index + 1] - columns[index], 553, 5.5, header, "F2"));
   text(32, 538, 6, String(cServ.cTribMun ?? cServ.cTribNac ?? ""));
-  text(73, 538, 6, String(cServ.xDescServ ?? ""));
+  text(73, 538, 6, serviceTableDescription);
   text(325, 538, 6, money(serviceValue));
   text(391, 538, 6, "0,00");
   text(441, 538, 6, "0,00");
   text(480, 538, 6, money(serviceValue));
   text(529, 538, 6, aliquota.toFixed(2));
-  text(73, 518, 5.5, `Discriminacao: ${String(cServ.xDescServ ?? "")}`);
+  text(73, 518, 5.5, `Discriminacao: ${serviceDescription}`);
 
   text(110, 180, 7, "Total Servicos (R$)", "F2");
   text(220, 180, 8, money(serviceValue), "F2");
