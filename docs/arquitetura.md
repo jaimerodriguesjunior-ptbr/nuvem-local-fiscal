@@ -68,8 +68,9 @@ Persistencia auxiliar local:
 
 ## Limites assumidos hoje
 
-- producao continua bloqueada neste servico
-- homologacao e o foco operacional atual
+- producao esta operacional para empresas e fluxos fiscais configurados
+- homologacao continua sendo usada para validar novos fluxos antes da entrada
+  operacional
 - filas, retries distribuidos e endurecimento operacional ainda nao estao
   fechados como etapa final
 - reforma fiscal de julho de 2026 ainda nao foi tratada aqui como frente

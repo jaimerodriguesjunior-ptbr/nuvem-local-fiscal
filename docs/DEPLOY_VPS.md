@@ -1,8 +1,8 @@
 # Deploy em VPS
 
 Este roteiro publica a Nuvem Local Fiscal com Node.js, `systemd`, Nginx,
-HTTPS e Supabase. O deploy do servidor nao libera operacoes fiscais em
-producao: o bloqueio permanece no codigo.
+HTTPS e Supabase. A VPS atende homologacao e producao para empresas e servicos
+previamente configurados.
 
 Deploy validado em 2026-06-13:
 
@@ -11,7 +11,7 @@ Deploy validado em 2026-06-13:
 - acesso SSH operacional: `ssh root@191.252.205.29`
 - persistencia: Supabase
 - clientes homologacao ja validados pela VPS: Otica Prisma e Autoeletrica/NHT
-- producao fiscal: bloqueada
+- producao fiscal: operacional e acompanhada
 
 > O IP `147.182.214.129` pertence ao fluxo de tunel IPM e nao e o destino de
 > administracao/deploy desta VPS. Para verificar ou publicar a Nuvem Local

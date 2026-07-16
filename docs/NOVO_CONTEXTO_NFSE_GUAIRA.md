@@ -88,7 +88,7 @@ Essas regras valem especialmente para:
    - Nginx e HTTPS Let's Encrypt
    - Supabase como persistencia
    - admin protegido
-5. Producao fiscal continua bloqueada por seguranca.
+5. Producao fiscal esta operacional para empresas e servicos configurados.
 6. Certificados A1, CSC e configuracoes fiscais persistem no Supabase.
 7. A migracao abaixo ja foi aplicada manualmente no Supabase:
    - `supabase/migrations/20260613_001_nfse_provider_artifacts.sql`
@@ -227,7 +227,7 @@ Terceiro teste Guaira/IPM em 13/06/2026:
 - PDF local recuperado pelo dominio publico: HTTP `200`, `5625` bytes, PDF 1.4
   com uma pagina;
 - a Nuvem Local foi reiniciada depois da autorizacao e voltou saudavel com
-  persistencia Supabase e producao bloqueada.
+  persistencia Supabase.
 
 Transmissao automatica habilitada em 13/06/2026:
 
@@ -248,7 +248,7 @@ Transmissao automatica habilitada em 13/06/2026:
   - situacao tributaria `0`;
 - a API, o listener privado `127.0.0.1:9443` e o servico AWS
   `ipm-gateway.service` permaneceram ativos;
-- producao continua bloqueada pela API.
+- producao depende de configuracao valida da empresa e do ambiente fiscal.
 
 Correcao do PDF local em 13/06/2026:
 
@@ -508,8 +508,8 @@ Se o IPM usar conceitos diferentes, traduzir internamente para esse contrato.
 
 ## Seguranca e operacao
 
-1. Producao permanece bloqueada.
-2. Nao transmitir sem confirmacao explicita.
+1. Producao opera somente para empresas e servicos configurados.
+2. Testes manuais extraordinarios exigem confirmacao explicita.
 3. Nao registrar senha municipal, token, PFX ou chave privada em logs.
 4. Persistir senha municipal criptografada.
 5. Nao commitar:
@@ -532,7 +532,7 @@ Se o IPM usar conceitos diferentes, traduzir internamente para esse contrato.
    - `git diff --check`
    - commit isolado
 10. Depois do deploy, validar `/ready` e confirmar que
-    `fiscalProductionBlocked=true`.
+    `fiscalProductionBlocked=false`.
 
 ## Ordem recomendada de implementacao
 

@@ -15,7 +15,7 @@ Resumo do estado atual:
    - Nginx + HTTPS Let's Encrypt
    - Supabase como persistencia
    - admin protegido
-4. A producao fiscal continua bloqueada por seguranca.
+4. A producao fiscal esta operacional para empresas e servicos configurados.
 5. A Otica Prisma ja emitiu NFC-e e NF-e homologacao usando a Nuvem Local.
 6. A Autoeletrica/NHT Centro Automotivo ja emitiu NFC-e homologacao usando a Nuvem Local na VPS.
 7. Certificados A1 e CSC estao persistindo no Supabase.
@@ -91,7 +91,7 @@ Cuidados importantes:
 2. A Nuvem Local Fiscal deve aceitar payloads parecidos com os que os sistemas ja enviam para a Nuvem Fiscal.
 3. Se houver erro real em programa cliente, informar antes de alterar.
 4. Nao deixar regra de SEFAZ/NF-e/NFC-e vazar indevidamente para NFS-e.
-5. Producao continua bloqueada.
+5. Producao deve preservar configuracoes e numeracoes proprias por ambiente.
 6. Nao commitar `.env.local`, PFX, certificados, XMLs soltos, `storage`, `dist`, `node_modules`.
 7. Se fizer alteracoes importantes e os testes passarem, sugerir commit antes de teste real grande.
 
@@ -122,7 +122,7 @@ aprovacao explicita, a UI admin tambem passou a oferecer:
 - credenciais da prefeitura com preservacao da senha existente
 - municipio, inscricao municipal, endpoint, SOAP Action e `idEntidade`
 - sequencia de RPS/lote, servico padrao e aliquota ISS
-- transmissao desligada por padrao e producao bloqueada
+- transmissao configurada por servico e ambiente
 
 1. `NFSe` passou a ser um tipo de documento real e deixou de ser convertido
    indevidamente para `NFe` ao carregar do Supabase.
@@ -136,7 +136,7 @@ aprovacao explicita, a UI admin tambem passou a oferecer:
    - assina com o A1 salvo na Nuvem Local
    - envia SOAP 1.1 ao Equiplano quando a transmissao esta habilitada
    - consulta NFS-e por RPS durante o polling de `GET /nfse/:id`
-   - mantem producao bloqueada
+   - preserva configuracao e sequencia separadas por ambiente
 4. Request, response e referencia municipal passaram a ter campos proprios,
    sem reutilizar campos `sefaz_*`.
 5. Migracao nova obrigatoria antes do deploy:
