@@ -633,10 +633,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
     const effectiveIdEntidade = String(
       equiplano.id_entidade ??
-        equiplano.idEntidade ??
-        body.id_entidade ??
-        reusableExistingSettings?.nfseIdEntidade ??
-        ""
+      equiplano.idEntidade ??
+      body.id_entidade ??
+      reusableExistingSettings?.nfseIdEntidade ??
+        ruleProfile?.defaults.idEntidade ??
+      ""
     ).trim();
 
     if (isToledoProvider && !effectiveIdEntidade && !allowIncompleteExistingUpdate) {
@@ -776,9 +777,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       ) || undefined,
       nfseRequiresSignature:
         ipm.exige_assinatura === true || body.exige_assinatura === true,
-      nfseTestMode:
-        ipm.modo_teste === false || body.modo_teste === false ? false : true,
-      autoTransmit: body.transmissao_automatica === true || body.autoTransmit === true
+      nfseTestMode: ipm.modo_teste === true || body.modo_teste === true,
+      autoTransmit:
+        body.transmissao_automatica !== false && body.autoTransmit !== false
     };
     const configValidation = validateNfseConfigDraft({
       cnpj,
@@ -810,11 +811,60 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         : undefined,
       preserveSecrets: !password && Boolean(reusableExistingSettings)
     });
+
+    if (environment === "homologacao" && serviceConfig) {
+      const homologationIssuer = app.store.findIssuerByCnpj(cnpj, "homologacao");
+      if (homologationIssuer) {
+        app.store.upsertIssuerEnvironment(cnpj, "producao", {
+          razaoSocial: homologationIssuer.razaoSocial,
+          nomeFantasia: homologationIssuer.nomeFantasia,
+          uf: homologationIssuer.uf,
+          ie: homologationIssuer.ie,
+          crt: homologationIssuer.crt,
+          serieNfe: app.store.findIssuerByCnpj(cnpj, "producao")?.serieNfe ?? homologationIssuer.serieNfe,
+          serieNfce: app.store.findIssuerByCnpj(cnpj, "producao")?.serieNfce ?? homologationIssuer.serieNfce,
+          ativo: homologationIssuer.ativo,
+          metadata: homologationIssuer.metadata
+        });
+      }
+
+      const productionConfig = app.store.findServiceConfigRecord(cnpj, "producao", "NFSE");
+      const source = serviceConfig.settings;
+      app.store.upsertServiceConfig(cnpj, "producao", "NFSE", {
+        active: productionConfig?.active ?? serviceConfig.active,
+        settings: {
+          ...(productionConfig?.settings ?? {}),
+          nfseLogin: source.nfseLogin,
+          nfseProvider: source.nfseProvider,
+          nfseMunicipalityCode: source.nfseMunicipalityCode,
+          nfseMunicipalityName: source.nfseMunicipalityName,
+          nfseEndpoint: source.nfseEndpoint,
+          nfseSoapAction: source.nfseSoapAction,
+          nfseRequestFormat: source.nfseRequestFormat,
+          nfseInscricaoMunicipal: source.nfseInscricaoMunicipal,
+          nfseIdEntidade: source.nfseIdEntidade,
+          nfseDefaultServiceCode: source.nfseDefaultServiceCode,
+          nfseDefaultServiceItem: source.nfseDefaultServiceItem,
+          nfseDefaultServiceSubItem: source.nfseDefaultServiceSubItem,
+          nfseDefaultAliquotaIss: source.nfseDefaultAliquotaIss,
+          nfseTomCode: source.nfseTomCode,
+          nfseEconomicRegistration: source.nfseEconomicRegistration,
+          nfseDefaultActivityCode: source.nfseDefaultActivityCode,
+          nfseDefaultTaxSituation: source.nfseDefaultTaxSituation,
+          nfseRequiresSignature: source.nfseRequiresSignature,
+          nfseTestMode: productionConfig?.settings.nfseTestMode ?? false,
+          autoTransmit: productionConfig?.settings.autoTransmit ?? true
+        },
+        secretsEncrypted: serviceConfig.secretsEncrypted ?? undefined,
+        preserveSecrets: !serviceConfig.secretsEncrypted && Boolean(productionConfig)
+      });
+    }
     await app.store.waitForPersistence();
 
     return {
       message: "Configuracao NFS-e salva.",
       ambiente: environment,
+      producao_sincronizada: environment === "homologacao",
       prefeitura: {
         login: effectiveLogin,
         senha_configurada: Boolean(serviceConfig?.secretsEncrypted)
@@ -1246,20 +1296,18 @@ async function handleCreateDocument(
   }
 
   const emitente = payloadNormalizado.emitente as Record<string, unknown> | null;
-  const ide = payloadNormalizado.ide as Record<string, unknown> | null;
-  const issuer = app.store.ensureIssuer(issuerCnpj, ambiente, {
-    razaoSocial: String(emitente?.xNome ?? `Emitente ${issuerCnpj}`),
-    nomeFantasia: String(emitente?.xFant ?? emitente?.xNome ?? `Emitente ${issuerCnpj}`),
-    uf: String(
-      typeof emitente?.enderEmit === "object" && emitente.enderEmit !== null
-        ? (emitente.enderEmit as Record<string, unknown>).UF ?? ""
-        : ""
-    ),
-    ie: String(emitente?.IE ?? ""),
-    crt: String(emitente?.CRT ?? ""),
-    serieNfe: Number(ide?.serie ?? 1),
-    serieNfce: Number(ide?.serie ?? 1)
-  });
+  const issuer = app.store.findIssuerByCnpj(issuerCnpj, ambiente);
+  if (!issuer) {
+    return reply.code(404).send({
+      error: {
+        code: "issuer_not_registered",
+        message:
+          "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
+      },
+      message:
+        "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
+    });
+  }
 
   if (emitente) {
     if ((emitente.CRT === undefined || emitente.CRT === null || emitente.CRT === "") && issuer.crt) {
@@ -1502,11 +1550,17 @@ async function handleCreateNfseDps(
     });
   }
 
-  app.store.ensureIssuer(issuerCnpj, ambiente, {
-    razaoSocial: `Emitente ${issuerCnpj}`,
-    nomeFantasia: `Emitente ${issuerCnpj}`,
-    uf: "PR"
-  });
+  if (!app.store.findIssuerByCnpj(issuerCnpj, ambiente)) {
+    return reply.code(404).send({
+      error: {
+        code: "issuer_not_registered",
+        message:
+          "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
+      },
+      message:
+        "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
+    });
+  }
   const document = app.store.createDocument({
     tipoDocumento: "NFSe",
     issuerCnpj,

@@ -12,7 +12,11 @@ import {
   decryptSecretPayload,
   openEncryptedCertificate
 } from "./certificates.js";
-import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
+import {
+  getNfseRuleProfile,
+  resolveNfseProvider,
+  validateNfseRuntimePolicy
+} from "./nfse-rules.js";
 
 type RequestFormat = "soap" | "xml";
 
@@ -207,7 +211,10 @@ function resolveToledoConfig(
       metadata.inscricao_municipal,
       settings.nfseLogin
     ),
-    idEntidade: firstText(settings.nfseIdEntidade),
+    idEntidade: firstText(
+      settings.nfseIdEntidade,
+      getNfseRuleProfile("toledo-equiplano")?.defaults.idEntidade
+    ),
     codigoMunicipioIbge: firstText(
       settings.nfseMunicipalityCode,
       endereco.codigo_municipio,

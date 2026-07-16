@@ -748,7 +748,7 @@ const page = String.raw`<!doctype html>
         activityCode: '4520007',
         taxSituation: '0',
         requiresSignature: false,
-        testMode: true,
+        testMode: false,
         serviceCode: '140101',
         issRate: '2.01',
         rpsSeries: '1',
@@ -790,9 +790,14 @@ const page = String.raw`<!doctype html>
       return new Intl.DateTimeFormat('pt-BR', options).format(new Date(value));
     }
 
-    function groupedCompanies() {
+    function isImportedIssuer(issuer) {
+      return issuer && issuer.metadata && issuer.metadata.auditCategory === 'imported_issuer';
+    }
+
+    function groupedCompaniesByKind(includeImportedIssuers) {
       const companies = new Map();
       state.snapshot.issuers.slice().reverse().forEach(function(issuer) {
+        if (isImportedIssuer(issuer) !== includeImportedIssuers) return;
         if (!companies.has(issuer.cnpj)) {
           companies.set(issuer.cnpj, {
             cnpj: issuer.cnpj,
@@ -804,6 +809,14 @@ const page = String.raw`<!doctype html>
         companies.get(issuer.cnpj).environments[issuer.ambiente] = issuer;
       });
       return Array.from(companies.values());
+    }
+
+    function groupedCompanies() {
+      return groupedCompaniesByKind(false);
+    }
+
+    function importedIssuerCompanies() {
+      return groupedCompaniesByKind(true);
     }
 
     function companyByCnpj(cnpj) {
@@ -1058,10 +1071,12 @@ const page = String.raw`<!doctype html>
 
     function renderCompanies() {
       const companies = groupedCompanies();
+      const importedIssuers = importedIssuerCompanies();
       return pageHead(
         'Cadastros',
         'Empresas',
         'Cada empresa aparece uma única vez. As configurações fiscais de homologação e produção vivem dentro dela.',
+        '<button type="button" class="btn ghost" onclick="navigate(\'issuer-audit\')">Emitentes importados (' + importedIssuers.length + ')</button>' +
         '<button type="button" class="btn" onclick="navigate(\'new-company\')">Nova empresa</button>'
       ) +
       (companies.length
@@ -1069,17 +1084,44 @@ const page = String.raw`<!doctype html>
         : '<div class="empty">Nenhuma empresa cadastrada. Use "Nova empresa" para iniciar.</div>');
     }
 
+    function renderIssuerAudit() {
+      const companies = importedIssuerCompanies();
+      return '<button type="button" class="breadcrumb" onclick="navigate(\'companies\')">Voltar para empresas</button>' +
+        pageHead(
+          'Auditoria',
+          'Emitentes importados',
+          'CNPJs de notas historicas importadas. Nao sao empresas habilitadas a emitir e ficam fora do cadastro fiscal normal.'
+        ) +
+        (companies.length
+          ? '<div class="company-list">' + companies.map(function(company) {
+              const environments = Object.keys(company.environments)
+                .map(function(environment) { return environment === 'homologacao' ? 'Homologacao' : 'Producao'; })
+                .join(' e ');
+              const issuer = company.environments.homologacao || company.environments.producao;
+              const source = issuer && issuer.metadata && issuer.metadata.auditSource
+                ? issuer.metadata.auditSource
+                : 'importacao historica';
+              return '<article class="company-card">' +
+                '<div class="company-title"><div><span class="eyebrow">Somente auditoria</span><h3>' + escapeHtml(company.razaoSocial) + '</h3>' +
+                '<p>' + formatCnpj(company.cnpj) + '</p></div><span class="status warning">Nao configuravel</span></div>' +
+                '<div class="company-meta"><span class="company-meta-item"><strong>Origem:</strong> ' + escapeHtml(source) + '</span>' +
+                '<span class="company-meta-item"><strong>Ambiente registrado:</strong> ' + escapeHtml(environments || 'Nao informado') + '</span></div>' +
+              '</article>';
+            }).join('') + '</div>'
+          : '<div class="empty">Nenhum emitente importado para auditar.</div>');
+    }
+
     function renderNewCompany() {
       return '<button type="button" class="breadcrumb" onclick="navigate(\'companies\')">← Voltar para empresas</button>' +
         pageHead(
           'Novo cadastro',
           'Nova empresa',
-          'Cadastre o primeiro ambiente fiscal. Depois você poderá incluir certificado e configurar cada serviço separadamente.'
+          'Cadastre os dados compartilhados da empresa. A Nuvem Local cria Homologação e Produção com a mesma base; os detalhes de cada serviço ficam nas abas próprias.'
         ) +
         '<section class="surface"><form id="newCompanyForm">' +
           '<div class="two-col">' +
             '<label>CNPJ<input name="cnpj" inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00" required /></label>' +
-            '<label>Ambiente inicial<select name="environment"><option value="homologacao">Homologação</option><option value="producao">Produção</option></select></label>' +
+            '<label>Situação<select name="ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>' +
           '</div><div class="two-col">' +
             '<label>Razão social<input name="razaoSocial" required /></label>' +
             '<label>Nome fantasia<input name="nomeFantasia" required /></label>' +
@@ -1093,10 +1135,6 @@ const page = String.raw`<!doctype html>
               '<option value="3">3 - Regime Normal</option>' +
               '<option value="4">4 - MEI</option>' +
             '</select></label>' +
-            '<label>Situação<select name="ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>' +
-          '</div><div class="two-col">' +
-            '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="1" required /></label>' +
-            '<label>Série NFC-e<input type="number" min="1" max="999" name="serieNfce" value="1" required /></label>' +
           '</div><div class="actions">' +
             '<button type="submit" class="btn">Cadastrar empresa</button>' +
             '<button type="button" class="btn ghost" onclick="navigate(\'companies\')">Cancelar</button>' +
@@ -1234,20 +1272,26 @@ const page = String.raw`<!doctype html>
       const prod = company.environments.producao;
       const base = hom || prod;
       return '<section class="surface"><h2>Dados cadastrais</h2>' +
-        '<p class="small">Informações compartilhadas pela empresa e registros disponíveis por ambiente.</p>' +
-        '<div class="actions"><button type="button" class="btn secondary" onclick="openNfceSettings()">Configurar NFC-e e CSC</button></div>' +
-        '<div class="compact-info-grid">' +
-          compactInfo('CNPJ', formatCnpj(company.cnpj)) +
-          compactInfo('Razão social', company.razaoSocial) +
-          compactInfo('Nome fantasia', company.nomeFantasia) +
-          compactInfo('UF', base ? base.uf : 'Não informado') +
-          compactInfo('Inscrição estadual', base ? base.ie || 'Não informada' : 'Não informada') +
-          compactInfo('Regime tributário', base ? 'CRT ' + (base.crt || 'não informado') : 'Não informado') +
-        '</div><div class="section-head"><div><h3>Ambientes</h3><p>Um cadastro, duas configurações fiscais independentes.</p></div></div>' +
-        '<div class="two-col">' +
-          environmentEditor(company, hom, 'Homologação', 'homologacao') +
-          environmentEditor(company, prod, 'Produção', 'producao') +
-        '</div></section>' + responseConsole();
+        '<p class="small">Estes dados são compartilhados. Ao salvar, Homologação e Produção recebem a mesma base cadastral. Séries, CSC e parâmetros de transmissão ficam em Serviços.</p>' +
+        '<form id="companyDataForm">' +
+          '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
+          '<div class="compact-info-grid">' + compactInfo('CNPJ', formatCnpj(company.cnpj)) + '</div>' +
+          '<div class="two-col">' +
+            '<label>Razão social<input name="razaoSocial" value="' + escapeHtml(company.razaoSocial) + '" required /></label>' +
+            '<label>Nome fantasia<input name="nomeFantasia" value="' + escapeHtml(company.nomeFantasia) + '" required /></label>' +
+          '</div><div class="two-col">' +
+            '<label>UF<input name="uf" maxlength="2" value="' + escapeHtml(base ? base.uf : '') + '" required /></label>' +
+            '<label>Inscrição estadual<input name="ie" value="' + escapeHtml(base ? base.ie : '') + '" /></label>' +
+          '</div><div class="two-col">' +
+            '<label>CRT / regime tributário<select name="crt">' +
+              '<option value="1"' + (base?.crt === '1' ? ' selected' : '') + '>1 - Simples Nacional</option>' +
+              '<option value="2"' + (base?.crt === '2' ? ' selected' : '') + '>2 - Simples Nacional, excesso</option>' +
+              '<option value="3"' + (base?.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
+              '<option value="4"' + (base?.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
+            '</select></label>' +
+            '<label>Situação<select name="ativo"><option value="true"' + (base?.ativo !== false ? ' selected' : '') + '>Ativo</option><option value="false"' + (base?.ativo === false ? ' selected' : '') + '>Inativo</option></select></label>' +
+          '</div><div class="actions"><button type="submit" class="btn">Salvar dados da empresa</button></div>' +
+        '</form></section>' + responseConsole();
     }
 
     function environmentEditor(company, issuer, label, environment) {
@@ -1475,12 +1519,7 @@ const page = String.raw`<!doctype html>
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
-              '<label>CRT<select name="crt">' +
-                '<option value="1"' + (issuer.crt === '1' ? ' selected' : '') + '>1 - Simples Nacional</option>' +
-                '<option value="2"' + (issuer.crt === '2' ? ' selected' : '') + '>2 - Simples Nacional, excesso</option>' +
-                '<option value="3"' + (issuer.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
-                '<option value="4"' + (issuer.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
-              '</select></label>' +
+              '<label>CRT compartilhado<input value="' + escapeHtml('CRT ' + issuer.crt) + '" disabled /></label>' +
               '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
             '</div><div class="two-col">' +
@@ -1528,14 +1567,14 @@ const page = String.raw`<!doctype html>
           info('UF autorizadora', issuer.uf) +
           info('Documentos', String(docs.length)) +
           info('Última emissão', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
-          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
+          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>A série e o CSC pertencem a este serviço e ambiente. Deixe o CSC em branco para manter o atual.</p></div></div>' +
           '<form id="nfceServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
+              '<label>Série NFC-e<input type="number" min="1" max="999" name="serieNfce" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
               '<label>CSC ID<input name="cscId" value="' + escapeHtml(serviceConfig && serviceConfig.settings ? String(serviceConfig.settings.cscId || '') : '') + '" required /></label>' +
-              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
-            '</div>' +
+            '</div><label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
             '<div><button type="submit" class="btn">Salvar configuração NFC-e</button></div>' +
           '</form><div class="section-head"><div><h3>Inutilização de numeração</h3><p>Use quando uma numeração foi pulada e não será mais emitida.</p></div></div>' +
           '<form id="inutilizationForm">' +
@@ -1635,7 +1674,7 @@ const page = String.raw`<!doctype html>
         : settings.nfseRequiresSignature === true;
       const testMode = forcePreset && typeof providerPreset.testMode === 'boolean'
         ? providerPreset.testMode
-        : settings.nfseTestMode !== false;
+        : settings.nfseTestMode === true;
       const rpsSeries = pickNfsePresetValue(
         settings.nfseRpsSerie,
         providerPreset.rpsSeries,
@@ -1700,28 +1739,23 @@ const page = String.raw`<!doctype html>
                 '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
             '</div>' +
             (isToledo ?
-            '<div class="section-head"><div><h3>Equiplano</h3><p>Contrato SOAP/XML exclusivo de Toledo.</p></div></div>' +
-            '<div class="two-col">' +
-              '<label>ID da entidade<input name="entityId" value="' + escapeHtml(entityId || '') + '" required /></label>' +
-              '<label>Formato da requisição<select name="requestFormat">' +
-                '<option value="soap"' + (requestFormat !== 'xml' ? ' selected' : '') + '>SOAP 1.1</option>' +
-                '<option value="xml"' + (requestFormat === 'xml' ? ' selected' : '') + '>XML direto</option>' +
-              '</select></label>' +
-            '</div><label>Endpoint<input type="url" name="endpoint" value="' +
-              escapeHtml(endpoint || '') + '" required /></label>' +
-            '<label>SOAP Action<input name="soapAction" value="' +
-              escapeHtml(soapAction || '') + '" /></label>' :
-            '<div class="section-head"><div><h3>IPM / Atende.Net</h3><p>Parâmetros municipais de Guaíra. Os valores sugeridos vieram de exportações locais e ainda devem ser confirmados no portal.</p></div></div>' +
-            '<label>Endpoint IPM<input type="url" name="endpoint" value="' +
-              escapeHtml(endpoint || '') + '" required /></label>' +
-            '<div class="two-col">' +
-              '<label>Código TOM<input name="tomCode" inputmode="numeric" value="' +
-                escapeHtml(tomCode || '') + '" required /></label>' +
+            '<div class="section-head"><div><h3>Contrato municipal compartilhado</h3><p>Gerenciado uma vez para Toledo / Equiplano e aplicado a todas as empresas do município.</p></div></div>' +
+            '<div class="compact-info-grid">' +
+              compactInfo('Entidade Toledo', providerPreset.entityId || entityId || '136') +
+              compactInfo('Formato', requestFormat === 'xml' ? 'XML direto' : 'SOAP 1.1') +
+              compactInfo('Endpoint', endpoint || 'Não informado') +
+              compactInfo('SOAP Action', soapAction || 'Não informado') +
+            '</div><div class="empty">Estes dados pertencem ao conector municipal. Nesta empresa, informe apenas credenciais, inscrição municipal, RPS/lote e serviço.</div>' :
+            '<div class="section-head"><div><h3>Contrato municipal compartilhado</h3><p>Conector IPM / Atende.Net de Guaíra, aplicado a todas as empresas do município.</p></div></div>' +
+            '<div class="compact-info-grid">' +
+              compactInfo('Endpoint IPM', endpoint || 'Não informado') +
+              compactInfo('Código TOM', tomCode || 'Não informado') +
+            '</div><div class="two-col">' +
               '<label>Cadastro econômico<input name="economicRegistration" value="' +
                 escapeHtml(settings.nfseEconomicRegistration || settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
-            '</div><div class="two-col">' +
               '<label>Atividade / CNAE<input name="activityCode" inputmode="numeric" value="' +
                 escapeHtml(activityCode || '') + '" required /></label>' +
+            '</div><div class="two-col">' +
               '<label>Situação tributária<select name="taxSituation">' +
                 '<option value="0"' + (taxSituation === '0' ? ' selected' : '') + '>0 - Tributada integralmente</option>' +
                 '<option value="1"' + (taxSituation === '1' ? ' selected' : '') + '>1 - Tributada com ISSRF público</option>' +
@@ -1735,11 +1769,7 @@ const page = String.raw`<!doctype html>
                 '<option value="false"' + (!requiresSignature ? ' selected' : '') + '>Não confirmada / não exigir</option>' +
                 '<option value="true"' + (requiresSignature ? ' selected' : '') + '>Exigida pelo município</option>' +
               '</select></label>' +
-              '<label>Modo do XML<select name="testMode">' +
-                '<option value="true"' + (testMode ? ' selected' : '') + '>Teste sem emissão (nfse_teste=1)</option>' +
-                '<option value="false"' + (!testMode ? ' selected' : '') + '>Emissão real</option>' +
-              '</select></label>' +
-            '</div><div class="empty">Em homologação IPM, mantenha "Teste sem emissão (nfse_teste=1)". Para piloto em produção, troque para "Emissão real" apenas na empresa validada.</div>') +
+            '</div><div class="empty">Em homologação, a NFS-e é transmitida automaticamente ao ambiente municipal. O XML não usa nfse_teste.</div>') +
             '<div class="section-head"><div><h3>RPS</h3><p>' +
               (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
@@ -1762,13 +1792,7 @@ const page = String.raw`<!doctype html>
               '<label>Item do serviço<input name="serviceItem" value="' + escapeHtml(settings.nfseDefaultServiceItem || '') + '" /></label>' +
               '<label>Subitem do serviço<input name="serviceSubItem" value="' + escapeHtml(settings.nfseDefaultServiceSubItem || '') + '" /></label>' +
             '</div>' : '') +
-            '<label>Transmissão<select name="autoTransmit">' +
-              '<option value="false"' + (!autoTransmit ? ' selected' : '') + '>Dry-run / manual</option>' +
-              '<option value="true"' + (autoTransmit ? ' selected' : '') + '>' +
-                (production ? 'Automática em produção piloto' : 'Automática em homologação') +
-              '</option>' +
-            '</select></label>' +
-            (isIpm ? '<div class="empty">No IPM, use nfse_teste=1 em homologação. Em produção piloto validada, use Emissão real sem nfse_teste=1.</div>' : '') +
+            '<div class="empty">Transmissão automática habilitada. Em homologação, a nota segue para a prefeitura; em produção, a trava global do servidor continua sendo respeitada.</div>' +
             (production && fiscalProductionBlocked()
               ? '<div class="empty">A liberação global de produção ainda está desligada neste servidor.</div>'
               : production
@@ -1824,12 +1848,7 @@ const page = String.raw`<!doctype html>
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
-              '<label>CRT<select name="crt">' +
-                '<option value="1"' + (issuer.crt === '1' ? ' selected' : '') + '>1 - Simples Nacional</option>' +
-                '<option value="2"' + (issuer.crt === '2' ? ' selected' : '') + '>2 - Simples Nacional, excesso</option>' +
-                '<option value="3"' + (issuer.crt === '3' ? ' selected' : '') + '>3 - Regime Normal</option>' +
-                '<option value="4"' + (issuer.crt === '4' ? ' selected' : '') + '>4 - MEI</option>' +
-              '</select></label>' +
+              '<label>CRT compartilhado<input value="' + escapeHtml('CRT ' + issuer.crt) + '" disabled /></label>' +
               '<label>Série NF-e<input type="number" min="1" max="999" name="serieNfe" value="' +
                 escapeHtml(String(issuer.serieNfe)) + '" required /></label>' +
             '</div><div class="two-col">' +
@@ -1883,14 +1902,14 @@ const page = String.raw`<!doctype html>
           compactInfo('UF autorizadora', issuer.uf) +
           compactInfo('Documentos', String(docs.length)) +
           compactInfo('Última emissão', docs.length ? formatDate(docs[0].createdAt, true) : 'Nenhuma') +
-          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>O CSC fica salvo por ambiente. Deixe em branco para manter o atual.</p></div></div>' +
+          '</div><div class="section-head"><div><h3>Configuração NFC-e</h3><p>A série e o CSC pertencem a este serviço e ambiente. Deixe o CSC em branco para manter o atual.</p></div></div>' +
           '<form id="nfceServiceForm">' +
             '<input type="hidden" name="cnpj" value="' + escapeHtml(company.cnpj) + '" />' +
             '<input type="hidden" name="environment" value="' + escapeHtml(state.environment) + '" />' +
             '<div class="two-col">' +
+              '<label>Série NFC-e<input type="number" min="1" max="999" name="serieNfce" value="' + escapeHtml(String(issuer.serieNfce)) + '" required /></label>' +
               '<label>CSC ID<input name="cscId" value="' + escapeHtml(serviceConfig && serviceConfig.settings ? String(serviceConfig.settings.cscId || '') : '') + '" required /></label>' +
-              '<label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
-            '</div>' +
+            '</div><label>CSC<input type="password" name="csc" placeholder="' + (serviceConfig && serviceConfig.hasSecrets ? 'Já configurado. Preencha apenas para trocar.' : 'Informe o CSC deste ambiente') + '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="off" /></label>' +
             '<div><button type="submit" class="btn">Salvar configuração NFC-e</button></div>' +
           '</form><div class="section-head"><div><h3>Inutilização de numeração</h3><p>Use quando uma numeração foi pulada e não será mais emitida.</p></div></div>' +
           '<form id="inutilizationForm">' +
@@ -2558,13 +2577,12 @@ const page = String.raw`<!doctype html>
     function bindForms() {
       const newCompanyForm = document.getElementById('newCompanyForm');
       if (newCompanyForm) newCompanyForm.addEventListener('submit', createCompany);
+      const companyDataForm = document.getElementById('companyDataForm');
+      if (companyDataForm) companyDataForm.addEventListener('submit', saveCompanyData);
       const certificateForm = document.getElementById('certificateForm');
       if (certificateForm) certificateForm.addEventListener('submit', uploadCertificate);
       const documentForm = document.getElementById('documentForm');
       if (documentForm) documentForm.addEventListener('submit', createManualDocument);
-      document.querySelectorAll('.environmentForm').forEach(function(form) {
-        form.addEventListener('submit', saveEnvironmentConfig);
-      });
       const nfceServiceForm = document.getElementById('nfceServiceForm');
       if (nfceServiceForm) nfceServiceForm.addEventListener('submit', saveNfceServiceConfig);
       const nfeServiceForm = document.getElementById('nfeServiceForm');
@@ -2589,6 +2607,7 @@ const page = String.raw`<!doctype html>
       let html = '';
       if (state.page === 'home') html = renderHome();
       if (state.page === 'companies') html = renderCompanies();
+      if (state.page === 'issuer-audit') html = renderIssuerAudit();
       if (state.page === 'new-company') html = renderNewCompany();
       if (state.page === 'company') html = renderCompany();
       if (state.page === 'documents') html = renderDocuments();
@@ -2655,30 +2674,30 @@ const page = String.raw`<!doctype html>
 
     async function createCompany(event) {
       event.preventDefault();
-      setResponse('Cadastrando empresa e ambiente fiscal...');
+      setResponse('Cadastrando empresa em Homologação e Produção...');
       const form = new FormData(event.currentTarget);
       const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
-      const environment = String(form.get('environment'));
-      const response = await fetch('/admin/api/companies/' + cnpj + '/environments/' + environment, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          Authorization: 'Basic ' + runtimeConfig.adminToken
-        },
-        body: JSON.stringify({
-          razaoSocial: form.get('razaoSocial'),
-          nomeFantasia: form.get('nomeFantasia'),
-          uf: String(form.get('uf') || '').toUpperCase(),
-          ie: form.get('ie'),
-          crt: form.get('crt'),
-          serieNfe: Number(form.get('serieNfe') || 1),
-          serieNfce: Number(form.get('serieNfce') || 1),
-          ativo: String(form.get('ativo')) === 'true'
-        })
+      const payload = {
+        razaoSocial: form.get('razaoSocial'),
+        nomeFantasia: form.get('nomeFantasia'),
+        uf: String(form.get('uf') || '').toUpperCase(),
+        ie: form.get('ie'),
+        crt: form.get('crt'),
+        serieNfe: 1,
+        serieNfce: 1,
+        ativo: String(form.get('ativo')) === 'true'
+      };
+      const results = await Promise.all([
+        saveIssuerEnvironment(cnpj, 'homologacao', payload),
+        saveIssuerEnvironment(cnpj, 'producao', payload)
+      ]);
+      const failed = results.find(function(result) { return !result.response.ok; });
+      setResponse(failed ? failed.json : {
+        message: 'Empresa cadastrada com a mesma base em Homologação e Produção.',
+        homologacao: results[0].json,
+        producao: results[1].json
       });
-      const json = await response.json();
-      setResponse(json);
-      if (!response.ok) return;
+      if (failed) return;
       await fetchSnapshot();
       state.companyCnpj = cnpj;
       state.companyTab = 'dados';
@@ -2707,30 +2726,48 @@ const page = String.raw`<!doctype html>
       await refreshSnapshot();
     }
 
-    async function saveEnvironmentConfig(event) {
-      event.preventDefault();
-      setResponse('Salvando configuracao fiscal do ambiente...');
-      const form = new FormData(event.currentTarget);
-      const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
-      const environment = String(form.get('environment'));
+    async function saveIssuerEnvironment(cnpj, environment, payload) {
       const response = await fetch('/admin/api/companies/' + cnpj + '/environments/' + environment, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           Authorization: 'Basic ' + runtimeConfig.adminToken
         },
-        body: JSON.stringify({
-          razaoSocial: form.get('razaoSocial'),
-          nomeFantasia: form.get('nomeFantasia'),
-          uf: String(form.get('uf') || '').toUpperCase(),
-          ie: form.get('ie'),
-          crt: form.get('crt'),
-          serieNfe: Number(form.get('serieNfe') || 1),
-          serieNfce: Number(form.get('serieNfce') || 1),
-          ativo: String(form.get('ativo')) === 'true'
-        })
+        body: JSON.stringify(payload)
       });
-      setResponse(await response.json());
+      return { response, json: await response.json() };
+    }
+
+    async function saveCompanyData(event) {
+      event.preventDefault();
+      setResponse('Salvando dados compartilhados em Homologação e Produção...');
+      const form = new FormData(event.currentTarget);
+      const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
+      const company = companyByCnpj(cnpj);
+      const hom = company && company.environments.homologacao;
+      const prod = company && company.environments.producao;
+      const basePayload = {
+        razaoSocial: form.get('razaoSocial'),
+        nomeFantasia: form.get('nomeFantasia'),
+        uf: String(form.get('uf') || '').toUpperCase(),
+        ie: form.get('ie'),
+        crt: form.get('crt'),
+        ativo: String(form.get('ativo')) === 'true'
+      };
+      const results = await Promise.all([
+        saveIssuerEnvironment(cnpj, 'homologacao', {
+          ...basePayload,
+          serieNfe: hom ? hom.serieNfe : 1,
+          serieNfce: hom ? hom.serieNfce : 1
+        }),
+        saveIssuerEnvironment(cnpj, 'producao', {
+          ...basePayload,
+          serieNfe: prod ? prod.serieNfe : (hom ? hom.serieNfe : 1),
+          serieNfce: prod ? prod.serieNfce : (hom ? hom.serieNfce : 1)
+        })
+      ]);
+      const failed = results.find(function(result) { return !result.response.ok; });
+      setResponse(failed ? failed.json : { message: 'Dados compartilhados salvos em Homologação e Produção.' });
       await refreshSnapshot();
     }
 
@@ -2740,6 +2777,26 @@ const page = String.raw`<!doctype html>
       const form = new FormData(event.currentTarget);
       const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
       const environment = String(form.get('environment'));
+      const company = companyByCnpj(cnpj);
+      const issuer = company && company.environments[environment];
+      if (!issuer) {
+        setResponse({ message: 'Ambiente fiscal não encontrado para salvar a NFC-e.' });
+        return;
+      }
+      const issuerResult = await saveIssuerEnvironment(cnpj, environment, {
+        razaoSocial: company.razaoSocial,
+        nomeFantasia: company.nomeFantasia,
+        uf: issuer.uf,
+        ie: issuer.ie,
+        crt: issuer.crt,
+        serieNfe: issuer.serieNfe,
+        serieNfce: Number(form.get('serieNfce') || 1),
+        ativo: issuer.ativo !== false
+      });
+      if (!issuerResult.response.ok) {
+        setResponse(issuerResult.json);
+        return;
+      }
       const response = await fetch('/admin/api/companies/' + cnpj + '/services/nfce/' + environment, {
         method: 'POST',
         headers: {
@@ -2751,7 +2808,8 @@ const page = String.raw`<!doctype html>
           csc: form.get('csc')
         })
       });
-      setResponse(await response.json());
+      const json = await response.json();
+      setResponse(response.ok ? { message: 'Configuração NFC-e e série salvas.', serviceConfig: json.serviceConfig } : json);
       await refreshSnapshot();
     }
 
@@ -2761,6 +2819,12 @@ const page = String.raw`<!doctype html>
       const form = new FormData(event.currentTarget);
       const cnpj = String(form.get('cnpj')).replace(/\D/g, '');
       const environment = String(form.get('environment'));
+      const company = companyByCnpj(cnpj);
+      const issuer = company && company.environments[environment];
+      if (!issuer) {
+        setResponse({ message: 'Ambiente fiscal não encontrado para salvar a NF-e.' });
+        return;
+      }
       const nfeLastNumber = String(form.get('nfeLastNumber') || '').trim();
       const response = await fetch('/admin/api/companies/' + cnpj + '/services/nfe/' + environment, {
         method: 'POST',
@@ -2769,7 +2833,7 @@ const page = String.raw`<!doctype html>
           Authorization: 'Basic ' + runtimeConfig.adminToken
         },
         body: JSON.stringify({
-          crt: form.get('crt'),
+          crt: issuer.crt,
           serieNfe: Number(form.get('serieNfe') || 1),
           nfeLastNumber: nfeLastNumber ? Number(nfeLastNumber) : undefined,
           nfeLastBatchId: form.get('nfeLastBatchId'),
@@ -2825,7 +2889,7 @@ const page = String.raw`<!doctype html>
             codigo_atividade: form.get('activityCode'),
             situacao_tributaria: form.get('taxSituation'),
             exige_assinatura: String(form.get('requiresSignature')) === 'true',
-            modo_teste: String(form.get('testMode')) !== 'false'
+            modo_teste: false
           },
           servico: {
             codigo: form.get('serviceCode'),
@@ -2833,7 +2897,7 @@ const page = String.raw`<!doctype html>
             subitem: form.get('serviceSubItem'),
             aliquota_iss: Number(form.get('issRate'))
           },
-          transmissao_automatica: String(form.get('autoTransmit')) === 'true'
+          transmissao_automatica: true
         })
       });
       setResponse(await response.json());

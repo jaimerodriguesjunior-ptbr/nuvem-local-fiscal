@@ -50,6 +50,24 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     const basic = `Basic ${Buffer.from("admin:admin").toString("base64")}`;
     const cnpj = "12345678000195";
 
+    const unregisteredIssuer = await app.inject({
+      method: "POST",
+      url: "/nfce",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infNFe: {
+          ide: { mod: "65", serie: "1", nNF: "1", tpAmb: "2" },
+          emit: { CNPJ: "10535965000132", xNome: "Nao cadastrar implicitamente", IE: "123", CRT: "1" }
+        }
+      }
+    });
+    assert.equal(unregisteredIssuer.statusCode, 404);
+    assert.equal(unregisteredIssuer.json().error.code, "issuer_not_registered");
+
     const health = await app.inject({
       method: "GET",
       url: "/health"
@@ -438,8 +456,20 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         }
       }
     });
-    assert.equal(saveToledoWithoutEntityId.statusCode, 400);
-    assert.match(saveToledoWithoutEntityId.body, /id_entidade/);
+    assert.equal(saveToledoWithoutEntityId.statusCode, 200, saveToledoWithoutEntityId.body);
+    const copiedToledoProductionConfig = app.store.findServiceConfigRecord(
+      cnpj,
+      "producao",
+      "NFSE"
+    );
+    assert.ok(copiedToledoProductionConfig);
+    assert.equal(copiedToledoProductionConfig.settings.nfseProvider, "toledo-equiplano");
+    assert.equal(copiedToledoProductionConfig.settings.nfseIdEntidade, "136");
+    assert.equal(copiedToledoProductionConfig.settings.nfseNextRpsNumber, undefined);
+    assert.equal(copiedToledoProductionConfig.settings.nfseNextLotNumber, undefined);
+    assert.equal(copiedToledoProductionConfig.settings.nfseTestMode, false);
+    assert.equal(copiedToledoProductionConfig.settings.autoTransmit, true);
+    assert.equal(Boolean(copiedToledoProductionConfig.secretsEncrypted), true);
 
     const saveToledoNfseConfig = await app.inject({
       method: "PUT",
@@ -473,7 +503,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         servico: {
           codigo: "17.19.01.000",
           aliquota_iss: 3
-        }
+        },
+        transmissao_automatica: false
       }
     });
     assert.equal(saveToledoNfseConfig.statusCode, 200, saveToledoNfseConfig.body);
@@ -502,7 +533,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         },
         equiplano: {
           inscricao_municipal: ""
-        }
+        },
+        transmissao_automatica: false
       }
     });
     assert.equal(
@@ -568,7 +600,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.equal(
       incompleteProductionToledoConfig.json().prefeitura.senha_configurada,
-      false
+      true
     );
 
     const mismatchedMunicipalityProvider = await app.inject({

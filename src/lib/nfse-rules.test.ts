@@ -49,7 +49,7 @@ test("captures municipal credentials and profile-specific required settings", ()
     }
   });
 
-  assert.match(result.errors.join(" "), /nfseIdEntidade/);
+  assert.equal(result.errors.length, 0);
 });
 
 test("keeps production municipal transmission blocked by provider profile", () => {

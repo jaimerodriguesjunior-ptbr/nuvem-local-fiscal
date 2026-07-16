@@ -24,6 +24,7 @@ export type NfseRuleProfile = {
     rpsIssuer?: string;
     requestFormat?: "soap" | "xml";
     soapAction?: string;
+    idEntidade?: string;
     tomCode?: string;
   };
   requiredSettings: Array<keyof ServiceConfig["settings"]>;
@@ -97,12 +98,12 @@ export const NFSE_RULE_PROFILES: Record<NfseProviderId, NfseRuleProfile> = {
       rpsSeries: "1",
       rpsIssuer: "1",
       requestFormat: "soap",
-      soapAction: "http://services.enfsws.es/esRecepcionarLoteRps"
+      soapAction: "http://services.enfsws.es/esRecepcionarLoteRps",
+      idEntidade: "136"
     },
     requiredSettings: [
       "nfseEndpoint",
       "nfseInscricaoMunicipal",
-      "nfseIdEntidade",
       "nfseRpsEmissor",
       "nfseDefaultServiceCode",
       "nfseDefaultAliquotaIss"
