@@ -1445,13 +1445,13 @@ const page = String.raw`<!doctype html>
               (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(settings.nfseRpsSerie || '1') + '" /></label>' +
-              '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(settings.nfseRpsEmissor || '1') + '" /></label>' +
+              '<label>Série RPS (Série)<input name="rpsSeries" value="' + escapeHtml(settings.nfseRpsSerie || '1') + '" /></label>' +
+              (isToledo ? '<label>Emissor RPS (Equiplano)<input name="rpsIssuer" value="' + escapeHtml(settings.nfseRpsEmissor || '1') + '" /><small>Código técnico exigido por Toledo, normalmente 1.</small></label>' : '') +
             '</div><div class="two-col">' +
-              '<label>Próximo número RPS<input type="number" min="1" name="nextRpsNumber" value="' +
+              '<label>Próximo número RPS (Número)<input type="number" min="1" name="nextRpsNumber" value="' +
                 escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" /></label>' +
-              '<label>Próximo lote<input type="number" min="1" name="nextLotNumber" value="' +
-                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '"' + (isIpm ? ' disabled' : '') + ' /></label>' +
+              (isToledo ? '<label>Próximo lote (Lote)<input type="number" min="1" name="nextLotNumber" value="' +
+                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '" /></label>' : '') +
             '</div>' +
             '<div class="section-head"><div><h3>Serviço padrão</h3><p>Valores usados quando o sistema cliente não informar um detalhe opcional.</p></div></div>' +
             '<div class="two-col">' +
@@ -1774,13 +1774,13 @@ const page = String.raw`<!doctype html>
               (isToledo ? 'Sequência usada pelo lote Equiplano.' : 'Uso e sequência precisam ser confirmados para Guaíra antes da transmissão.') +
             '</p></div></div>' +
             '<div class="two-col">' +
-              '<label>Série RPS<input name="rpsSeries" value="' + escapeHtml(rpsSeries) + '" /></label>' +
-              '<label>Emissor RPS<input name="rpsIssuer" value="' + escapeHtml(rpsIssuer) + '" /></label>' +
+              '<label>Série RPS (Série)<input name="rpsSeries" value="' + escapeHtml(rpsSeries) + '" /></label>' +
+              (isToledo ? '<label>Emissor RPS (Equiplano)<input name="rpsIssuer" value="' + escapeHtml(rpsIssuer) + '" /><small>Código técnico exigido por Toledo, normalmente 1.</small></label>' : '') +
             '</div><div class="two-col">' +
-              '<label>Próximo número RPS<input type="number" min="1" name="nextRpsNumber" value="' +
+              '<label>Próximo número RPS (Número)<input type="number" min="1" name="nextRpsNumber" value="' +
                 escapeHtml(String(settings.nfseNextRpsNumber || 1)) + '" /></label>' +
-              '<label>Próximo lote<input type="number" min="1" name="nextLotNumber" value="' +
-                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '"' + (isIpm ? ' disabled' : '') + ' /></label>' +
+              (isToledo ? '<label>Próximo lote (Lote)<input type="number" min="1" name="nextLotNumber" value="' +
+                escapeHtml(String(settings.nfseNextLotNumber || 1)) + '" /></label>' : '') +
             '</div>' +
             '<div class="section-head"><div><h3>Serviço padrão</h3><p>Valores usados quando o sistema cliente não informar um detalhe opcional.</p></div></div>' +
             '<div class="two-col">' +
