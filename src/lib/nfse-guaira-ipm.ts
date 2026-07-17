@@ -174,7 +174,8 @@ function resolveConfig(issuer: Issuer, serviceConfig: ServiceConfig): GuairaIpmC
     defaultAliquotaIss: numberFrom(settings.nfseDefaultAliquotaIss, 2.01),
     requiresSignature: settings.nfseRequiresSignature === true,
     testMode: settings.nfseTestMode !== false,
-    autoTransmit: settings.autoTransmit === true
+    // Dry-run municipal foi descontinuado. Homologacao continua definida por testMode.
+    autoTransmit: true
   };
 }
 
@@ -1178,25 +1179,21 @@ export async function processGuairaIpmNfse(
     validateConfig(settings);
     validateDraft(draft);
     const generatedXml = buildGuairaIpmEmissionXml(settings, draft);
-    const reason = settings.autoTransmit
-      ? "XML NFS-e Guaira/IPM validado; transmissao automatica iniciada."
-      : "XML NFS-e Guaira/IPM gerado em dry-run.";
-    const updated = store.saveMunicipalProcessingResult(document.id, {
+    const reason = "XML NFS-e Guaira/IPM validado; transmissao automatica iniciada.";
+    store.saveMunicipalProcessingResult(document.id, {
       providerName: "guaira-ipm",
       generatedXml,
       requestBody: generatedXml,
       providerReference: draft.identifier,
       status: "processamento",
       reason,
-      reasonCode: settings.autoTransmit
-        ? "NFSE_IPM_AUTO_TRANSMISSION_PENDING"
-        : "NFSE_IPM_DRY_RUN",
+      reasonCode: "NFSE_IPM_AUTO_TRANSMISSION_PENDING",
       signatureValid: false,
       xsdValid: false,
       xsdErrors: []
     });
     store.addDocumentEvent(document.id, {
-      eventType: "nfse_guaira_ipm_dry_run",
+      eventType: "nfse_guaira_ipm_transmission_started",
       message: reason,
       payload: {
         provider: "guaira-ipm",
@@ -1211,10 +1208,7 @@ export async function processGuairaIpmNfse(
       }
     });
     await store.waitForPersistence();
-    if (settings.autoTransmit) {
-      return transmitGuairaIpmNfse(store, document.id);
-    }
-    return { document: updated ?? document, transmitted: false, error: null };
+    return transmitGuairaIpmNfse(store, document.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     store.addDocumentEvent(document.id, {

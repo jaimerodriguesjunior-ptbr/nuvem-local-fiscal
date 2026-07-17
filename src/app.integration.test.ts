@@ -667,30 +667,10 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         }
       }
     });
-    assert.equal(nfseEmission.statusCode, 202, nfseEmission.body);
-    assert.equal(nfseEmission.json().status, "processamento");
-    assert.equal(nfseEmission.json().motivo_status, "NFSE_DRY_RUN");
-    assert.equal(nfseEmission.json().transmissao_municipal, false);
-    const nfseDocumentId = nfseEmission.json().id as string;
-
-    const nfseStatus = await app.inject({
-      method: "GET",
-      url: `/nfse/${nfseDocumentId}`,
-      headers: bearer
-    });
-    assert.equal(nfseStatus.statusCode, 200, nfseStatus.body);
-    assert.equal(nfseStatus.json().status, "processamento");
-    assert.equal(nfseStatus.json().xml_gerado, true);
-
-    const nfseXml = await app.inject({
-      method: "GET",
-      url: `/nfse/${nfseDocumentId}/xml`,
-      headers: bearer
-    });
-    assert.equal(nfseXml.statusCode, 200, nfseXml.body);
-    assert.match(nfseXml.body, /enviarLoteRpsEnvio/);
-    assert.match(nfseXml.body, /nrInscricaoMunicipal/);
-    assert.match(nfseXml.body, /17\.19\.01\.000/);
+    assert.equal(nfseEmission.statusCode, 422, nfseEmission.body);
+    assert.equal(nfseEmission.json().status, "erro");
+    assert.equal(nfseEmission.json().motivo_status, "NFSE_TOLEDO");
+    assert.match(nfseEmission.json().motivo, /certificado A1 ativo/i);
 
     const updateToledoLowSequence = await app.inject({
       method: "PUT",
@@ -715,8 +695,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       headers: bearer
     });
     assert.equal(toledoConfigAfterLowSequence.statusCode, 200, toledoConfigAfterLowSequence.body);
-    assert.equal(toledoConfigAfterLowSequence.json().rps.numero, 2);
-    assert.equal(toledoConfigAfterLowSequence.json().rps.lote, 2);
+    assert.equal(toledoConfigAfterLowSequence.json().rps.numero, 1);
+    assert.equal(toledoConfigAfterLowSequence.json().rps.lote, 1);
 
     const remoteCompany = await app.inject({
       method: "GET",

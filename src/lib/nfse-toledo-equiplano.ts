@@ -235,7 +235,8 @@ function resolveToledoConfig(
     defaultServiceSubItem: firstText(settings.nfseDefaultServiceSubItem, "01"),
     defaultAliquotaIss: numberFrom(settings.nfseDefaultAliquotaIss, 3),
     optanteSimples: ["1", "2", "4"].includes(issuer.crt),
-    autoTransmit: settings.autoTransmit === true
+    // Dry-run municipal foi descontinuado. Toda NFS-e validada segue para o provedor.
+    autoTransmit: true
   };
 }
 
@@ -727,36 +728,6 @@ export async function processToledoNfse(
         )
       : unsignedXml;
     const requestBody = wrapRequestBody(signedXml, settings.requestFormat);
-
-    if (!settings.autoTransmit) {
-      const updated = store.saveMunicipalProcessingResult(document.id, {
-        providerName: "toledo-equiplano",
-        generatedXml: unsignedXml,
-        signedXml,
-        requestBody,
-        providerReference: `${lotNumber}:${rpsNumber}`,
-        status: "processamento",
-        reason: "XML NFS-e Toledo gerado em dry-run. Transmissao municipal nao habilitada.",
-        reasonCode: "NFSE_DRY_RUN",
-        signatureValid: Boolean(certificate?.encryptedBundle),
-        xsdValid: false,
-        xsdErrors: []
-      });
-      store.addDocumentEvent(document.id, {
-        eventType: "nfse_toledo_dry_run",
-        message: "XML NFS-e Toledo gerado sem transmissao.",
-        payload: {
-          provider: "toledo-equiplano",
-          endpoint: settings.endpoint,
-          requestFormat: settings.requestFormat,
-          lotNumber,
-          rpsNumber,
-          signed: Boolean(certificate?.encryptedBundle)
-        }
-      });
-      await store.waitForPersistence();
-      return { document: updated ?? document, transmitted: false, error: null };
-    }
 
     if (!certificate?.encryptedBundle) {
       throw new Error("Cadastre um certificado A1 ativo para transmitir NFS-e Toledo.");

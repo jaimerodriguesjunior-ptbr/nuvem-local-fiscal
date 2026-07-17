@@ -786,8 +786,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       nfseRequiresSignature:
         ipm.exige_assinatura === true || body.exige_assinatura === true,
       nfseTestMode: ipm.modo_teste === true || body.modo_teste === true,
-      autoTransmit:
-        body.transmissao_automatica !== false && body.autoTransmit !== false
+      // Dry-run municipal foi descontinuado. Homologacao continua controlada por nfseTestMode.
+      autoTransmit: true
     };
     const configValidation = validateNfseConfigDraft({
       cnpj,
