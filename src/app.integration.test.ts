@@ -321,7 +321,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           nome: "Guaira"
         },
         prefeitura: {
-          login: "usuario-prefeitura"
+          login: "usuario-prefeitura",
+          senha: "SENHA-FICTICIA-NFSE"
         },
         ipm: {
           endpoint:
@@ -446,10 +447,6 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           codigo_ibge: "4127700",
           nome: "Toledo"
         },
-        prefeitura: {
-          login: "970339",
-          senha: "SENHA-FICTICIA-NFSE"
-        },
         equiplano: {
           inscricao_municipal: "970339",
           request_format: "soap"
@@ -469,7 +466,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(copiedToledoProductionConfig.settings.nfseNextLotNumber, undefined);
     assert.equal(copiedToledoProductionConfig.settings.nfseTestMode, false);
     assert.equal(copiedToledoProductionConfig.settings.autoTransmit, true);
-    assert.equal(Boolean(copiedToledoProductionConfig.secretsEncrypted), true);
+    assert.equal(Boolean(copiedToledoProductionConfig.secretsEncrypted), false);
 
     const saveToledoNfseConfig = await app.inject({
       method: "PUT",
@@ -484,10 +481,6 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         municipio: {
           codigo_ibge: "4127700",
           nome: "Toledo"
-        },
-        prefeitura: {
-          login: "970339",
-          senha: "SENHA-FICTICIA-NFSE"
         },
         equiplano: {
           inscricao_municipal: "970339",
@@ -553,7 +546,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       200,
       toledoConfigAfterBlankUpdate.body
     );
-    assert.equal(toledoConfigAfterBlankUpdate.json().prefeitura.login, "970339");
+    assert.equal(toledoConfigAfterBlankUpdate.json().prefeitura.login, null);
     assert.equal(
       toledoConfigAfterBlankUpdate.json().equiplano.inscricao_municipal,
       "970339"
@@ -600,7 +593,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.equal(
       incompleteProductionToledoConfig.json().prefeitura.senha_configurada,
-      true
+      false
     );
 
     const mismatchedMunicipalityProvider = await app.inject({

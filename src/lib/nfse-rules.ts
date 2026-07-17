@@ -87,8 +87,11 @@ export const NFSE_RULE_PROFILES: Record<NfseProviderId, NfseRuleProfile> = {
     municipalityName: "Toledo",
     ruleSetVersion: "municipal-2026-07-02",
     effectiveFrom: "2026-07-02",
-    requiresMunicipalLogin: true,
-    requiresMunicipalPassword: true,
+    // Equiplano autentica e assina a comunicacao pelo A1 do emitente.
+    // Inscricao municipal continua obrigatoria, mas nao ha usuario/senha
+    // municipal no contrato SOAP de Toledo.
+    requiresMunicipalLogin: false,
+    requiresMunicipalPassword: false,
     requiresCertificateForTransmission: true,
     productionTransmissionEnabled: false,
     defaults: {

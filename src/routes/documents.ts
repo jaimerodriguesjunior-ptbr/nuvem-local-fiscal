@@ -511,7 +511,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return {
       ambiente: environment,
       prefeitura: {
-        login: serviceConfig.settings.nfseLogin ?? null,
+        login: serviceConfig.settings.nfseLogin || null,
         senha_configurada: Boolean(serviceConfig.secretsEncrypted)
       },
       provedor: serviceConfig.settings.nfseProvider ?? null,
@@ -608,6 +608,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       !effectiveProvider || !previousProvider || previousProvider === effectiveProvider
         ? existingServiceConfig?.settings
         : undefined;
+    const ruleProfile = getNfseRuleProfile(effectiveProvider);
     const effectiveLogin = login || String(reusableExistingSettings?.nfseLogin ?? "");
     const hasMunicipalPassword = Boolean(
       password || (reusableExistingSettings && existingServiceConfig?.secretsEncrypted)
@@ -623,13 +624,18 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     );
     const allowIncompleteExistingUpdate = !login && !password && hasPartialConfigData;
 
-    if ((!effectiveLogin || !hasMunicipalPassword) && !allowIncompleteExistingUpdate) {
+    const requiresMunicipalLogin = ruleProfile?.requiresMunicipalLogin ?? true;
+    const requiresMunicipalPassword = ruleProfile?.requiresMunicipalPassword ?? true;
+    if (
+      ((requiresMunicipalLogin && !effectiveLogin) ||
+        (requiresMunicipalPassword && !hasMunicipalPassword)) &&
+      !allowIncompleteExistingUpdate
+    ) {
       return reply.code(400).send({
-        message: "Informe login e senha da prefeitura para a NFS-e."
+        message: "Informe as credenciais municipais exigidas para esta NFS-e."
       });
     }
 
-    const ruleProfile = getNfseRuleProfile(effectiveProvider);
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
     const effectiveIdEntidade = String(
       equiplano.id_entidade ??
@@ -665,7 +671,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         : undefined;
 
     const nfseSettings = {
-      nfseLogin: login || undefined,
+      // Empty string intentionally clears a stale IPM login when the
+      // configuration is switched to Toledo/Equiplano.
+      nfseLogin: requiresMunicipalLogin ? login || undefined : "",
       nfseProvider: effectiveProvider || undefined,
       nfseMunicipalityCode: municipalityCode || ruleProfile?.municipalityCode || undefined,
       nfseMunicipalityName: firstNonEmptyText(
@@ -806,10 +814,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const serviceConfig = app.store.upsertServiceConfig(cnpj, environment, "NFSE", {
       active: true,
       settings: nfseSettings,
-      secretsEncrypted: password
+      secretsEncrypted: requiresMunicipalPassword && password
         ? encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
         : undefined,
-      preserveSecrets: !password && Boolean(reusableExistingSettings)
+      preserveSecrets:
+        requiresMunicipalPassword && !password && Boolean(reusableExistingSettings)
     });
 
     if (environment === "homologacao" && serviceConfig) {
@@ -855,8 +864,13 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           nfseTestMode: productionConfig?.settings.nfseTestMode ?? false,
           autoTransmit: productionConfig?.settings.autoTransmit ?? true
         },
-        secretsEncrypted: serviceConfig.secretsEncrypted ?? undefined,
-        preserveSecrets: !serviceConfig.secretsEncrypted && Boolean(productionConfig)
+        secretsEncrypted: requiresMunicipalPassword
+          ? serviceConfig.secretsEncrypted ?? undefined
+          : null,
+        preserveSecrets:
+          requiresMunicipalPassword &&
+          !serviceConfig.secretsEncrypted &&
+          Boolean(productionConfig)
       });
     }
     await app.store.waitForPersistence();
@@ -866,8 +880,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       ambiente: environment,
       producao_sincronizada: environment === "homologacao",
       prefeitura: {
-        login: effectiveLogin,
-        senha_configurada: Boolean(serviceConfig?.secretsEncrypted)
+        login: requiresMunicipalLogin ? effectiveLogin : null,
+        senha_configurada: requiresMunicipalPassword
+          ? Boolean(serviceConfig?.secretsEncrypted)
+          : false
       }
     };
   };

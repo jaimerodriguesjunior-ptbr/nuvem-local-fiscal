@@ -1390,13 +1390,14 @@ const page = String.raw`<!doctype html>
                 escapeHtml(isIpm ? 'Guaíra' : isToledo ? (settings.nfseMunicipalityName || 'Toledo') : (settings.nfseMunicipalityName || '')) + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
                 escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
-            '</div><div class="two-col">' +
+            '</div>' +
+            (isIpm ? '<div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
                 escapeHtml(settings.nfseLogin || '') + '" required autocomplete="off" /></label>' +
               '<label>Senha da prefeitura<input type="password" name="password" placeholder="' +
                 (serviceConfig && serviceConfig.hasSecrets ? 'Já configurada. Preencha apenas para trocar.' : 'Informe a senha') +
                 '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
-            '</div>' +
+            '</div>' : '<div class="empty">Toledo / Equiplano usa a inscrição municipal e o certificado A1; login e senha da prefeitura não são necessários.</div>') +
             (isToledo ?
             '<div class="section-head"><div><h3>Equiplano</h3><p>Contrato SOAP/XML exclusivo de Toledo.</p></div></div>' +
             '<div class="two-col">' +
@@ -1731,13 +1732,14 @@ const page = String.raw`<!doctype html>
                 escapeHtml(municipalityName || '') + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
                 escapeHtml(settings.nfseInscricaoMunicipal || '') + '" /></label>' +
-            '</div><div class="two-col">' +
+            '</div>' +
+            (isIpm ? '<div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
                 escapeHtml(settings.nfseLogin || '') + '" required autocomplete="off" /></label>' +
               '<label>Senha da prefeitura<input type="password" name="password" placeholder="' +
                 (serviceConfig && serviceConfig.hasSecrets ? 'Já configurada. Preencha apenas para trocar.' : 'Informe a senha') +
                 '" ' + (serviceConfig && serviceConfig.hasSecrets ? '' : 'required') + ' autocomplete="new-password" /></label>' +
-            '</div>' +
+            '</div>' : '<div class="empty">Toledo / Equiplano usa a inscrição municipal e o certificado A1; login e senha da prefeitura não são necessários.</div>') +
             (isToledo ?
             '<div class="section-head"><div><h3>Contrato municipal compartilhado</h3><p>Gerenciado uma vez para Toledo / Equiplano e aplicado a todas as empresas do município.</p></div></div>' +
             '<div class="compact-info-grid">' +
