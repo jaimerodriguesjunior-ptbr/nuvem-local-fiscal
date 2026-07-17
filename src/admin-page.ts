@@ -638,6 +638,25 @@ const page = String.raw`<!doctype html>
       background: var(--paper);
       font-size: 12px;
     }
+    .log-group { margin: 0; }
+    .log-group-summary { list-style: none; cursor: pointer; }
+    .log-group-summary::-webkit-details-marker { display: none; }
+    .log-group-summary::after {
+      content: 'Abrir histórico';
+      color: var(--forest);
+      font-weight: 800;
+    }
+    .log-group[open] .log-group-summary::after { content: 'Recolher histórico'; }
+    .log-group-history {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 0 18px;
+      padding-left: 12px;
+      border-left: 1px solid var(--line);
+    }
+    .log-group-history .log { background: rgba(255,253,248,.58); }
+    .log-group-history .log-group-empty { margin: 0; color: var(--muted); font-size: 12px; }
+    .log-group-actions { display: flex; justify-content: flex-end; }
     .empty {
       padding: 44px 20px;
       border: 1px dashed #bdc8c2;
@@ -941,6 +960,56 @@ const page = String.raw`<!doctype html>
       return (state.snapshot.documentEvents || []).filter(function(event) {
         return event.documentId === documentId;
       });
+    }
+
+    function logEventGroups(documents) {
+      const docsById = new Map(documents.map(function(doc) { return [doc.id, doc]; }));
+      const grouped = new Map();
+
+      (state.snapshot.documentEvents || []).forEach(function(event) {
+        const doc = docsById.get(event.documentId);
+        if (!doc) return;
+
+        if (!grouped.has(event.documentId)) {
+          grouped.set(event.documentId, { doc: doc, events: [] });
+        }
+        grouped.get(event.documentId).events.push(event);
+      });
+
+      return Array.from(grouped.values()).map(function(group) {
+        group.events.sort(function(a, b) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        return group;
+      }).sort(function(a, b) {
+        return new Date(b.events[0].createdAt).getTime() - new Date(a.events[0].createdAt).getTime();
+      });
+    }
+
+    function renderLogEvent(event, doc) {
+      return '<article class="log"><strong>' + formatDate(event.createdAt, true) + '</strong>' +
+        '<span>' + badge(event.level, eventTone(event.level)) + '</span><span>' +
+        escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' - ' + event.message) +
+        '</span></article>';
+    }
+
+    function renderLogGroup(group) {
+      const latest = group.events[0];
+      const previous = group.events.slice(1);
+      const doc = group.doc;
+      const historyLabel = previous.length
+        ? previous.length + ' evento' + (previous.length === 1 ? ' anterior' : 's anteriores')
+        : 'Sem eventos anteriores';
+
+      return '<details class="log-group"><summary class="log log-group-summary">' +
+        '<strong>' + formatDate(latest.createdAt, true) + '</strong>' +
+        '<span>' + badge(latest.level, eventTone(latest.level)) + '</span><span>' +
+        escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' - ' + latest.message) +
+        '</span></summary><div class="log-group-history">' +
+        '<p class="log-group-empty">' + escapeHtml(historyLabel) + '</p>' +
+        previous.map(function(event) { return renderLogEvent(event, doc); }).join('') +
+        '<div class="log-group-actions"><button type="button" class="btn ghost" onclick="inspectLog(\'' +
+        doc.id + '\')">Inspecionar nota</button></div></div></details>';
     }
 
     function eventTone(level) {
@@ -2303,18 +2372,8 @@ const page = String.raw`<!doctype html>
 
     function renderLogs() {
       const docs = filterDocuments(state.snapshot.documents);
-      const visibleIds = new Set(docs.map(function(doc) { return doc.id; }));
-      const events = (state.snapshot.documentEvents || []).filter(function(event) {
-        return visibleIds.has(event.documentId);
-      });
-      const eventRows = events.map(function(event) {
-        const doc = docs.find(function(item) { return item.id === event.documentId; });
-        return '<article class="log"><strong>' + formatDate(event.createdAt, true) + '</strong>' +
-          '<span>' + badge(event.level, eventTone(event.level)) + '</span><span>' +
-          escapeHtml((doc ? doc.tipoDocumento + ' #' + doc.numero + ' - ' : '') + event.message) +
-          '</span><button type="button" class="btn ghost" onclick="inspectLog(\'' +
-          event.documentId + '\')">Inspecionar</button></article>';
-      }).join('');
+      const logGroups = logEventGroups(docs);
+      const eventRows = logGroups.map(renderLogGroup).join('');
       return pageHead(
         'Diagnóstico',
         'Logs e debug',

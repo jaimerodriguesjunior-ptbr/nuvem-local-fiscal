@@ -4,8 +4,17 @@ import test from "node:test";
 import {
   allowsLegacyEquiplanoHomologationTls,
   buildCancelarNfseXml,
+  hasToledoMunicipalReceipt,
   toToledoIssueDateTime
 } from "./nfse-toledo-equiplano.js";
+
+test("requires a Toledo municipal receipt before keeping an NFS-e processing", () => {
+  assert.equal(hasToledoMunicipalReceipt({}), false);
+  assert.equal(hasToledoMunicipalReceipt({ nrRps: "15" }), false);
+  assert.equal(hasToledoMunicipalReceipt({ nrLote: "17" }), true);
+  assert.equal(hasToledoMunicipalReceipt({ protocolo: "123" }), true);
+  assert.equal(hasToledoMunicipalReceipt({ nrNfse: "9" }), true);
+});
 
 test("allows incomplete TLS chain only for Equiplano homologation", () => {
   assert.equal(

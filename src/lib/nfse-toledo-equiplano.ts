@@ -594,6 +594,21 @@ function summarizeXmlResponse(xml: string | null) {
   return summary;
 }
 
+export function hasToledoMunicipalReceipt(
+  summary: Record<string, string>
+) {
+  return Boolean(
+    summary.nrNfse ||
+      summary.numeroNfse ||
+      summary.protocolo ||
+      summary.nrLote
+  );
+}
+
+function unconfirmedToledoReceiptMessage(httpStatus: number) {
+  return `Resposta municipal inconclusiva: HTTP ${httpStatus} sem protocolo, recibo, lote ou numero da NFS-e. O RPS foi reservado localmente e nao deve ser reenviado com a mesma numeracao.`;
+}
+
 function validateConfig(settings: ToledoConfig) {
   const missing: string[] = [];
   if (!digitsOnly(settings.cnpj)) missing.push("CNPJ");
@@ -759,13 +774,16 @@ export async function processToledoNfse(
       Boolean(responseSummary.cdMensagem) ||
       Boolean(responseSummary.dsMensagem) ||
       /<listaErros>/i.test(businessXml ?? "");
-    const success =
+    const acceptedHttpResponse =
       response.status >= 200 &&
       response.status < 300 &&
       response.body !== null &&
       !hasBusinessError;
     const nfseNumber = responseSummary.nrNfse || responseSummary.numeroNfse || "";
     const protocol = responseSummary.protocolo || responseSummary.nrLote || "";
+    const hasMunicipalReceipt = hasToledoMunicipalReceipt(responseSummary);
+    const success = acceptedHttpResponse && hasMunicipalReceipt;
+    const unconfirmedReceipt = acceptedHttpResponse && !hasMunicipalReceipt;
     const updated = store.saveMunicipalProcessingResult(document.id, {
       providerName: "toledo-equiplano",
       generatedXml: unsignedXml,
@@ -773,13 +791,19 @@ export async function processToledoNfse(
       requestBody,
       responseBody: response.body,
       providerReference: `${lotNumber}:${rpsNumber}`,
-      status: success && nfseNumber ? "autorizado" : success ? "processamento" : "rejeitado",
+      status: success && nfseNumber ? "autorizado" : success ? "processamento" : unconfirmedReceipt ? "erro" : "rejeitado",
       reason: success
         ? "Lote NFS-e Toledo recebido pelo provedor."
-        : responseSummary.dsMensagem ||
+        : unconfirmedReceipt
+          ? unconfirmedToledoReceiptMessage(response.status)
+          : responseSummary.dsMensagem ||
           responseSummary.mensagemRetorno ||
           `Erro HTTP ${response.status}`,
-      reasonCode: success ? String(response.status) : responseSummary.cdMensagem || String(response.status),
+      reasonCode: success
+        ? String(response.status)
+        : unconfirmedReceipt
+          ? "NFSE_TOLEDO_UNCONFIRMED_RECEIPT"
+          : responseSummary.cdMensagem || String(response.status),
       protocol,
       providerDocumentNumber: nfseNumber || null,
       processedXml: success && nfseNumber ? businessXml ?? signedXml : undefined,
@@ -912,20 +936,29 @@ export async function consultToledoNfse(
       !isNilReturn &&
       !hasBusinessError &&
       Boolean(nfseNumber);
+    const unconfirmedPreviousTransmission =
+      isPendingConversion &&
+      !document.protocolo &&
+      !document.chave;
     const rejected = hasBusinessError && !isPendingConversion;
+    const processingError = unconfirmedPreviousTransmission;
     const updated = store.saveMunicipalProcessingResult(document.id, {
       providerName: "toledo-equiplano",
       requestBody,
       responseBody: response.body,
-      status: authorized ? "autorizado" : rejected ? "rejeitado" : "processamento",
+      status: authorized ? "autorizado" : rejected ? "rejeitado" : processingError ? "erro" : "processamento",
       reason: authorized
         ? "NFS-e Toledo autorizada."
-        : responseSummary.dsMensagem ||
+        : processingError
+          ? unconfirmedToledoReceiptMessage(response.status)
+          : responseSummary.dsMensagem ||
           responseSummary.mensagemRetorno ||
           (isNilReturn ? "Consulta NFS-e ainda sem retorno." : "NFS-e Toledo em processamento."),
       reasonCode: authorized
         ? "AUTORIZADA"
-        : responseSummary.cdMensagem || (isNilReturn ? "PROCESSANDO" : String(response.status)),
+        : processingError
+          ? "NFSE_TOLEDO_UNCONFIRMED_RECEIPT"
+          : responseSummary.cdMensagem || (isNilReturn ? "PROCESSANDO" : String(response.status)),
       protocol: responseSummary.protocolo || document.protocolo,
       providerDocumentNumber: nfseNumber || document.chave,
       processedXml: authorized ? businessXml ?? undefined : undefined,
@@ -933,7 +966,7 @@ export async function consultToledoNfse(
     });
     store.addDocumentEvent(document.id, {
       eventType: "nfse_toledo_consultation_completed",
-      level: rejected ? "warn" : "info",
+      level: rejected || processingError ? "warn" : "info",
       message: updated?.motivo ?? "Consulta NFS-e Toledo concluida.",
       payload: {
         provider: "toledo-equiplano",
@@ -946,7 +979,7 @@ export async function consultToledoNfse(
     return {
       document: updated ?? document,
       transmitted: true,
-      error: rejected ? updated?.motivo ?? "NFS-e rejeitada." : null
+      error: rejected || processingError ? updated?.motivo ?? "NFS-e rejeitada." : null
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
