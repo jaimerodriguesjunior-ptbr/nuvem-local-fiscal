@@ -84,14 +84,11 @@ function toMoney(value: unknown) {
 
 function normalizeServiceCode(value: string) {
   const digits = digitsOnly(value);
-  // O schema Toledo aceita o formato compacto de seis digitos para o item
-  // LC 116. Preserve-o: 160100 nao deve virar 16.01.00, que o provedor pode
-  // interpretar como um subitem municipal inexistente.
-  if (digits.length === 6) {
-    return digits;
-  }
   if (digits.length === 9) {
     return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}`;
+  }
+  if (digits.length === 6) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
   }
   return value;
 }
