@@ -15,6 +15,7 @@ type CertificateBundle = {
 export type ParsedCertificate = {
   privateKeyPem: string;
   certificatePem: string;
+  certificateChainPem: string;
   subject: string;
   serialNumber: string;
   validFrom: string;
@@ -78,7 +79,8 @@ export function parsePfx(pfx: Buffer, password: string): ParsedCertificate {
     const certBags =
       p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
     const privateKey = keyBags.find((bag) => bag.key)?.key;
-    const certificate = certBags.find((bag) => bag.cert)?.cert;
+    const certificates = certBags.flatMap((bag) => (bag.cert ? [bag.cert] : []));
+    const certificate = certificates[0];
 
     if (!privateKey || !certificate) {
       throw new Error("O PFX nao contem chave privada e certificado utilizaveis.");
@@ -99,6 +101,7 @@ export function parsePfx(pfx: Buffer, password: string): ParsedCertificate {
     return {
       privateKeyPem: forge.pki.privateKeyToPem(privateKey),
       certificatePem: forge.pki.certificateToPem(certificate),
+      certificateChainPem: certificates.map((item) => forge.pki.certificateToPem(item)).join(""),
       subject,
       serialNumber: certificate.serialNumber,
       validFrom: certificate.validity.notBefore.toISOString(),

@@ -52,6 +52,7 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
   const pfx = createTestPfx(password);
   const parsed = parsePfx(pfx, password);
   assert.match(parsed.subject, /Certificado Teste Local/);
+  assert.equal(parsed.certificateChainPem, parsed.certificatePem);
 
   const encrypted = encryptCertificateBundle(
     {

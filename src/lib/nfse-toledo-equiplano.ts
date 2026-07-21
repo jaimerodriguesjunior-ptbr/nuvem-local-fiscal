@@ -1,5 +1,6 @@
 import http from "node:http";
 import https from "node:https";
+import { createSecureContext } from "node:tls";
 import { URL } from "node:url";
 
 import { SignedXml } from "xml-crypto";
@@ -10,7 +11,8 @@ import type { DocumentRecord, Issuer, ServiceConfig } from "../types.js";
 import {
   decryptCertificateBundle,
   decryptSecretPayload,
-  openEncryptedCertificate
+  openEncryptedCertificate,
+  parsePfx
 } from "./certificates.js";
 import {
   getNfseRuleProfile,
@@ -486,6 +488,26 @@ async function postRawRequest(input: {
     config.certificateEncryptionKey
   );
   const pfx = Buffer.from(bundle.pfxBase64, "base64");
+  let tlsCredentials: https.RequestOptions;
+
+  try {
+    // Mantem o caminho historico para todos os certificados ja homologados.
+    createSecureContext({ pfx, passphrase: bundle.password || undefined });
+    tlsCredentials = { pfx, passphrase: bundle.password || undefined };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/Unsupported PKCS12 PFX data/i.test(message)) {
+      throw error;
+    }
+
+    // Alguns PFX validos sao abertos pelo node-forge, mas nao pelo OpenSSL do
+    // runtime. Somente nesses casos usa PEM com a cadeia completa do bundle.
+    const certificate = parsePfx(pfx, bundle.password);
+    tlsCredentials = {
+      key: certificate.privateKeyPem,
+      cert: certificate.certificateChainPem
+    };
+  }
 
   return new Promise<{ status: number; body: string | null }>((resolve, reject) => {
     const headers: Record<string, string> = {
@@ -510,8 +532,7 @@ async function postRawRequest(input: {
         path: `${url.pathname}${url.search}`,
         method: "POST",
         headers,
-        pfx: isHttps ? pfx : undefined,
-        passphrase: bundle.password || undefined,
+        ...(isHttps ? tlsCredentials : {}),
         // Equiplano's legacy homologation endpoint does not provide a complete
         // public certificate chain. Keep this exception pinned to that exact
         // host/port/path instead of weakening TLS globally.
