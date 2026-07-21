@@ -78,6 +78,7 @@ export type ServiceConfig = {
     nfseDefaultServiceCode?: string;
     nfseDefaultServiceItem?: string;
     nfseDefaultServiceSubItem?: string;
+    nfseServiceIdentityMode?: "code" | "item-subitem";
     nfseDefaultAliquotaIss?: number;
     nfseTomCode?: string;
     nfseEconomicRegistration?: string;

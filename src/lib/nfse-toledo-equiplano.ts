@@ -34,6 +34,7 @@ type ToledoConfig = {
   defaultServiceCode: string;
   defaultServiceItem: string;
   defaultServiceSubItem: string;
+  serviceIdentityMode: "code" | "item-subitem";
   defaultAliquotaIss: number;
   optanteSimples: boolean;
   autoTransmit: boolean;
@@ -235,6 +236,8 @@ function resolveToledoConfig(
     defaultServiceCode: firstText(settings.nfseDefaultServiceCode, "17.19.01.000"),
     defaultServiceItem: firstText(settings.nfseDefaultServiceItem, "2"),
     defaultServiceSubItem: firstText(settings.nfseDefaultServiceSubItem, "01"),
+    serviceIdentityMode:
+      settings.nfseServiceIdentityMode === "item-subitem" ? "item-subitem" : "code",
     defaultAliquotaIss: numberFrom(settings.nfseDefaultAliquotaIss, 3),
     optanteSimples: ["1", "2", "4"].includes(issuer.crt),
     // Dry-run municipal foi descontinuado. Toda NFS-e validada segue para o provedor.
@@ -254,11 +257,11 @@ function resolveDraft(document: DocumentRecord, toledoConfig: ToledoConfig): Tol
   const vServPrest = nestedRecord(valores, "vServPrest");
   const trib = nestedRecord(valores, "trib");
   const tribMun = nestedRecord(trib, "tribMun");
-  const serviceCode = firstText(
-    cServ.cTribMun,
-    cServ.cTribNac,
-    toledoConfig.defaultServiceCode
-  );
+  const nationalServiceDigits = digitsOnly(cServ.cTribNac);
+  const useServiceItem = toledoConfig.serviceIdentityMode === "item-subitem";
+  const serviceCode = useServiceItem
+    ? ""
+    : firstText(cServ.cTribMun, cServ.cTribNac, toledoConfig.defaultServiceCode);
 
   return {
     issuedAt: firstText(infDps.dhEmi),
@@ -282,18 +285,37 @@ function resolveDraft(document: DocumentRecord, toledoConfig: ToledoConfig): Tol
     aliquotaIss: numberFrom(tribMun.pAliq, toledoConfig.defaultAliquotaIss),
     discriminacaoServico: firstText(cServ.xDescServ, "Servico prestado"),
     serviceCode,
-    serviceItem: toledoConfig.defaultServiceItem,
-    serviceSubItem: toledoConfig.defaultServiceSubItem,
+    serviceItem:
+      useServiceItem && nationalServiceDigits.length >= 4
+        ? nationalServiceDigits.slice(0, 2)
+        : toledoConfig.defaultServiceItem,
+    serviceSubItem:
+      useServiceItem && nationalServiceDigits.length >= 4
+        ? nationalServiceDigits.slice(2, 4)
+        : toledoConfig.defaultServiceSubItem,
     isIssRetido: String(tribMun.tpRetISSQN ?? "") === "2"
   };
 }
 
+export function buildToledoServiceIdentity(
+  serviceCode: string,
+  serviceItem: string,
+  serviceSubItem: string
+) {
+  const normalizedServiceCode = normalizeServiceCode(serviceCode);
+  return normalizedServiceCode
+    ? `<nrServico>${escapeXml(normalizedServiceCode)}</nrServico>`
+    : `<nrServicoItem>${escapeXml(serviceItem)}</nrServicoItem>
+                        <nrServicoSubItem>${escapeXml(serviceSubItem)}</nrServicoSubItem>`;
+}
+
 function buildServiceBlock(draft: ToledoDraft, valorIss: number) {
   const serviceCode = normalizeServiceCode(draft.serviceCode);
-  const serviceIdentity = serviceCode
-    ? `<nrServico>${escapeXml(serviceCode)}</nrServico>`
-    : `<nrServicoItem>${escapeXml(draft.serviceItem)}</nrServicoItem>
-                        <nrServicoSubItem>${escapeXml(draft.serviceSubItem)}</nrServicoSubItem>`;
+  const serviceIdentity = buildToledoServiceIdentity(
+    serviceCode,
+    draft.serviceItem,
+    draft.serviceSubItem
+  );
 
   return `<servico>
                         ${serviceIdentity}

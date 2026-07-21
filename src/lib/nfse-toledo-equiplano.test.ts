@@ -3,10 +3,18 @@ import test from "node:test";
 
 import {
   allowsLegacyEquiplanoHomologationTls,
+  buildToledoServiceIdentity,
   buildCancelarNfseXml,
   hasToledoMunicipalReceipt,
   toToledoIssueDateTime
 } from "./nfse-toledo-equiplano.js";
+
+test("builds Toledo service identity as LC 116 item and subitem when configured", () => {
+  assert.equal(
+    buildToledoServiceIdentity("", "16", "01"),
+    "<nrServicoItem>16</nrServicoItem>\n                        <nrServicoSubItem>01</nrServicoSubItem>"
+  );
+});
 
 test("requires a Toledo municipal receipt before keeping an NFS-e processing", () => {
   assert.equal(hasToledoMunicipalReceipt({}), false);
