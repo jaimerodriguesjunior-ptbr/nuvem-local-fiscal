@@ -8,7 +8,6 @@ import { config } from "../config.js";
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord, Issuer, ServiceConfig } from "../types.js";
 import {
-  decryptCertificateBundle,
   decryptSecretPayload,
   openEncryptedCertificate
 } from "./certificates.js";
@@ -481,11 +480,10 @@ async function postRawRequest(input: {
   const url = new URL(endpoint);
   const isHttps = url.protocol === "https:";
   const transport = isHttps ? https : http;
-  const bundle = decryptCertificateBundle(
+  const certificate = openEncryptedCertificate(
     input.encryptedCertificateBundle,
     config.certificateEncryptionKey
   );
-  const pfx = Buffer.from(bundle.pfxBase64, "base64");
 
   return new Promise<{ status: number; body: string | null }>((resolve, reject) => {
     const headers: Record<string, string> = {
@@ -510,8 +508,11 @@ async function postRawRequest(input: {
         path: `${url.pathname}${url.search}`,
         method: "POST",
         headers,
-        pfx: isHttps ? pfx : undefined,
-        passphrase: bundle.password || undefined,
+        // O PFX ja foi validado e convertido pelo node-forge no upload. Usar
+        // PEM evita que o OpenSSL tente interpretar novamente bundles PKCS#12
+        // validos que empregam algoritmos nao suportados pelo runtime.
+        key: isHttps ? certificate.privateKeyPem : undefined,
+        cert: isHttps ? certificate.certificatePem : undefined,
         // Equiplano's legacy homologation endpoint does not provide a complete
         // public certificate chain. Keep this exception pinned to that exact
         // host/port/path instead of weakening TLS globally.
