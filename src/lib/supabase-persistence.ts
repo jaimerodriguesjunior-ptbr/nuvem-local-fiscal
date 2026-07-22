@@ -19,6 +19,8 @@ export type StoreSnapshotState = {
   inutilizations: InutilizationRecord[];
 };
 
+export type PersistenceChanges = Partial<StoreSnapshotState>;
+
 type FiscalCompanyRow = {
   id: string;
   cnpj: string;
@@ -390,6 +392,29 @@ export class SupabasePersistence {
     await this.upsertDocuments(state.documents, companyIds, environmentIds);
     await this.upsertDocumentEvents(state.documentEvents);
     await this.upsertInutilizations(state.inutilizations, companyIds, environmentIds);
+  }
+
+  async saveChanges(state: StoreSnapshotState, changes: PersistenceChanges) {
+    // Empresas e ambientes formam as chaves estrangeiras dos demais registros.
+    // São conjuntos pequenos; mantê-los sincronizados evita consultas adicionais.
+    const companyIds = await this.upsertCompanies(state.issuers);
+    const environmentIds = await this.upsertEnvironments(state.issuers, companyIds);
+
+    if (changes.certificates) {
+      await this.upsertCertificates(changes.certificates, companyIds);
+    }
+    if (changes.serviceConfigs) {
+      await this.upsertServiceConfigs(changes.serviceConfigs, companyIds, environmentIds);
+    }
+    if (changes.documents) {
+      await this.upsertDocuments(changes.documents, companyIds, environmentIds);
+    }
+    if (changes.documentEvents) {
+      await this.upsertDocumentEvents(changes.documentEvents);
+    }
+    if (changes.inutilizations) {
+      await this.upsertInutilizations(changes.inutilizations, companyIds, environmentIds);
+    }
   }
 
   private async upsertDocumentEvents(events: DocumentEventRecord[]) {

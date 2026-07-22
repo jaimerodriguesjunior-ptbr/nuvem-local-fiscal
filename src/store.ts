@@ -2,7 +2,11 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-import type { StoreSnapshotState, SupabasePersistence } from "./lib/supabase-persistence.js";
+import type {
+  PersistenceChanges,
+  StoreSnapshotState,
+  SupabasePersistence
+} from "./lib/supabase-persistence.js";
 import type {
   AccessTokenRecord,
   ApiClient,
@@ -257,7 +261,7 @@ export class InMemoryStore {
     };
 
     this.issuers.push(issuer);
-    this.saveState();
+    this.saveState({ issuers: [issuer] });
     return issuer;
   }
 
@@ -294,7 +298,7 @@ export class InMemoryStore {
       active: true
     };
     this.certificates.push(certificate);
-    this.saveState();
+    this.saveState({ certificates: [certificate] });
     return certificate;
   }
 
@@ -339,7 +343,7 @@ export class InMemoryStore {
           ...data.metadata
         };
       }
-      this.saveState();
+      this.saveState({ issuers: [existing] });
       return existing;
     }
 
@@ -359,7 +363,7 @@ export class InMemoryStore {
     };
 
     this.issuers.push(issuer);
-    this.saveState();
+    this.saveState({ issuers: [issuer] });
     return issuer;
   }
 
@@ -390,7 +394,7 @@ export class InMemoryStore {
         existing.secretsEncrypted = input.secretsEncrypted ?? null;
       }
       existing.updatedAt = nowIso();
-      this.saveState();
+      this.saveState({ serviceConfigs: [existing] });
       return existing;
     }
 
@@ -407,7 +411,7 @@ export class InMemoryStore {
       updatedAt: nowIso()
     };
     this.serviceConfigs.push(serviceConfig);
-    this.saveState();
+    this.saveState({ serviceConfigs: [serviceConfig] });
     return serviceConfig;
   }
 
@@ -470,7 +474,7 @@ export class InMemoryStore {
     };
 
     this.documents.unshift(document);
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -499,7 +503,7 @@ export class InMemoryStore {
       createdAt: nowIso()
     };
     this.documentEvents.unshift(event);
-    this.saveState();
+    this.saveState({ documentEvents: [event] });
     return event;
   }
 
@@ -529,7 +533,7 @@ export class InMemoryStore {
       document.motivoStatus = "100";
       document.xml = document.xmlSigned ?? document.xmlGenerated ?? document.xml;
       document.updatedAt = nowIso();
-      this.saveState();
+      this.saveState({ documents: [document] });
       return document;
     }
 
@@ -555,7 +559,7 @@ export class InMemoryStore {
       "</nfeProc>"
     ].join("");
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -584,7 +588,7 @@ export class InMemoryStore {
     document.xsdErrors = input.xsdErrors;
     document.certificateId = input.certificateId;
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -635,7 +639,7 @@ export class InMemoryStore {
     }
 
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -685,7 +689,7 @@ export class InMemoryStore {
       document.xml = input.processedXml;
     }
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -705,7 +709,7 @@ export class InMemoryStore {
       }
     ];
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -732,7 +736,7 @@ export class InMemoryStore {
     ];
     document.xml = "";
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -750,7 +754,7 @@ export class InMemoryStore {
     document.mensagens = [];
     document.xml = "";
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -797,7 +801,7 @@ export class InMemoryStore {
     };
 
     this.documents.unshift(document);
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -842,7 +846,7 @@ export class InMemoryStore {
       }
     ];
     document.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ documents: [document] });
     return document;
   }
 
@@ -879,7 +883,7 @@ export class InMemoryStore {
       updatedAt: nowIso()
     };
     this.inutilizations.unshift(record);
-    this.saveState();
+    this.saveState({ inutilizations: [record] });
     return record;
   }
 
@@ -914,7 +918,7 @@ export class InMemoryStore {
     record.protocolo = input.protocol || null;
     record.status = input.statusCode === "102" ? "homologado" : "rejeitado";
     record.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ inutilizations: [record] });
     return record;
   }
 
@@ -927,7 +931,7 @@ export class InMemoryStore {
     record.motivoStatus = code;
     record.motivo = reason;
     record.updatedAt = nowIso();
-    this.saveState();
+    this.saveState({ inutilizations: [record] });
     return record;
   }
 
@@ -1002,9 +1006,9 @@ export class InMemoryStore {
     }
   }
 
-  private saveState() {
+  private saveState(changes: PersistenceChanges) {
     this.writeLocalState();
-    this.persistExternalState();
+    this.persistExternalChanges(changes);
   }
 
   private writeLocalState() {
@@ -1038,15 +1042,16 @@ export class InMemoryStore {
     };
   }
 
-  private persistExternalState() {
+  private persistExternalChanges(changes: PersistenceChanges) {
     if (!this.persistence) {
       return;
     }
 
     const snapshot = structuredClone(this.currentState()) as StoreSnapshotState;
+    const changedSnapshot = structuredClone(changes) as PersistenceChanges;
     this.persistenceError = null;
     this.persistQueue = this.persistQueue
-      .then(() => this.persistence?.saveState(snapshot))
+      .then(() => this.persistence?.saveChanges(snapshot, changedSnapshot))
       .catch((error) => {
         this.persistenceError =
           error instanceof Error ? error : new Error(String(error));
