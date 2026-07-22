@@ -7,8 +7,24 @@ import {
   buildCancelarNfseXml,
   canConsultToledoNfseDocument,
   hasToledoMunicipalReceipt,
+  resolveToledoEndpoint,
+  TOLEDO_PRODUCTION_ENDPOINT,
   toToledoIssueDateTime
 } from "./nfse-toledo-equiplano.js";
+
+test("selects the Toledo production endpoint instead of a copied homologation URL", () => {
+  assert.equal(
+    resolveToledoEndpoint(
+      "producao",
+      "https://www.esnfs.com.br:9443//homologacaows/services/Enfs"
+    ),
+    TOLEDO_PRODUCTION_ENDPOINT
+  );
+  assert.equal(
+    resolveToledoEndpoint("homologacao", undefined),
+    "https://www.esnfs.com.br:9443//homologacaows/services/Enfs"
+  );
+});
 
 test("allows Toledo consultation for a converted RPS rejection", () => {
   assert.equal(

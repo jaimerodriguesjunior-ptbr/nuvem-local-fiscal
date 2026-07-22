@@ -26,7 +26,10 @@ import {
   resolveNfseProvider,
   validateNfseConfigDraft
 } from "../lib/nfse-rules.js";
-import { canConsultToledoNfseDocument } from "../lib/nfse-toledo-equiplano.js";
+import {
+  canConsultToledoNfseDocument,
+  resolveToledoEndpoint
+} from "../lib/nfse-toledo-equiplano.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
@@ -638,6 +641,13 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     }
 
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
+    const configuredNfseEndpoint = firstNonEmptyText(
+      ipm.endpoint,
+      equiplano.endpoint,
+      body.endpoint,
+      reusableExistingSettings?.nfseEndpoint,
+      ruleProfile?.defaults.endpoint
+    );
     const effectiveIdEntidade = String(
       equiplano.id_entidade ??
       equiplano.idEntidade ??
@@ -684,13 +694,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         reusableExistingSettings?.nfseMunicipalityName,
         ruleProfile?.municipalityName
       ) || undefined,
-      nfseEndpoint: firstNonEmptyText(
-        ipm.endpoint,
-        equiplano.endpoint,
-        body.endpoint,
-        reusableExistingSettings?.nfseEndpoint,
-        ruleProfile?.defaults.endpoint
-      ) || undefined,
+      nfseEndpoint: isToledoProvider
+        ? resolveToledoEndpoint(environment, configuredNfseEndpoint)
+        : configuredNfseEndpoint || undefined,
       nfseSoapAction: firstNonEmptyText(
         equiplano.soap_action,
         equiplano.soapAction,

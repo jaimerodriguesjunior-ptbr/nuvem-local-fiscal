@@ -22,6 +22,24 @@ import {
 
 type RequestFormat = "soap" | "xml";
 
+export const TOLEDO_HOMOLOGATION_ENDPOINT =
+  "https://www.esnfs.com.br:9443//homologacaows/services/Enfs";
+export const TOLEDO_PRODUCTION_ENDPOINT =
+  "https://www.esnfs.com.br:8444/enfsws/services/Enfs.EnfsHttpsSoap11Endpoint/";
+
+export function resolveToledoEndpoint(
+  ambiente: "homologacao" | "producao",
+  configuredEndpoint?: string
+) {
+  const configured = String(configuredEndpoint ?? "").trim();
+  if (ambiente === "producao") {
+    return !configured || /homologacaows/i.test(configured)
+      ? TOLEDO_PRODUCTION_ENDPOINT
+      : configured;
+  }
+  return configured || TOLEDO_HOMOLOGATION_ENDPOINT;
+}
+
 type ToledoConfig = {
   cnpj: string;
   inscricaoMunicipal: string;
@@ -232,10 +250,7 @@ function resolveToledoConfig(
       endereco.codigo_municipio,
       "4127700"
     ),
-    endpoint: firstText(
-      settings.nfseEndpoint,
-      "https://www.esnfs.com.br:9443//homologacaows/services/Enfs"
-    ),
+    endpoint: resolveToledoEndpoint(issuer.ambiente, settings.nfseEndpoint),
     soapAction: firstText(
       settings.nfseSoapAction,
       "http://services.enfsws.es/esRecepcionarLoteRps"
