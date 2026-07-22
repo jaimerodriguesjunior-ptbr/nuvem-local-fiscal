@@ -69,6 +69,15 @@ export type ToledoNfseProcessingResult = {
   error: string | null;
 };
 
+export function canConsultToledoNfseDocument(
+  document: Pick<DocumentRecord, "status" | "motivoStatus">
+) {
+  return (
+    document.status === "processamento" ||
+    (document.status === "rejeitado" && document.motivoStatus === "8011")
+  );
+}
+
 function digitsOnly(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
 }
@@ -879,7 +888,7 @@ export async function consultToledoNfse(
     ambiente: document.ambiente,
     operation: "consulta"
   });
-  if (!runtimePolicy.allowed || document.status !== "processamento") {
+  if (!runtimePolicy.allowed || !canConsultToledoNfseDocument(document)) {
     return { document, transmitted: false, error: null };
   }
 

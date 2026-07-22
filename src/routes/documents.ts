@@ -26,6 +26,7 @@ import {
   resolveNfseProvider,
   validateNfseConfigDraft
 } from "../lib/nfse-rules.js";
+import { canConsultToledoNfseDocument } from "../lib/nfse-toledo-equiplano.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
@@ -1624,7 +1625,7 @@ async function handleGetDocument(
     query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
   const shouldAutoConsult =
     storedDocument.tipoDocumento === "NFSe" &&
-    storedDocument.status === "processamento" &&
+    canConsultToledoNfseDocument(storedDocument) &&
     storedDocument.motivoStatus !== "NFSE_IPM_DRY_RUN";
   if (
     storedDocument.tipoDocumento === "NFSe" &&

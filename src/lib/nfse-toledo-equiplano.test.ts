@@ -5,9 +5,21 @@ import {
   allowsLegacyEquiplanoHomologationTls,
   buildToledoServiceIdentity,
   buildCancelarNfseXml,
+  canConsultToledoNfseDocument,
   hasToledoMunicipalReceipt,
   toToledoIssueDateTime
 } from "./nfse-toledo-equiplano.js";
+
+test("allows Toledo consultation for a converted RPS rejection", () => {
+  assert.equal(
+    canConsultToledoNfseDocument({ status: "rejeitado", motivoStatus: "8011" }),
+    true
+  );
+  assert.equal(
+    canConsultToledoNfseDocument({ status: "rejeitado", motivoStatus: "54" }),
+    false
+  );
+});
 
 test("builds Toledo service identity as LC 116 item and subitem when configured", () => {
   assert.equal(
