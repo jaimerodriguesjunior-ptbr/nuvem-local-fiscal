@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   allowsLegacyEquiplanoHomologationTls,
+  isOfficialEquiplanoProductionEndpoint,
   buildToledoServiceIdentity,
   buildCancelarNfseXml,
   canConsultToledoNfseDocument,
@@ -74,6 +75,27 @@ test("allows incomplete TLS chain only for Equiplano homologation", () => {
   assert.equal(
     allowsLegacyEquiplanoHomologationTls(
       new URL("http://www.esnfs.com.br:9443/homologacaows/services/Enfs")
+    ),
+    false
+  );
+});
+
+test("adds the missing CA only for the official Equiplano production endpoint", () => {
+  assert.equal(
+    isOfficialEquiplanoProductionEndpoint(
+      new URL("https://www.esnfs.com.br:8444/enfsws/services/Enfs.EnfsHttpsSoap11Endpoint/")
+    ),
+    true
+  );
+  assert.equal(
+    isOfficialEquiplanoProductionEndpoint(
+      new URL("https://www.esnfs.com.br:9443//homologacaows/services/Enfs")
+    ),
+    false
+  );
+  assert.equal(
+    isOfficialEquiplanoProductionEndpoint(
+      new URL("https://example.com:8444/enfsws/services/Enfs")
     ),
     false
   );

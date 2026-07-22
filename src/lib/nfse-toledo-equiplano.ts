@@ -1,6 +1,8 @@
 import http from "node:http";
 import https from "node:https";
-import { createSecureContext } from "node:tls";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createSecureContext, rootCertificates } from "node:tls";
 import { URL } from "node:url";
 
 import { SignedXml } from "xml-crypto";
@@ -333,6 +335,15 @@ export function buildToledoServiceIdentity(
                         <nrServicoSubItem>${escapeXml(serviceSubItem)}</nrServicoSubItem>`;
 }
 
+export function isOfficialEquiplanoProductionEndpoint(url: URL) {
+  return (
+    url.protocol === "https:" &&
+    url.hostname.toLowerCase() === "www.esnfs.com.br" &&
+    url.port === "8444" &&
+    url.pathname.toLowerCase().startsWith("/enfsws/services/")
+  );
+}
+
 function buildServiceBlock(draft: ToledoDraft, valorIss: number) {
   const serviceCode = normalizeServiceCode(draft.serviceCode);
   const serviceIdentity = buildToledoServiceIdentity(
@@ -529,6 +540,17 @@ async function postRawRequest(input: {
   const url = new URL(endpoint);
   const isHttps = url.protocol === "https:";
   const transport = isHttps ? https : http;
+  const productionIntermediateCa =
+    isHttps && isOfficialEquiplanoProductionEndpoint(url)
+      ? readFileSync(
+          resolve(
+            process.cwd(),
+            "certificates",
+            "sectigo-public-server-authentication-ca-dv-r36.pem"
+          ),
+          "utf8"
+        )
+      : null;
   const bundle = decryptCertificateBundle(
     input.encryptedCertificateBundle,
     config.certificateEncryptionKey
@@ -579,6 +601,9 @@ async function postRawRequest(input: {
         method: "POST",
         headers,
         ...(isHttps ? tlsCredentials : {}),
+        ...(productionIntermediateCa
+          ? { ca: [...rootCertificates, productionIntermediateCa] }
+          : {}),
         // Equiplano's legacy homologation endpoint does not provide a complete
         // public certificate chain. Keep this exception pinned to that exact
         // host/port/path instead of weakening TLS globally.
