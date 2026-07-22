@@ -146,6 +146,25 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+const DOCUMENT_PERSISTENCE_BATCH_SIZE = 25;
+const TRANSIENT_FETCH_ATTEMPTS = 3;
+
+export function chunkForPersistence<T>(items: T[], size = DOCUMENT_PERSISTENCE_BATCH_SIZE) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function isTransientFetchError(error: { message?: string } | null) {
+  return /fetch failed/i.test(String(error?.message ?? ""));
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export class SupabasePersistence {
   private readonly client: SupabaseClient;
 
@@ -592,11 +611,29 @@ export class SupabasePersistence {
       return;
     }
 
-    const { error } = await this.client
-      .from("fiscal_documents")
-      .upsert(rows, { onConflict: "id" });
-    if (error) {
-      throw new Error(`Falha ao salvar documentos fiscais: ${error.message}`);
+    // Documentos carregam XMLs e respostas completas. Persistir todo o histórico
+    // em uma única requisição faz o payload crescer indefinidamente e pode causar
+    // encerramento da conexão pelo gateway do Supabase.
+    for (const batch of chunkForPersistence(rows)) {
+      let persisted = false;
+      for (let attempt = 1; attempt <= TRANSIENT_FETCH_ATTEMPTS; attempt += 1) {
+        const { error } = await this.client
+          .from("fiscal_documents")
+          .upsert(batch, { onConflict: "id" });
+        if (!error) {
+          persisted = true;
+          break;
+        }
+        if (!isTransientFetchError(error) || attempt === TRANSIENT_FETCH_ATTEMPTS) {
+          throw new Error(
+            `Falha ao salvar documentos fiscais (lote com ${batch.length} registros, tentativa ${attempt}): ${error.message}`
+          );
+        }
+        await wait(attempt * 250);
+      }
+      if (!persisted) {
+        throw new Error("Falha ao salvar documentos fiscais apos repeticoes de rede.");
+      }
     }
   }
 
