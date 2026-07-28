@@ -2012,7 +2012,6 @@ function recordValue(value: unknown) {
 
 function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const payload = recordValue(document.payloadOriginal);
-  const normalizedPayload = recordValue(document.payloadNormalizado);
   const infDps = recordValue(payload.infDPS);
   const toma = recordValue(infDps.toma);
   const tomaEnd = recordValue(toma.end);
@@ -2027,9 +2026,6 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const issuerAddress = recordValue(issuerMetadata.endereco);
   const authorizedXml = document.xml ?? "";
   const isGuairaIpm = document.providerName === "guaira-ipm";
-  const isLegacyImported =
-    normalizedPayload.importado === true &&
-    normalizedPayload.origem === "nuvem-fiscal-legado";
   const authentication =
     authorizedXml.match(/<cdAutenticacao>([^<]+)<\/cdAutenticacao>/i)?.[1] ??
     authorizedXml.match(
@@ -2047,9 +2043,10 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   ).split(":");
   const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
   const serviceDescription = String(cServ.xDescServ ?? "");
-  const serviceTableDescription = isLegacyImported
-    ? "Servico conforme discriminacao abaixo"
-    : serviceDescription;
+  // A descricao detalhada e exibida abaixo da tabela. Repeti-la em uma unica
+  // linha dentro da coluna "Descricao" invade as demais colunas em NFS-e com
+  // muitos servicos.
+  const serviceTableDescription = "Servico conforme discriminacao abaixo";
   const serviceValue = Number(vServPrest.vServ ?? 0);
   const aliquota = Number(tribMun.pAliq ?? 0);
   const issValue = Number(((serviceValue * aliquota) / 100).toFixed(2));
@@ -2207,7 +2204,14 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   text(441, 538, 6, "0,00");
   text(480, 538, 6, money(serviceValue));
   text(529, 538, 6, aliquota.toFixed(2));
-  text(73, 518, 5.5, `Discriminacao: ${serviceDescription}`);
+  const discriminacaoLines = wrapPdfTextByWidth(
+    `Discriminacao: ${serviceDescription}`,
+    width - 90,
+    5.5
+  ).slice(0, 6);
+  discriminacaoLines.forEach((descriptionLine, index) => {
+    text(73, 518 - index * 8, 5.5, descriptionLine);
+  });
 
   text(110, 180, 7, "Total Servicos (R$)", "F2");
   text(220, 180, 8, money(serviceValue), "F2");
