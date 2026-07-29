@@ -443,7 +443,7 @@ test("ordena os campos internos apos round-trip por jsonb e valida no XSD", () =
   assert.equal(validation.valid, true);
   assert.match(
     result.unsignedXml,
-    /<pag><detPag><tPag>01<\/tPag><vPag>270<\/vPag><\/detPag><vTroco>0<\/vTroco><\/pag>/
+    /<pag><detPag><tPag>01<\/tPag><vPag>270\.00<\/vPag><\/detPag><vTroco>0\.00<\/vTroco><\/pag>/
   );
   assert.doesNotMatch(result.unsignedXml, /NaN/);
 });
@@ -601,7 +601,7 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
   assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
   assert.match(
     result.unsignedXml,
-    /<pag><detPag><tPag>90<\/tPag><vPag>0<\/vPag><\/detPag><\/pag>/
+    /<pag><detPag><tPag>90<\/tPag><vPag>0\.00<\/vPag><\/detPag><\/pag>/
   );
   assert.doesNotMatch(result.unsignedXml, /<CSRT>|NAO-DEVE-SAIR-NO-XML/);
   assert.match(result.unsignedXml, /<idCSRT>07<\/idCSRT>/);
@@ -984,6 +984,46 @@ test("preserva duas casas em valores RTC que terminam com zero decimal", () => {
   assert.match(result.unsignedXml, /<vIBSUF>0\.70<\/vIBSUF>/);
   assert.match(result.unsignedXml, /<vIBS>0\.70<\/vIBS>/);
   assert.match(result.unsignedXml, /<vCBS>6\.30<\/vCBS>/);
+
+  const xmlValidation = validateNfeXml(result.signedXml);
+  assert.deepEqual(xmlValidation.errors, []);
+  assert.equal(xmlValidation.valid, true);
+});
+
+test("serializa valores monetarios convencionais com duas casas decimais", () => {
+  const password = "senha-decimais-fiscais";
+  const opened = openEncryptedCertificate(
+    encryptCertificateBundle(
+      {
+        pfxBase64: createTestPfx(password).toString("base64"),
+        password
+      },
+      "segredo-decimais-fiscais"
+    ),
+    "segredo-decimais-fiscais"
+  );
+  const payload = structuredClone(buildRtcInfNFe(55, 9203)) as Record<string, unknown> & {
+    det: Array<Record<string, unknown>>;
+    total: Record<string, unknown>;
+  };
+  const product = payload.det[0].prod as Record<string, unknown>;
+  const total = payload.total.ICMSTot as Record<string, unknown>;
+
+  product.vProd = 722.4;
+  total.vBC = 902.4;
+  total.vProd = 902.4;
+  total.vNF = 902.4;
+
+  const result = generateAndSignNfeXml(
+    { infNFe: payload },
+    opened.privateKeyPem,
+    opened.certificatePem
+  );
+
+  assert.match(result.unsignedXml, /<vProd>722\.40<\/vProd>/);
+  assert.match(result.unsignedXml, /<vBC>902\.40<\/vBC>/);
+  assert.match(result.unsignedXml, /<vProd>902\.40<\/vProd>/);
+  assert.match(result.unsignedXml, /<vNF>902\.40<\/vNF>/);
 
   const xmlValidation = validateNfeXml(result.signedXml);
   assert.deepEqual(xmlValidation.errors, []);

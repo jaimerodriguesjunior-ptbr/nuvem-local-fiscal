@@ -41,6 +41,36 @@ const HOMOLOGATION_FIRST_ITEM_DESCRIPTION =
   "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
 const NFCE_QRCODE_VERSION = "3";
 const NFCE_QRCODE_V3_ONLINE_TPEMIS = new Set(["1", "3", "4"]);
+const TWO_DECIMAL_FISCAL_FIELDS = new Set([
+  "vBC",
+  "vICMS",
+  "vICMSDeson",
+  "vFCPUFDest",
+  "vICMSUFDest",
+  "vICMSUFRemet",
+  "vFCP",
+  "vBCST",
+  "vST",
+  "vFCPST",
+  "vFCPSTRet",
+  "vICMSMono",
+  "vICMSMonoReten",
+  "vICMSMonoRet",
+  "vProd",
+  "vFrete",
+  "vSeg",
+  "vDesc",
+  "vII",
+  "vIPI",
+  "vIPIDevol",
+  "vPIS",
+  "vCOFINS",
+  "vOutro",
+  "vNF",
+  "vTotTrib",
+  "vPag",
+  "vTroco"
+]);
 
 function escapeXml(value: unknown) {
   return String(value)
@@ -247,6 +277,9 @@ function serializeElement(name: string, value: unknown): string {
   }
   if (typeof value === "boolean") {
     return `<${name}>${value ? "1" : "0"}</${name}>`;
+  }
+  if (TWO_DECIMAL_FISCAL_FIELDS.has(name)) {
+    return `<${name}>${fiscalValueText(value)}</${name}>`;
   }
   return `<${name}>${escapeXml(value)}</${name}>`;
 }
