@@ -2066,12 +2066,26 @@ function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
   const recipientMunicipalityCode = String(
     tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? ""
   ).replace(/\D/g, "");
+  // O municipio do tomador nunca pode herdar o municipio do prestador. Isso
+  // mascara enderecos de outras cidades no PDF (por exemplo, Palotina acabava
+  // exibida como Guaira). Prioriza o nome informado pelo cliente e usa os
+  // codigos conhecidos apenas para documentos antigos que trazem so o IBGE.
+  const recipientMunicipalityName = String(
+    tomaEnd.xMun ?? tomaEnd.cidade ?? tomaEndNac.xMun ?? tomaEndNac.cidade ?? ""
+  ).trim();
   const recipientMunicipality =
-    recipientMunicipalityCode === "4108809" || recipientMunicipalityCode === "7571"
-      ? "Guaira"
-      : recipientMunicipalityCode === "4127700"
-        ? "Toledo"
-        : issuerMunicipality;
+    recipientMunicipalityName ||
+    (
+      {
+        "4108809": "Guaira",
+        "7571": "Guaira",
+        "4117909": "Palotina",
+        "4127700": "Toledo"
+      } as Record<string, string>
+    )[recipientMunicipalityCode] ||
+    (recipientMunicipalityCode
+      ? `Municipio IBGE ${recipientMunicipalityCode}`
+      : "Municipio nao informado");
   const recipientUf = String(tomaEnd.UF ?? issuerAddress.uf ?? "PR");
   const portalHost = isGuairaIpm ? "guaira.atende.net" : "www.esnfs.com.br";
   const commands: string[] = ["0.45 w"];
