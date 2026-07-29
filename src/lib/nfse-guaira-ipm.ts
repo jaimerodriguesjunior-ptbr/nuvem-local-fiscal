@@ -437,7 +437,10 @@ function siblingElementText(element: XmlElement, name: string) {
 }
 
 export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
-  const document = new DOMParser().parseFromString(xml, "application/xml");
+  const document = new DOMParser().parseFromString(
+    normalizeGuairaIpmResponseXml(xml),
+    "application/xml"
+  );
   if (elementsByLocalName(document, "parsererror").length > 0) {
     throw new Error("Resposta XML IPM invalida.");
   }
@@ -476,6 +479,30 @@ export function parseGuairaIpmResponse(xml: string): GuairaIpmResponse {
     statusDescription: firstElementText(document, "situacao_descricao_nfse"),
     messages
   };
+}
+
+// O IPM pode devolver BOM, espacos antes da declaracao XML ou duplicar a
+// declaracao. Normalizamos somente o envelope antes de entregar ao parser.
+export function normalizeGuairaIpmResponseXml(xml: string) {
+  let normalized = String(xml ?? "").replace(/^\uFEFF/, "").trimStart();
+  const declarationIndex = normalized.search(/<\?xml\b/i);
+  if (declarationIndex > 0) {
+    normalized = normalized.slice(declarationIndex);
+  }
+
+  const declaration = normalized.match(/^<\?xml\b[\s\S]*?\?>/i)?.[0];
+  if (!declaration) return normalized;
+
+  return declaration + normalized.slice(declaration.length).replace(/<\?xml\b[\s\S]*?\?>/gi, "");
+}
+
+export function isGuairaIpmCancellationConfirmed(result: GuairaIpmResponse) {
+  return (
+    (result.statusCode === "2" && /cancelad/i.test(result.statusDescription)) ||
+    result.messages.some(
+      (message) => message.codigo === "117" && /cancelad/i.test(message.descricao)
+    )
+  );
 }
 
 function isCustomerAddressAlreadyRegisteredError(parsed: GuairaIpmResponse | null) {
@@ -1048,9 +1075,10 @@ export async function cancelGuairaIpmNfse(
     throw new Error("Senha municipal IPM vazia.");
   }
 
+  let response: { status: number; body: string } | null = null;
   try {
     const endpoint = validateIpmEndpoint(settings.endpoint);
-    const response = await postIpmRequest(
+    response = await postIpmRequest(
       endpoint,
       buildGuairaIpmMultipartRequest(cancellationXml),
       buildGuairaIpmBasicAuthorization(settings.cnpj, password)
@@ -1060,8 +1088,7 @@ export async function cancelGuairaIpmNfse(
       (message) =>
         message.codigo === "1" && /sucesso/i.test(message.descricao)
     );
-    const explicitlyCancelled =
-      parsed.statusCode === "2" && /cancelad/i.test(parsed.statusDescription);
+    const explicitlyCancelled = isGuairaIpmCancellationConfirmed(parsed);
     const success =
       response.status >= 200 &&
       response.status < 300 &&
@@ -1105,18 +1132,47 @@ export async function cancelGuairaIpmNfse(
       error: success ? null : message
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const parserMessage = error instanceof Error ? error.message : String(error);
+    const message = response
+      ? "Resposta do cancelamento recebida, mas nao foi possivel confirma-la. Consultando a prefeitura."
+      : parserMessage;
+    const pending = response
+      ? store.saveCancellationResult(document.id, {
+          justification: reason,
+          requestXml: cancellationXml,
+          signedXml: cancellationXml,
+          responseXml: response.body,
+          processedXml: response.body,
+          statusCode: "PENDING_CONFIRMATION",
+          reason: message,
+          protocol: "",
+          success: false,
+          status: "processamento"
+        })
+      : document;
     store.addDocumentEvent(document.id, {
-      eventType: "nfse_guaira_ipm_cancellation_failed",
-      level: "error",
+      eventType: response
+        ? "nfse_guaira_ipm_cancellation_pending_confirmation"
+        : "nfse_guaira_ipm_cancellation_failed",
+      level: response ? "warn" : "error",
       message,
       payload: {
         provider: "guaira-ipm",
-        providerDocumentNumber: number
+        providerDocumentNumber: number,
+        httpStatus: response?.status ?? null,
+        parserMessage
       }
     });
     await store.waitForPersistence();
-    return { document, transmitted: true, error: message };
+    if (!response) {
+      return { document, transmitted: true, error: message };
+    }
+
+    const reconciliation = await consultGuairaIpmNfse(store, document.id);
+    if (reconciliation.document.status === "cancelado") {
+      return { document: reconciliation.document, transmitted: true, error: null };
+    }
+    return { document: reconciliation.document ?? pending ?? document, transmitted: true, error: null };
   }
 }
 

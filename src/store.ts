@@ -818,6 +818,7 @@ export class InMemoryStore {
       protocol: string;
       cancelledAt?: string | null;
       success?: boolean;
+      status?: DocumentStatus;
     }
   ) {
     const document = this.findDocument(id);
@@ -838,6 +839,8 @@ export class InMemoryStore {
     if (successful) {
       document.cancelledAt = input.cancelledAt || nowIso();
       document.status = "cancelado";
+    } else if (input.status) {
+      document.status = input.status;
     }
     document.mensagens = [
       {

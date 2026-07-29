@@ -9,6 +9,8 @@ import {
   buildGuairaIpmMultipartRequest,
   buildGuairaIpmNumberConsultationXml,
   extractGuairaIpmSessionCookie,
+  isGuairaIpmCancellationConfirmed,
+  normalizeGuairaIpmResponseXml,
   normalizeGuairaIpmDraft,
   parseGuairaIpmResponse,
   resolveGuairaIpmConnectionTarget,
@@ -332,6 +334,15 @@ test("parses Guaira IPM cancellation success response", () => {
   assert.deepEqual(result.messages, [
     { codigo: "1", descricao: "Sucesso." }
   ]);
+});
+
+test("normalizes an IPM cancellation response with duplicate XML declaration", () => {
+  const result = parseGuairaIpmResponse(
+    "\uFEFF\n<?xml version=\"1.0\"?><retorno><?xml version=\"1.0\"?><mensagem><codigo>117</codigo><descricao>A NFSe ja encontra-se cancelada</descricao></mensagem></retorno>"
+  );
+
+  assert.doesNotMatch(normalizeGuairaIpmResponseXml("\uFEFF\n<?xml version=\"1.0\"?><retorno><?xml version=\"1.0\"?></retorno>"), /<retorno><\?xml/);
+  assert.equal(isGuairaIpmCancellationConfirmed(result), true);
 });
 
 test("accepts Guaira IPM issued response without a numeric message prefix", () => {
