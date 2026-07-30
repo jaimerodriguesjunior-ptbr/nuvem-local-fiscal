@@ -43,7 +43,13 @@ const nfeMvpSaleCfops = new Set([
   "6915",
   "6949"
 ]);
-const nfeMvpReturnCfops = new Set(["5202", "6202"]);
+const nfeMvpReturnCfops = new Set([
+  "5202",
+  "6202",
+  // Devolucao de compra de combustivel/lubrificante para comercializacao.
+  "5661",
+  "6661"
+]);
 
 function nfeMvpFinalityAllowed(value: unknown) {
   const finality = text(value || "1");

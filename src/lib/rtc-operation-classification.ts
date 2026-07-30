@@ -14,7 +14,7 @@ export type RtcUnmappedOperationProfile = {
 };
 
 const standardTaxableGoodsSaleCfops = new Set(["5101", "5102", "6101", "6102"]);
-const referencedGoodsReturnCfops = new Set(["5202", "6202"]);
+const referencedGoodsReturnCfops = new Set(["5202", "6202", "5661", "6661"]);
 const referencedFinalities = new Set(["2", "3", "4", "5", "6"]);
 
 function asObject(value: unknown): JsonObject | null {

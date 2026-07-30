@@ -94,6 +94,23 @@ test("NF-e bloqueia CFOP fora do MVP de venda e devolucao", () => {
   assert.deepEqual(returnNfe.issues, []);
 });
 
+test("NF-e aceita devolucao de lubrificante com CFOP 5661/6661", () => {
+  for (const cfop of ["5661", "6661"]) {
+    const result = validateNfeEmissionPayload(
+      nfePayloadWithItem(
+        {
+          finNFe: 4,
+          NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+        },
+        cfop
+      )
+    );
+
+    assert.equal(result.ok, true, `CFOP ${cfop} deve ser aceito`);
+    assert.deepEqual(result.issues, []);
+  }
+});
+
 test("NF-e aceita remessa em garantia como operacao normal sem RTC", () => {
   for (const cfop of ["5915", "5949", "6915", "6949"]) {
     const result = validateNfeEmissionPayload(

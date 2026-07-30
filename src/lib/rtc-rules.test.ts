@@ -170,6 +170,20 @@ test("aceita IBSCBS em NF-e de devolucao com perfil operacional RTC", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("aceita IBSCBS em devolucao de lubrificante com CFOP 5661", () => {
+  const payload = rtcPayload();
+  (payload.infNFe.ide as Record<string, unknown>).finNFe = 4;
+  (payload.infNFe.ide as Record<string, unknown>).NFref = [
+    { refNFe: "41260612345678000195550010000001231000001234" }
+  ];
+  payload.infNFe.det[0].prod.CFOP = "5661";
+
+  const result = validateRtcPayload(payload);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.issues, []);
+});
+
 test("bloqueia IBSCBS em finalidade referenciada sem perfil operacional RTC", () => {
   for (const finality of [2, 3]) {
     const payload = rtcPayload();
