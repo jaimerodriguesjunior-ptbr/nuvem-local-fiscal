@@ -535,7 +535,12 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
               uTrib: "UN",
               qTrib: 1,
               vUnTrib: 270,
-              indTot: 1
+              indTot: 1,
+              comb: {
+                cProdANP: "620501001",
+                descANP: "CICLO OTTO",
+                UFCons: "PR"
+              }
             },
             imposto: {
               ICMS: {
@@ -598,6 +603,10 @@ test("gera NF-e modelo 55 sem CSC e valida XML e lote antes da SEFAZ", () => {
 
   assert.equal(result.signatureValid, true);
   assert.match(result.unsignedXml, /<mod>55<\/mod>/);
+  assert.match(
+    result.unsignedXml,
+    /<comb><cProdANP>620501001<\/cProdANP><descANP>CICLO OTTO<\/descANP><UFCons>PR<\/UFCons><\/comb>/
+  );
   assert.doesNotMatch(result.signedXml, /<infNFeSupl>|<qrCode>|urlChave/);
   assert.match(
     result.unsignedXml,

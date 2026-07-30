@@ -171,8 +171,10 @@ const elementOrder: Record<string, string[]> = {
     "nItemPed",
     "nFCI",
     "rastro",
+    "comb",
     "infProdNFF"
   ],
+  comb: ["cProdANP", "descANP", "pGLP", "pGNn", "pGNi", "vPart", "CODIF", "qTemp", "UFCons"],
   imposto: [
     "vTotTrib",
     "ICMS",
