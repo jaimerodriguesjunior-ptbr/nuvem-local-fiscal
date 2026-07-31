@@ -5,9 +5,10 @@ import test from "node:test";
 import { buildDistributionRequest, parseDistributionResponse } from "./sefaz-distribution.js";
 
 test("monta consulta por ultimo NSU e interpreta documentos compactados da SEFAZ", () => {
-  const request = buildDistributionRequest({ cnpj: "12345678000195", ambiente: "homologacao", modo: "dist-nsu", nsu: "42" });
+  const request = buildDistributionRequest({ cnpj: "12345678000195", uf: "PR", ambiente: "homologacao", modo: "dist-nsu", nsu: "42" });
   assert.match(request.requestXml, /<ultNSU>000000000000042<\/ultNSU>/);
   assert.match(request.requestXml, /<tpAmb>2<\/tpAmb>/);
+  assert.match(request.requestXml, /<cUFAutor>41<\/cUFAutor>/);
   assert.match(request.soapEnvelope, /<nfeDistDFeInteresse[^>]*><nfeDadosMsg xmlns="http:\/\/www\.portalfiscal\.inf\.br\/nfe\/wsdl\/NFeDistribuicaoDFe">/);
   const documentXml = '<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"><chNFe>41260712345678000195550010000000011000000010</chNFe></resNFe>';
   const zip = gzipSync(Buffer.from(documentXml, "utf8")).toString("base64");

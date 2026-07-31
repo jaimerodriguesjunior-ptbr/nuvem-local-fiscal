@@ -186,7 +186,8 @@ async function handleCreateDistribution(app: FastifyInstance, request: FastifyRe
   }
   void (async () => {
     try {
-      const result = await distributeNfeAtSefaz({ cnpj, ambiente, modo, nsu: record.nsu, chave: record.chave, encryptedCertificateBundle: certificate.encryptedBundle, encryptionSecret: config.certificateEncryptionKey });
+      const issuer = app.store.findIssuerByCnpj(cnpj, ambiente);
+      const result = await distributeNfeAtSefaz({ cnpj, uf: issuer?.uf, ambiente, modo, nsu: record.nsu, chave: record.chave, encryptedCertificateBundle: certificate.encryptedBundle, encryptionSecret: config.certificateEncryptionKey });
       for (const item of result.documents) {
         const details = distributionDocumentDetails(item.xml, item.schema);
         app.store.addDistributionDocument({ distributionId: record.id, cnpj, ambiente, nsu: item.nsu, schema: item.schema, xml: item.xml, ...details });

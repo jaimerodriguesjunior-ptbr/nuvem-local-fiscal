@@ -19,6 +19,12 @@ const EVENT_ENDPOINTS: Record<string, Record<Environment, string>> = {
 };
 const XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
 const C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+const UF_CODES: Record<string, string> = {
+  AC: "12", AL: "27", AP: "16", AM: "13", BA: "29", CE: "23", DF: "53", ES: "32",
+  GO: "52", MA: "21", MT: "51", MS: "50", MG: "31", PA: "15", PB: "25", PR: "41",
+  PE: "26", PI: "22", RJ: "33", RN: "24", RS: "43", RO: "11", RR: "14", SC: "42",
+  SP: "35", SE: "28", TO: "17"
+};
 
 export type SefazDistributionDocument = { nsu: string; schema: string; xml: string };
 export type SefazDistributionResult = {
@@ -60,7 +66,7 @@ function requestSoap(endpoint: string, action: string, body: string, encryptedCe
   });
 }
 
-export function buildDistributionRequest(input: { cnpj: string; ambiente: Environment; modo: DistributionMode; nsu?: string | null; chave?: string | null }) {
+export function buildDistributionRequest(input: { cnpj: string; uf?: string | null; ambiente: Environment; modo: DistributionMode; nsu?: string | null; chave?: string | null }) {
   const cnpj = input.cnpj.replace(/\D/g, "");
   if (cnpj.length !== 14) throw new Error("Informe um CNPJ valido para a distribuicao.");
   const tpAmb = input.ambiente === "producao" ? "1" : "2";
@@ -70,7 +76,9 @@ export function buildDistributionRequest(input: { cnpj: string; ambiente: Enviro
       ? `<consNSU><NSU>${escapeXml(String(input.nsu ?? "").padStart(15, "0"))}</NSU></consNSU>`
       : `<consChNFe><chNFe>${escapeXml(String(input.chave ?? "").replace(/\D/g, ""))}</chNFe></consChNFe>`;
   if ((input.modo === "cons-nsu" && !input.nsu) || (input.modo === "cons-chave" && String(input.chave ?? "").replace(/\D/g, "").length !== 44)) throw new Error("Informe NSU ou chave de acesso valida para a consulta.");
-  const requestXml = `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${tpAmb}</tpAmb><cUFAutor>91</cUFAutor><CNPJ>${cnpj}</CNPJ>${query}</distDFeInt>`;
+  const ufCode = UF_CODES[String(input.uf ?? "").trim().toUpperCase()];
+  if (!ufCode) throw new Error("UF do estabelecimento nao configurada para a distribuicao.");
+  const requestXml = `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${tpAmb}</tpAmb><cUFAutor>${ufCode}</cUFAutor><CNPJ>${cnpj}</CNPJ>${query}</distDFeInt>`;
   const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">${requestXml}</nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`;
   return { requestXml, soapEnvelope };
 }
@@ -88,7 +96,7 @@ export function parseDistributionResponse(responseXml: string, requestXml = ""):
   return { cStat: text(result, "cStat"), xMotivo: text(result, "xMotivo"), ultNsu: text(result, "ultNSU"), maxNsu: text(result, "maxNSU"), responseXml, requestXml, documents };
 }
 
-export async function distributeNfeAtSefaz(input: { cnpj: string; ambiente: Environment; modo: DistributionMode; nsu?: string | null; chave?: string | null; encryptedCertificateBundle: string; encryptionSecret: string }) {
+export async function distributeNfeAtSefaz(input: { cnpj: string; uf?: string | null; ambiente: Environment; modo: DistributionMode; nsu?: string | null; chave?: string | null; encryptedCertificateBundle: string; encryptionSecret: string }) {
   if (input.ambiente === "producao" && !config.fiscalProductionEnabled) throw new Error("Distribuicao em producao permanece bloqueada nesta etapa.");
   const built = buildDistributionRequest(input);
   const response = await requestSoap(DISTRIBUTION_ENDPOINT, DISTRIBUTION_ACTION, built.soapEnvelope, input.encryptedCertificateBundle, input.encryptionSecret, "Tempo esgotado ao distribuir documentos na SEFAZ.");
