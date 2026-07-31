@@ -143,11 +143,13 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
   };
 }
 
-function mapDistributionResponse(record: DistributionRecord) {
+function mapDistributionResponse(record: DistributionRecord, documents: DistributionDocumentRecord[] = []) {
   return {
     id: record.id, ambiente: record.ambiente, status: record.status, cpf_cnpj: record.cnpj,
     modo: record.modo, nsu: record.nsu, chave: record.chave, ult_nsu: record.ultNsu,
     max_nsu: record.maxNsu, codigo_status: record.codigoStatus, motivo_status: record.motivoStatus,
+    documentos: documents.map(mapDistributionDocumentResponse),
+    documentos_count: documents.length,
     created_at: record.createdAt, updated_at: record.updatedAt
   };
 }
@@ -415,7 +417,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   });
   app.get("/distribuicao/nfe/:id", async (request, reply) => {
     const record = app.store.findDistribution((request.params as { id: string }).id);
-    return record ? mapDistributionResponse(record) : reply.code(404).send({ message: "Distribuicao nao encontrada." });
+    return record ? mapDistributionResponse(record, app.store.listDistributionDocuments(record.cnpj, record.ambiente).filter((item) => item.distributionId === record.id)) : reply.code(404).send({ message: "Distribuicao nao encontrada." });
   });
   app.get("/distribuicao/nfe/documentos/:id", async (request, reply) => {
     const record = app.store.findDistributionDocument((request.params as { id: string }).id);

@@ -22,6 +22,7 @@ test("contrato HTTP de configuracao, polling e XML de distribuicao NF-e", async 
     app.store.saveDistributionResult(created.id, { status: "concluido", ultNsu: document.nsu, maxNsu: document.nsu, codigoStatus: "138", motivoStatus: "Documentos localizados" });
     const poll = await app.inject({ method: "GET", url: `/distribuicao/nfe/${created.id}`, headers: bearer });
     assert.equal(poll.statusCode, 200, poll.body); assert.equal(poll.json().status, "concluido"); assert.equal(poll.json().ult_nsu, document.nsu);
+    assert.equal(poll.json().documentos_count, 1); assert.equal(poll.json().documentos[0].id, document.id);
     const xml = await app.inject({ method: "GET", url: `/distribuicao/nfe/documentos/${document.id}/xml`, headers: bearer });
     assert.equal(xml.statusCode, 200); assert.equal(xml.body, "<nfeProc />");
     const manifestation = await app.inject({ method: "POST", url: "/distribuicao/nfe/manifestacoes", headers: bearer, payload: { cpf_cnpj: cnpj, ambiente: "homologacao", chave: created.chave, tipo_evento: "210210" } });
