@@ -71,7 +71,7 @@ export function buildDistributionRequest(input: { cnpj: string; ambiente: Enviro
       : `<consChNFe><chNFe>${escapeXml(String(input.chave ?? "").replace(/\D/g, ""))}</chNFe></consChNFe>`;
   if ((input.modo === "cons-nsu" && !input.nsu) || (input.modo === "cons-chave" && String(input.chave ?? "").replace(/\D/g, "").length !== 44)) throw new Error("Informe NSU ou chave de acesso valida para a consulta.");
   const requestXml = `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${tpAmb}</tpAmb><cUFAutor>91</cUFAutor><CNPJ>${cnpj}</CNPJ>${query}</distDFeInt>`;
-  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg>${requestXml}</nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`;
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">${requestXml}</nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`;
   return { requestXml, soapEnvelope };
 }
 

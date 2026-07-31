@@ -173,7 +173,7 @@ async function handleCreateDistribution(app: FastifyInstance, request: FastifyRe
   const cnpj = String(body.cpf_cnpj ?? body.cnpj ?? "").replace(/\D/g, "");
   const ambiente = parseEnvironment(body.ambiente);
   const modo = String(body.tipo_consulta ?? body.modo ?? "dist-nsu") as DistributionRecord["modo"];
-  const nsu = body.nsu ?? body.ult_nsu ?? null;
+  const nsu = body.nsu ?? body.ult_nsu ?? body.dist_nsu ?? null;
   const chave = body.chave ?? body.chave_acesso ?? null;
   if (!cnpj || !app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada para distribuicao." });
   if (!["dist-nsu", "cons-nsu", "cons-chave"].includes(modo)) return reply.code(400).send({ message: "tipo_consulta deve ser dist-nsu, cons-nsu ou cons-chave." });
