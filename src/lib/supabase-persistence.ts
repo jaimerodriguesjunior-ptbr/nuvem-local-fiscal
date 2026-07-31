@@ -4,6 +4,9 @@ import type {
   Certificate,
   DocumentEventRecord,
   DocumentRecord,
+  DistributionDocumentRecord,
+  DistributionManifestationRecord,
+  DistributionRecord,
   InutilizationRecord,
   Issuer,
   MessageItem,
@@ -17,6 +20,9 @@ export type StoreSnapshotState = {
   documents: DocumentRecord[];
   documentEvents: DocumentEventRecord[];
   inutilizations: InutilizationRecord[];
+  distributions: DistributionRecord[];
+  distributionDocuments: DistributionDocumentRecord[];
+  distributionManifestations: DistributionManifestationRecord[];
 };
 
 export type PersistenceChanges = Partial<StoreSnapshotState>;
@@ -213,6 +219,13 @@ export class SupabasePersistence {
       .from("fiscal_inutilizations")
       .select("*")
       .order("created_at", { ascending: false });
+    const [distributionsResult, distributionDocumentsResult, distributionManifestationsResult] = await Promise.all([
+      this.client.from("fiscal_nfe_distributions").select("*").order("created_at", { ascending: false }),
+      this.client.from("fiscal_nfe_distribution_documents").select("*").order("created_at", { ascending: false }),
+      this.client.from("fiscal_nfe_distribution_manifestations").select("*").order("created_at", { ascending: false })
+    ]);
+    const distributionError = distributionsResult.error ?? distributionDocumentsResult.error ?? distributionManifestationsResult.error;
+    if (distributionError) throw new Error(`Falha ao carregar distribuicao NF-e do Supabase: ${distributionError.message}`);
 
     const companies = (companiesResult.data ?? []) as FiscalCompanyRow[];
     const companiesById = new Map(companies.map((company) => [company.id, company]));
@@ -373,6 +386,23 @@ export class SupabasePersistence {
         createdAt: event.created_at
       })
     );
+    const distributions = (distributionsResult.data ?? []).map((item: any): DistributionRecord => ({
+      id: item.id, cnpj: item.cnpj, ambiente: item.environment, status: item.status, modo: item.mode,
+      nsu: item.nsu, chave: item.access_key, ultNsu: item.ult_nsu, maxNsu: item.max_nsu,
+      codigoStatus: item.status_code, motivoStatus: item.status_reason, requestXml: item.request_xml,
+      responseXml: item.response_xml, createdAt: item.created_at, updatedAt: item.updated_at
+    }));
+    const distributionDocuments = (distributionDocumentsResult.data ?? []).map((item: any): DistributionDocumentRecord => ({
+      id: item.id, distributionId: item.distribution_id, cnpj: item.cnpj, ambiente: item.environment,
+      nsu: item.nsu, schema: item.schema, tipoDocumento: item.document_type, formaDistribuicao: item.distribution_form,
+      chave: item.access_key, xml: item.xml, createdAt: item.created_at
+    }));
+    const distributionManifestations = (distributionManifestationsResult.data ?? []).map((item: any): DistributionManifestationRecord => ({
+      id: item.id, cnpj: item.cnpj, ambiente: item.environment, chave: item.access_key, tipoEvento: item.event_type,
+      justificativa: item.justification, status: item.status, codigoStatus: item.status_code, motivoStatus: item.status_reason,
+      protocolo: item.protocol, requestXml: item.request_xml, responseXml: item.response_xml, xml: item.xml,
+      createdAt: item.created_at, updatedAt: item.updated_at
+    }));
 
     return {
       issuers,
@@ -380,7 +410,7 @@ export class SupabasePersistence {
       serviceConfigs,
       documents,
       documentEvents,
-      inutilizations
+      inutilizations, distributions, distributionDocuments, distributionManifestations
     };
   }
 
@@ -392,6 +422,7 @@ export class SupabasePersistence {
     await this.upsertDocuments(state.documents, companyIds, environmentIds);
     await this.upsertDocumentEvents(state.documentEvents);
     await this.upsertInutilizations(state.inutilizations, companyIds, environmentIds);
+    await this.upsertDistributions(state.distributions, state.distributionDocuments, state.distributionManifestations);
   }
 
   async saveChanges(state: StoreSnapshotState, changes: PersistenceChanges) {
@@ -414,6 +445,9 @@ export class SupabasePersistence {
     }
     if (changes.inutilizations) {
       await this.upsertInutilizations(changes.inutilizations, companyIds, environmentIds);
+    }
+    if (changes.distributions || changes.distributionDocuments || changes.distributionManifestations) {
+      await this.upsertDistributions(changes.distributions ?? [], changes.distributionDocuments ?? [], changes.distributionManifestations ?? []);
     }
   }
 
@@ -750,6 +784,21 @@ export class SupabasePersistence {
       .upsert(rows, { onConflict: "id" });
     if (error) {
       throw new Error(`Falha ao salvar inutilizacoes fiscais: ${error.message}`);
+    }
+  }
+
+  private async upsertDistributions(distributions: DistributionRecord[], documents: DistributionDocumentRecord[], manifestations: DistributionManifestationRecord[]) {
+    if (distributions.length) {
+      const { error } = await this.client.from("fiscal_nfe_distributions").upsert(distributions.map((item) => ({ id: item.id, cnpj: item.cnpj, environment: item.ambiente, status: item.status, mode: item.modo, nsu: item.nsu, access_key: item.chave, ult_nsu: item.ultNsu, max_nsu: item.maxNsu, status_code: item.codigoStatus, status_reason: item.motivoStatus, request_xml: item.requestXml, response_xml: item.responseXml, created_at: item.createdAt, updated_at: item.updatedAt })), { onConflict: "id" });
+      if (error) throw new Error(`Falha ao salvar distribuicoes NF-e: ${error.message}`);
+    }
+    if (documents.length) {
+      const { error } = await this.client.from("fiscal_nfe_distribution_documents").upsert(documents.map((item) => ({ id: item.id, distribution_id: item.distributionId, cnpj: item.cnpj, environment: item.ambiente, nsu: item.nsu, schema: item.schema, document_type: item.tipoDocumento, distribution_form: item.formaDistribuicao, access_key: item.chave, xml: item.xml, created_at: item.createdAt })), { onConflict: "id" });
+      if (error) throw new Error(`Falha ao salvar documentos distribuidos: ${error.message}`);
+    }
+    if (manifestations.length) {
+      const { error } = await this.client.from("fiscal_nfe_distribution_manifestations").upsert(manifestations.map((item) => ({ id: item.id, cnpj: item.cnpj, environment: item.ambiente, access_key: item.chave, event_type: item.tipoEvento, justification: item.justificativa, status: item.status, status_code: item.codigoStatus, status_reason: item.motivoStatus, protocol: item.protocolo, request_xml: item.requestXml, response_xml: item.responseXml, xml: item.xml, created_at: item.createdAt, updated_at: item.updatedAt })), { onConflict: "id" });
+      if (error) throw new Error(`Falha ao salvar manifestacoes NF-e: ${error.message}`);
     }
   }
 }

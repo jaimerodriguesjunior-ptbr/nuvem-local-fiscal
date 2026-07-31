@@ -2,7 +2,7 @@ export type Environment = "homologacao" | "producao";
 
 export type DocumentType = "NFe" | "NFCe" | "NFSe";
 export type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
-export type ServiceType = "NFE" | "NFCE" | "NFSE";
+export type ServiceType = "NFE" | "NFCE" | "NFSE" | "DISTNFE";
 
 export type DocumentStatus =
   | "processamento"
@@ -86,6 +86,10 @@ export type ServiceConfig = {
     nfseDefaultTaxSituation?: string;
     nfseRequiresSignature?: boolean;
     nfseTestMode?: boolean;
+    distribuicaoAutomatica?: boolean;
+    distribuicaoIntervaloHoras?: number;
+    cienciaAutomatica?: boolean;
+    distNsu?: string;
   };
   secretsEncrypted?: string | null;
   createdAt: string;
@@ -156,6 +160,59 @@ export type DocumentEventRecord = {
   message: string;
   payload: Record<string, unknown>;
   createdAt: string;
+};
+
+export type DistributionStatus = "processando" | "concluido" | "erro";
+export type DistributionMode = "dist-nsu" | "cons-nsu" | "cons-chave";
+
+export type DistributionRecord = {
+  id: string;
+  cnpj: string;
+  ambiente: Environment;
+  status: DistributionStatus;
+  modo: DistributionMode;
+  nsu: string | null;
+  chave: string | null;
+  ultNsu: string | null;
+  maxNsu: string | null;
+  codigoStatus: string | null;
+  motivoStatus: string | null;
+  requestXml: string | null;
+  responseXml: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DistributionDocumentRecord = {
+  id: string;
+  distributionId: string;
+  cnpj: string;
+  ambiente: Environment;
+  nsu: string;
+  schema: string;
+  tipoDocumento: "nota" | "evento";
+  formaDistribuicao: "resumida" | "completa";
+  chave: string | null;
+  xml: string;
+  createdAt: string;
+};
+
+export type DistributionManifestationRecord = {
+  id: string;
+  cnpj: string;
+  ambiente: Environment;
+  chave: string;
+  tipoEvento: string;
+  justificativa: string | null;
+  status: DistributionStatus;
+  codigoStatus: string | null;
+  motivoStatus: string | null;
+  protocolo: string | null;
+  requestXml: string | null;
+  responseXml: string | null;
+  xml: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type InutilizationStatus =

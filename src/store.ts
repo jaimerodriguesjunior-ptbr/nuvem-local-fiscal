@@ -16,6 +16,9 @@ import type {
   DocumentRecord,
   DocumentStatus,
   DocumentType,
+  DistributionDocumentRecord,
+  DistributionManifestationRecord,
+  DistributionRecord,
   Environment,
   InutilizationRecord,
   Issuer,
@@ -63,7 +66,7 @@ const seedClients = (defaultClientId: string, defaultClientSecret: string): ApiC
     name: "Cliente local v0",
     clientId: defaultClientId,
     clientSecret: defaultClientSecret,
-    allowedScopes: ["empresa", "nfe", "nfce", "nfse"],
+    allowedScopes: ["empresa", "nfe", "nfce", "nfse", "distribuicao-nfe"],
     allowedEnvironments: ["homologacao", "producao"]
   }
 ];
@@ -107,6 +110,9 @@ export class InMemoryStore {
   documents: DocumentRecord[];
   documentEvents: DocumentEventRecord[];
   inutilizations: InutilizationRecord[];
+  distributions: DistributionRecord[];
+  distributionDocuments: DistributionDocumentRecord[];
+  distributionManifestations: DistributionManifestationRecord[];
   accessTokens: AccessTokenRecord[];
   private readonly tokenSecret: string;
   private readonly stateFile: string;
@@ -128,6 +134,9 @@ export class InMemoryStore {
     this.documents = [];
     this.documentEvents = [];
     this.inutilizations = [];
+    this.distributions = [];
+    this.distributionDocuments = [];
+    this.distributionManifestations = [];
     this.accessTokens = [];
     this.tokenSecret = tokenSecret;
     this.stateFile = stateFile;
@@ -155,6 +164,9 @@ export class InMemoryStore {
       this.documents = state.documents;
       this.documentEvents = state.documentEvents;
       this.inutilizations = state.inutilizations;
+      this.distributions = state.distributions;
+      this.distributionDocuments = state.distributionDocuments;
+      this.distributionManifestations = state.distributionManifestations;
       this.writeLocalState();
       return;
     }
@@ -482,6 +494,81 @@ export class InMemoryStore {
     return this.documents.find(
       (item) => item.id === id && (!tipoDocumento || item.tipoDocumento === tipoDocumento)
     ) ?? null;
+  }
+
+  createDistribution(input: Omit<DistributionRecord, "id" | "status" | "ultNsu" | "maxNsu" | "codigoStatus" | "motivoStatus" | "requestXml" | "responseXml" | "createdAt" | "updatedAt">) {
+    const record: DistributionRecord = {
+      ...input,
+      id: `dist_${randomUUID().slice(0, 12)}`,
+      status: "processando",
+      ultNsu: null,
+      maxNsu: null,
+      codigoStatus: null,
+      motivoStatus: null,
+      requestXml: null,
+      responseXml: null,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    };
+    this.distributions.unshift(record);
+    this.saveState({ distributions: [record] });
+    return record;
+  }
+
+  findDistribution(id: string) {
+    return this.distributions.find((item) => item.id === id) ?? null;
+  }
+
+  listDistributions(cnpj: string, ambiente: Environment) {
+    return this.distributions.filter((item) => item.cnpj === cnpj && item.ambiente === ambiente);
+  }
+
+  saveDistributionResult(id: string, input: Partial<Omit<DistributionRecord, "id" | "cnpj" | "ambiente" | "modo" | "nsu" | "chave" | "createdAt">>) {
+    const record = this.findDistribution(id);
+    if (!record) return null;
+    Object.assign(record, input, { updatedAt: nowIso() });
+    this.saveState({ distributions: [record] });
+    return record;
+  }
+
+  addDistributionDocument(input: Omit<DistributionDocumentRecord, "id" | "createdAt">) {
+    const existing = this.distributionDocuments.find((item) => item.cnpj === input.cnpj && item.ambiente === input.ambiente && item.nsu === input.nsu);
+    if (existing) {
+      Object.assign(existing, input);
+      this.saveState({ distributionDocuments: [existing] });
+      return existing;
+    }
+    const record: DistributionDocumentRecord = { ...input, id: `distdoc_${randomUUID().slice(0, 12)}`, createdAt: nowIso() };
+    this.distributionDocuments.unshift(record);
+    this.saveState({ distributionDocuments: [record] });
+    return record;
+  }
+
+  findDistributionDocument(id: string) {
+    return this.distributionDocuments.find((item) => item.id === id) ?? null;
+  }
+
+  listDistributionDocuments(cnpj: string, ambiente: Environment) {
+    return this.distributionDocuments.filter((item) => item.cnpj === cnpj && item.ambiente === ambiente);
+  }
+
+  createDistributionManifestation(input: Omit<DistributionManifestationRecord, "id" | "status" | "codigoStatus" | "motivoStatus" | "protocolo" | "requestXml" | "responseXml" | "xml" | "createdAt" | "updatedAt">) {
+    const record: DistributionManifestationRecord = { ...input, id: `manif_${randomUUID().slice(0, 12)}`, status: "processando", codigoStatus: null, motivoStatus: null, protocolo: null, requestXml: null, responseXml: null, xml: null, createdAt: nowIso(), updatedAt: nowIso() };
+    this.distributionManifestations.unshift(record);
+    this.saveState({ distributionManifestations: [record] });
+    return record;
+  }
+
+  findDistributionManifestation(id: string) {
+    return this.distributionManifestations.find((item) => item.id === id) ?? null;
+  }
+
+  saveDistributionManifestation(id: string, input: Partial<Omit<DistributionManifestationRecord, "id" | "cnpj" | "ambiente" | "chave" | "tipoEvento" | "justificativa" | "createdAt">>) {
+    const record = this.findDistributionManifestation(id);
+    if (!record) return null;
+    Object.assign(record, input, { updatedAt: nowIso() });
+    this.saveState({ distributionManifestations: [record] });
+    return record;
   }
 
   addDocumentEvent(
@@ -960,6 +1047,9 @@ export class InMemoryStore {
       ),
       documentEvents: this.documentEvents,
       inutilizations: this.inutilizations,
+      distributions: this.distributions,
+      distributionDocuments: this.distributionDocuments,
+      distributionManifestations: this.distributionManifestations,
       summary: {
         clients: this.apiClients.length,
         issuers: this.issuers.length,
@@ -997,6 +1087,9 @@ export class InMemoryStore {
         documents?: DocumentRecord[];
         documentEvents?: DocumentEventRecord[];
         inutilizations?: InutilizationRecord[];
+        distributions?: DistributionRecord[];
+        distributionDocuments?: DistributionDocumentRecord[];
+        distributionManifestations?: DistributionManifestationRecord[];
       };
       this.issuers = state.issuers ?? this.issuers;
       this.certificates = state.certificates ?? [];
@@ -1004,6 +1097,9 @@ export class InMemoryStore {
       this.documents = state.documents ?? [];
       this.documentEvents = state.documentEvents ?? [];
       this.inutilizations = state.inutilizations ?? [];
+      this.distributions = state.distributions ?? [];
+      this.distributionDocuments = state.distributionDocuments ?? [];
+      this.distributionManifestations = state.distributionManifestations ?? [];
     } catch {
       // A falha de leitura nao deve impedir o servidor de desenvolvimento de subir.
     }
@@ -1025,7 +1121,10 @@ export class InMemoryStore {
           serviceConfigs: this.serviceConfigs,
           documents: this.documents,
           documentEvents: this.documentEvents,
-          inutilizations: this.inutilizations
+          inutilizations: this.inutilizations,
+          distributions: this.distributions,
+          distributionDocuments: this.distributionDocuments,
+          distributionManifestations: this.distributionManifestations
         },
         null,
         2
@@ -1041,7 +1140,10 @@ export class InMemoryStore {
       serviceConfigs: this.serviceConfigs,
       documents: this.documents,
       documentEvents: this.documentEvents,
-      inutilizations: this.inutilizations
+      inutilizations: this.inutilizations,
+      distributions: this.distributions,
+      distributionDocuments: this.distributionDocuments,
+      distributionManifestations: this.distributionManifestations
     };
   }
 

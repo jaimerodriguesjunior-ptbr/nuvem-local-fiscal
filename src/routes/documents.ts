@@ -35,7 +35,8 @@ import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
-import type { DocumentRecord, DocumentType, Environment, Issuer } from "../types.js";
+import { distributeNfeAtSefaz, manifestNfeAtSefaz } from "../lib/sefaz-distribution.js";
+import type { DocumentRecord, DocumentType, DistributionDocumentRecord, DistributionManifestationRecord, DistributionRecord, Environment, Issuer } from "../types.js";
 
 type EstadualDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 
@@ -140,6 +141,101 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
     erros_xsd: document.xsdErrors ?? [],
     mensagens: document.mensagens
   };
+}
+
+function mapDistributionResponse(record: DistributionRecord) {
+  return {
+    id: record.id, ambiente: record.ambiente, status: record.status, cpf_cnpj: record.cnpj,
+    modo: record.modo, nsu: record.nsu, chave: record.chave, ult_nsu: record.ultNsu,
+    max_nsu: record.maxNsu, codigo_status: record.codigoStatus, motivo_status: record.motivoStatus,
+    created_at: record.createdAt, updated_at: record.updatedAt
+  };
+}
+
+function mapDistributionDocumentResponse(record: DistributionDocumentRecord) {
+  return { id: record.id, distribuicao_id: record.distributionId, cpf_cnpj: record.cnpj, ambiente: record.ambiente, nsu: record.nsu, schema: record.schema, tipo_documento: record.tipoDocumento, forma_distribuicao: record.formaDistribuicao, chave: record.chave, created_at: record.createdAt, xml_url: `/distribuicao/nfe/documentos/${record.id}/xml` };
+}
+
+function mapManifestationResponse(record: DistributionManifestationRecord) {
+  return { id: record.id, ambiente: record.ambiente, status: record.status, cpf_cnpj: record.cnpj, chave: record.chave, tipo_evento: record.tipoEvento, justificativa: record.justificativa, codigo_status: record.codigoStatus, motivo_status: record.motivoStatus, numero_protocolo: record.protocolo, created_at: record.createdAt, updated_at: record.updatedAt };
+}
+
+function distributionDocumentDetails(xml: string, schema: string) {
+  const parsed = new DOMParser().parseFromString(xml, "application/xml");
+  const chave = (parsed.getElementsByTagNameNS("*", "chNFe").item(0)?.textContent ?? parsed.getElementsByTagNameNS("*", "infNFe").item(0)?.getAttribute("Id")?.replace(/^NFe/, "") ?? "").replace(/\D/g, "") || null;
+  const tipoDocumento = /(?:res|proc)NFe/i.test(schema) ? "nota" as const : "evento" as const;
+  const formaDistribuicao = /procNFe|procEvento|nfeProc/i.test(schema) ? "completa" as const : "resumida" as const;
+  return { chave, tipoDocumento, formaDistribuicao };
+}
+
+async function handleCreateDistribution(app: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const cnpj = String(body.cpf_cnpj ?? body.cnpj ?? "").replace(/\D/g, "");
+  const ambiente = parseEnvironment(body.ambiente);
+  const modo = String(body.tipo_consulta ?? body.modo ?? "dist-nsu") as DistributionRecord["modo"];
+  const nsu = body.nsu ?? body.ult_nsu ?? null;
+  const chave = body.chave ?? body.chave_acesso ?? null;
+  if (!cnpj || !app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada para distribuicao." });
+  if (!["dist-nsu", "cons-nsu", "cons-chave"].includes(modo)) return reply.code(400).send({ message: "tipo_consulta deve ser dist-nsu, cons-nsu ou cons-chave." });
+  const record = app.store.createDistribution({ cnpj, ambiente, modo, nsu: nsu ? String(nsu) : null, chave: chave ? String(chave).replace(/\D/g, "") : null });
+  const certificate = app.store.findActiveCertificate(cnpj);
+  if (!certificate?.encryptedBundle) {
+    const failed = app.store.saveDistributionResult(record.id, { status: "erro", codigoStatus: "CONFIGURACAO", motivoStatus: "Certificado A1 ativo nao encontrado." });
+    await app.store.waitForPersistence();
+    return reply.code(202).send(mapDistributionResponse(failed ?? record));
+  }
+  void (async () => {
+    try {
+      const result = await distributeNfeAtSefaz({ cnpj, ambiente, modo, nsu: record.nsu, chave: record.chave, encryptedCertificateBundle: certificate.encryptedBundle, encryptionSecret: config.certificateEncryptionKey });
+      for (const item of result.documents) {
+        const details = distributionDocumentDetails(item.xml, item.schema);
+        app.store.addDistributionDocument({ distributionId: record.id, cnpj, ambiente, nsu: item.nsu, schema: item.schema, xml: item.xml, ...details });
+      }
+      app.store.saveDistributionResult(record.id, { status: "concluido", ultNsu: result.ultNsu || null, maxNsu: result.maxNsu || null, codigoStatus: result.cStat || null, motivoStatus: result.xMotivo || null, requestXml: result.requestXml, responseXml: result.responseXml });
+      if (modo === "dist-nsu" && result.ultNsu) {
+        const service = app.store.findServiceConfig(cnpj, ambiente, "DISTNFE");
+        if (service) app.store.upsertServiceConfig(cnpj, ambiente, "DISTNFE", { active: service.active, settings: { ...service.settings, distNsu: result.ultNsu }, preserveSecrets: true });
+      }
+      const distributionConfig = app.store.findServiceConfig(cnpj, ambiente, "DISTNFE");
+      if (distributionConfig?.settings.cienciaAutomatica && result.cStat === "138") {
+        const issuer = app.store.findIssuerByCnpj(cnpj, ambiente);
+        for (const item of result.documents) {
+          const details = distributionDocumentDetails(item.xml, item.schema);
+          if (!details.chave || !issuer) continue;
+          const manifestation = app.store.createDistributionManifestation({ cnpj, ambiente, chave: details.chave, tipoEvento: "210210", justificativa: null });
+          try {
+            const manifested = await manifestNfeAtSefaz({ uf: issuer.uf, cnpj, ambiente, chave: details.chave, tipoEvento: "210210", encryptedCertificateBundle: certificate.encryptedBundle, encryptionSecret: config.certificateEncryptionKey });
+            app.store.saveDistributionManifestation(manifestation.id, { status: ["135", "136", "573"].includes(manifested.codigoStatus) ? "concluido" : "erro", codigoStatus: manifested.codigoStatus, motivoStatus: manifested.motivoStatus, protocolo: manifested.protocolo || null, requestXml: manifested.requestXml, responseXml: manifested.responseXml, xml: manifested.processedXml });
+          } catch (error) {
+            app.store.saveDistributionManifestation(manifestation.id, { status: "erro", codigoStatus: "PROCESSAMENTO", motivoStatus: error instanceof Error ? error.message : String(error) });
+          }
+        }
+      }
+      await app.store.waitForPersistence();
+    } catch (error) {
+      app.store.saveDistributionResult(record.id, { status: "erro", codigoStatus: "PROCESSAMENTO", motivoStatus: error instanceof Error ? error.message : String(error) });
+    }
+  })();
+  return reply.code(202).send(mapDistributionResponse(record));
+}
+
+async function handleCreateManifestation(app: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const cnpj = String(body.cpf_cnpj ?? body.cnpj ?? "").replace(/\D/g, ""); const ambiente = parseEnvironment(body.ambiente);
+  const chave = String(body.chave ?? body.chave_acesso ?? "").replace(/\D/g, ""); const tipoEvento = String(body.tipo_evento ?? body.tipoEvento ?? "");
+  if (!cnpj || !app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada para manifestacao." });
+  const record = app.store.createDistributionManifestation({ cnpj, ambiente, chave, tipoEvento, justificativa: body.justificativa ? String(body.justificativa) : null });
+  const issuer = app.store.findIssuerByCnpj(cnpj, ambiente); const certificate = app.store.findActiveCertificate(cnpj);
+  if (!issuer || !certificate?.encryptedBundle) {
+    const failed = app.store.saveDistributionManifestation(record.id, { status: "erro", codigoStatus: "CONFIGURACAO", motivoStatus: "Certificado A1 ativo nao encontrado." }); await app.store.waitForPersistence(); return reply.code(202).send(mapManifestationResponse(failed ?? record));
+  }
+  void (async () => {
+    try {
+      const result = await manifestNfeAtSefaz({ uf: issuer.uf, cnpj, ambiente, chave, tipoEvento, justificativa: record.justificativa, encryptedCertificateBundle: certificate.encryptedBundle, encryptionSecret: config.certificateEncryptionKey });
+      app.store.saveDistributionManifestation(record.id, { status: ["135", "136", "573"].includes(result.codigoStatus) ? "concluido" : "erro", codigoStatus: result.codigoStatus, motivoStatus: result.motivoStatus, protocolo: result.protocolo || null, requestXml: result.requestXml, responseXml: result.responseXml, xml: result.processedXml }); await app.store.waitForPersistence();
+    } catch (error) { app.store.saveDistributionManifestation(record.id, { status: "erro", codigoStatus: "PROCESSAMENTO", motivoStatus: error instanceof Error ? error.message : String(error) }); }
+  })();
+  return reply.code(202).send(mapManifestationResponse(record));
 }
 
 async function ensureBearer(request: FastifyRequest, reply: FastifyReply) {
@@ -290,6 +386,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       request.url.startsWith("/nfe") ||
       request.url.startsWith("/nfce") ||
       request.url.startsWith("/nfse") ||
+      request.url.startsWith("/distribuicao") ||
       request.url === "/empresas" ||
       request.url.startsWith("/empresas/")
     ) {
@@ -310,6 +407,32 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.post("/nfse/dps", async (request, reply) => {
     return handleCreateNfseDps(app, request, reply);
+  });
+
+  app.post("/distribuicao/nfe", async (request, reply) => {
+    return handleCreateDistribution(app, request, reply);
+  });
+  app.get("/distribuicao/nfe/:id", async (request, reply) => {
+    const record = app.store.findDistribution((request.params as { id: string }).id);
+    return record ? mapDistributionResponse(record) : reply.code(404).send({ message: "Distribuicao nao encontrada." });
+  });
+  app.get("/distribuicao/nfe/documentos/:id", async (request, reply) => {
+    const record = app.store.findDistributionDocument((request.params as { id: string }).id);
+    return record ? mapDistributionDocumentResponse(record) : reply.code(404).send({ message: "Documento distribuido nao encontrado." });
+  });
+  app.get("/distribuicao/nfe/documentos/:id/xml", async (request, reply) => {
+    const record = app.store.findDistributionDocument((request.params as { id: string }).id);
+    if (!record) return reply.code(404).send({ message: "Documento distribuido nao encontrado." });
+    reply.header("content-type", "application/xml; charset=utf-8");
+    reply.header("content-disposition", `attachment; filename="${record.nsu}-${record.schema}.xml"`);
+    return record.xml;
+  });
+  app.post("/distribuicao/nfe/manifestacoes", async (request, reply) => {
+    return handleCreateManifestation(app, request, reply);
+  });
+  app.get("/distribuicao/nfe/manifestacoes/:id", async (request, reply) => {
+    const record = app.store.findDistributionManifestation((request.params as { id: string }).id);
+    return record ? mapManifestationResponse(record) : reply.code(404).send({ message: "Manifestacao nao encontrada." });
   });
 
   app.post("/nfce/inutilizacoes", async (request, reply) => {
@@ -457,6 +580,30 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         csc_configurado: Boolean(serviceConfig.secretsEncrypted)
       }
     };
+  });
+
+  app.get("/empresas/:cnpj/distnfe", async (request, reply) => {
+    const cnpj = (request.params as { cnpj: string }).cnpj.replace(/\D/g, "");
+    const ambiente = parseEnvironment((request.query as Record<string, unknown>)?.ambiente);
+    const service = app.store.findServiceConfig(cnpj, ambiente, "DISTNFE");
+    return {
+      distribuicao_automatica: service?.settings.distribuicaoAutomatica ?? false,
+      distribuicao_intervalo_horas: service?.settings.distribuicaoIntervaloHoras ?? 24,
+      ciencia_automatica: service?.settings.cienciaAutomatica ?? false,
+      ambiente
+    };
+  });
+  app.put("/empresas/:cnpj/distnfe", async (request, reply) => {
+    const cnpj = (request.params as { cnpj: string }).cnpj.replace(/\D/g, "");
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const ambiente = parseEnvironment(body.ambiente);
+    if (!app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada." });
+    const intervalo = Number(body.distribuicao_intervalo_horas ?? 24);
+    if (!Number.isInteger(intervalo) || intervalo < 1 || intervalo > 24) return reply.code(400).send({ message: "distribuicao_intervalo_horas deve ser um inteiro entre 1 e 24." });
+    const service = app.store.upsertServiceConfig(cnpj, ambiente, "DISTNFE", { active: true, settings: { distribuicaoAutomatica: body.distribuicao_automatica === true, distribuicaoIntervaloHoras: intervalo, cienciaAutomatica: body.ciencia_automatica === true } });
+    await app.store.waitForPersistence();
+    const settings = service?.settings ?? {};
+    return { distribuicao_automatica: settings.distribuicaoAutomatica ?? false, distribuicao_intervalo_horas: settings.distribuicaoIntervaloHoras ?? 24, ciencia_automatica: settings.cienciaAutomatica ?? false, ambiente };
   });
 
   app.put("/empresas/:cnpj/nfce", async (request, reply) => {
