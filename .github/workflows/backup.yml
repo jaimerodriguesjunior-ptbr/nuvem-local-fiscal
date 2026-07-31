@@ -1,0 +1,66 @@
+name: Supabase Automatic Backup
+
+on:
+  schedule:
+    # Todos os dias às 03:00 UTC (00:00 no horário de Brasília).
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instalar cliente do PostgreSQL 17
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Exportar banco do Supabase
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "O secret SUPABASE_DB_URL não foi configurado."
+            exit 1
+          fi
+
+          FILENAME="backup_$(date -u +'%Y-%m-%d').sql.gz"
+          /usr/lib/postgresql/17/bin/pg_dump \
+            --clean \
+            --if-exists \
+            --quote-all-identifiers \
+            -Z 9 \
+            --dbname="$DATABASE_URL" > "$FILENAME"
+
+          echo "BACKUP_FILE=$FILENAME" >> "$GITHUB_ENV"
+          echo "Backup criado: $FILENAME"
+
+      - name: Enviar backup para o Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${R2_ENDPOINT:-}" ] || [ -z "${R2_BUCKET:-}" ]; then
+            echo "Configure os secrets R2_ENDPOINT e R2_BUCKET."
+            exit 1
+          fi
+
+          aws s3 cp "$BACKUP_FILE" "s3://$R2_BUCKET/" \
+            --endpoint-url "$R2_ENDPOINT"
