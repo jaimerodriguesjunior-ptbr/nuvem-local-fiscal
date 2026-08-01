@@ -194,10 +194,11 @@ async function handleCreateDistribution(app: FastifyInstance, request: FastifyRe
         const details = distributionDocumentDetails(item.xml, item.schema);
         app.store.addDistributionDocument({ distributionId: record.id, cnpj, ambiente, nsu: item.nsu, schema: item.schema, xml: item.xml, ...details });
       }
-      app.store.saveDistributionResult(record.id, { status: "concluido", ultNsu: result.ultNsu || null, maxNsu: result.maxNsu || null, codigoStatus: result.cStat || null, motivoStatus: result.xMotivo || null, requestXml: result.requestXml, responseXml: result.responseXml });
-      if (modo === "dist-nsu" && result.ultNsu) {
+      const nextNsu = result.ultNsu || result.maxNsu || null;
+      app.store.saveDistributionResult(record.id, { status: "concluido", ultNsu: nextNsu, maxNsu: result.maxNsu || null, codigoStatus: result.cStat || null, motivoStatus: result.xMotivo || null, requestXml: result.requestXml, responseXml: result.responseXml });
+      if (modo === "dist-nsu" && nextNsu) {
         const service = app.store.findServiceConfig(cnpj, ambiente, "DISTNFE");
-        if (service) app.store.upsertServiceConfig(cnpj, ambiente, "DISTNFE", { active: service.active, settings: { ...service.settings, distNsu: result.ultNsu }, preserveSecrets: true });
+        if (service) app.store.upsertServiceConfig(cnpj, ambiente, "DISTNFE", { active: service.active, settings: { ...service.settings, distNsu: nextNsu }, preserveSecrets: true });
       }
       const distributionConfig = app.store.findServiceConfig(cnpj, ambiente, "DISTNFE");
       if (distributionConfig?.settings.cienciaAutomatica && result.cStat === "138") {
