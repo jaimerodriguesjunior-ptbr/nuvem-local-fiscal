@@ -18,13 +18,18 @@ test("contrato HTTP de configuracao, polling e XML de distribuicao NF-e", async 
     assert.equal(config.statusCode, 200, config.body);
     assert.deepEqual(config.json(), { ambiente: "homologacao", distribuicao_automatica: true, distribuicao_intervalo_horas: 4, ciencia_automatica: true });
     const created = app.store.createDistribution({ cnpj, ambiente: "homologacao", modo: "cons-chave", nsu: null, chave: "41260712345678000195550010000000011000000010" });
-    const document = app.store.addDistributionDocument({ distributionId: created.id, cnpj, ambiente: "homologacao", nsu: "000000000000042", schema: "procNFe_v4.00.xsd", tipoDocumento: "nota", formaDistribuicao: "completa", chave: created.chave, xml: "<nfeProc />" });
+    const document = app.store.addDistributionDocument({ distributionId: created.id, cnpj, ambiente: "homologacao", nsu: "000000000000042", schema: "procNFe_v4.00.xsd", tipoDocumento: "nota", formaDistribuicao: "completa", chave: created.chave, xml: `<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe><ide><dhEmi>2026-08-01T00:00:00-03:00</dhEmi></ide><emit><CNPJ>12345678000195</CNPJ><xNome>Empresa Teste</xNome></emit><total><ICMSTot><vNF>125.50</vNF></ICMSTot></total></infNFe></NFe></nfeProc>` });
     app.store.saveDistributionResult(created.id, { status: "concluido", ultNsu: document.nsu, maxNsu: document.nsu, codigoStatus: "138", motivoStatus: "Documentos localizados" });
     const poll = await app.inject({ method: "GET", url: `/distribuicao/nfe/${created.id}`, headers: bearer });
     assert.equal(poll.statusCode, 200, poll.body); assert.equal(poll.json().status, "concluido"); assert.equal(poll.json().ult_nsu, document.nsu);
     assert.equal(poll.json().documentos_count, 1); assert.equal(poll.json().documentos[0].id, document.id);
+    assert.equal(poll.json().documentos[0].chave_acesso, created.chave);
+    assert.equal(poll.json().documentos[0].resumo, false);
+    assert.equal(poll.json().documentos[0].valor_nfe, 125.5);
+    assert.equal(poll.json().documentos[0].emitente_cpf_cnpj, cnpj);
+    assert.equal(poll.json().documentos[0].emitente_nome_razao_social, "Empresa Teste");
     const xml = await app.inject({ method: "GET", url: `/distribuicao/nfe/documentos/${document.id}/xml`, headers: bearer });
-    assert.equal(xml.statusCode, 200); assert.equal(xml.body, "<nfeProc />");
+    assert.equal(xml.statusCode, 200); assert.match(xml.body, /<nfeProc xmlns=/);
     const manifestation = await app.inject({ method: "POST", url: "/distribuicao/nfe/manifestacoes", headers: bearer, payload: { cpf_cnpj: cnpj, ambiente: "homologacao", chave: created.chave, tipo_evento: "210210" } });
     assert.equal(manifestation.statusCode, 202, manifestation.body); assert.ok(manifestation.json().id);
   } finally { await app.close(); }

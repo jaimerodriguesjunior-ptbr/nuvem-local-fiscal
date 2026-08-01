@@ -155,7 +155,39 @@ function mapDistributionResponse(record: DistributionRecord, documents: Distribu
 }
 
 function mapDistributionDocumentResponse(record: DistributionDocumentRecord) {
-  return { id: record.id, distribuicao_id: record.distributionId, cpf_cnpj: record.cnpj, ambiente: record.ambiente, nsu: record.nsu, schema: record.schema, tipo_documento: record.tipoDocumento, forma_distribuicao: record.formaDistribuicao, chave: record.chave, created_at: record.createdAt, xml_url: `/distribuicao/nfe/documentos/${record.id}/xml` };
+  const details = distributionDocumentFiscalDetails(record.xml);
+  return {
+    id: record.id,
+    distribuicao_id: record.distributionId,
+    cpf_cnpj: record.cnpj,
+    ambiente: record.ambiente,
+    nsu: record.nsu,
+    schema: record.schema,
+    tipo_documento: record.tipoDocumento,
+    forma_distribuicao: record.formaDistribuicao,
+    resumo: record.formaDistribuicao === "resumida",
+    chave: record.chave,
+    chave_acesso: record.chave,
+    valor_nfe: details.valorNfe,
+    emitente_cpf_cnpj: details.emitenteCpfCnpj,
+    emitente_nome_razao_social: details.emitenteNome,
+    data_emissao: details.dataEmissao,
+    created_at: record.createdAt,
+    xml_url: `/distribuicao/nfe/documentos/${record.id}/xml`
+  };
+}
+
+function distributionDocumentFiscalDetails(xml: string) {
+  const parsed = new DOMParser().parseFromString(xml, "application/xml");
+  const first = (parent: any, name: string) => parent.getElementsByTagNameNS("*", name).item(0)?.textContent?.trim() || null;
+  const emit = parsed.getElementsByTagNameNS("*", "emit").item(0);
+  const value = first(parsed, "vNF");
+  return {
+    valorNfe: value ? Number(value.replace(",", ".")) || 0 : 0,
+    emitenteCpfCnpj: first(emit ?? parsed, "CNPJ") ?? first(emit ?? parsed, "CPF"),
+    emitenteNome: first(emit ?? parsed, "xNome"),
+    dataEmissao: first(parsed, "dhEmi") ?? first(parsed, "dEmi")
+  };
 }
 
 function mapManifestationResponse(record: DistributionManifestationRecord) {
