@@ -32,6 +32,7 @@ import {
 } from "../lib/nfse-toledo-equiplano.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
+import { applyReturnCfopResolution, resolveReturnCfop, type ReturnCfopResolution } from "../lib/return-cfop-resolver.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
@@ -140,6 +141,24 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
     xsd_valido: Boolean(document.xsdValid),
     erros_xsd: document.xsdErrors ?? [],
     mensagens: document.mensagens
+  };
+}
+
+function returnCfopReviewResponse(resolution: ReturnCfopResolution | null) {
+  if (!resolution?.isReturn || !resolution.needsReview) return null;
+  return {
+    pendente: true,
+    nivel: resolution.shouldBlock ? "high" : "medium",
+    mensagem: resolution.shouldBlock
+      ? "A devolucao requer validacao fiscal especifica antes da transmissao."
+      : "A devolucao foi encaminhada com acompanhamento fiscal posterior.",
+    itens: resolution.items.map((item) => ({
+      item: item.itemIndex + 1,
+      cfop_origem: item.sourceCfop,
+      cfop_aplicado: item.outputCfop,
+      perfil: item.profile,
+      fallback: item.fallbackApplied
+    }))
   };
 }
 
@@ -1466,12 +1485,12 @@ async function handleCreateDocument(
   tipoDocumento: EstadualDocumentType
 ) {
   const body = (request.body as Record<string, unknown> | undefined) ?? {};
-  const payloadNormalizado = normalizePayload(tipoDocumento, body);
+  let payloadNormalizado = normalizePayload(tipoDocumento, body);
   const localFiscalConfig =
     typeof body.nuvemLocalFiscal === "object" && body.nuvemLocalFiscal !== null
       ? (body.nuvemLocalFiscal as Record<string, unknown>)
       : null;
-  const payloadOriginal = structuredClone(body);
+  let payloadOriginal = structuredClone(body);
   delete payloadOriginal.nuvemLocalFiscal;
   const issuerIdentifier = normalizeFiscalIdentifier(payloadNormalizado.emitenteCnpj);
   const issuerCnpj =
@@ -1513,6 +1532,45 @@ async function handleCreateDocument(
       message:
         "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
     });
+  }
+
+  let returnCfopResolution: ReturnCfopResolution | null = null;
+  if (tipoDocumento === "NFe") {
+    returnCfopResolution = resolveReturnCfop(
+      payloadOriginal,
+      issuer.uf,
+      app.store.listReturnCfopRules(issuerCnpj)
+    );
+
+    if (returnCfopResolution.shouldBlock) {
+      const supportDocument = app.store.createDocument({
+        tipoDocumento,
+        issuerCnpj,
+        ambiente,
+        payloadOriginal,
+        payloadNormalizado,
+        forcedStatus: "erro"
+      });
+      const reason = returnCfopResolution.clientMessage ??
+        "Esta devolucao requer uma validacao fiscal especifica antes da transmissao.";
+      app.store.failDocument(supportDocument.id, "return_cfop_review_required", reason);
+      app.store.addDocumentEvent(supportDocument.id, {
+        eventType: "return_cfop_review_required",
+        level: "error",
+        message: "Devolucao bloqueada para validacao fiscal especifica; chamado de suporte registrado.",
+        payload: { returnCfop: returnCfopReviewResponse(returnCfopResolution) ?? {} }
+      });
+      await app.store.waitForPersistence();
+      return reply.code(409).send({
+        error: { code: "return_cfop_review_required", message: reason },
+        message: reason,
+        id: supportDocument.providerLikeId,
+        suporte: { chamado_registrado: true }
+      });
+    }
+
+    payloadOriginal = applyReturnCfopResolution(payloadOriginal, returnCfopResolution);
+    payloadNormalizado = normalizePayload(tipoDocumento, payloadOriginal);
   }
 
   if (emitente) {
@@ -1633,6 +1691,14 @@ async function handleCreateDocument(
     nfceConfigEncrypted,
     forcedStatus
   });
+  if (returnCfopResolution?.needsReview) {
+    app.store.addDocumentEvent(document.id, {
+      eventType: "return_cfop_fallback_applied",
+      level: "warn",
+      message: "Devolucao emitida com CFOP de fallback e encaminhada para conciliacao fiscal.",
+      payload: { returnCfop: returnCfopReviewResponse(returnCfopResolution) ?? {} }
+    });
+  }
   await app.store.waitForPersistence();
 
   if (shouldTransmitNow) {
@@ -1653,10 +1719,16 @@ async function handleCreateDocument(
     }
     return reply
       .code(202)
-      .send(mapDocumentResponse(processed.document, requestBaseUrl(request)));
+      .send({
+        ...mapDocumentResponse(processed.document, requestBaseUrl(request)),
+        return_cfop_review: returnCfopReviewResponse(returnCfopResolution)
+      });
   }
 
-  return reply.code(202).send(mapDocumentResponse(document, requestBaseUrl(request)));
+  return reply.code(202).send({
+    ...mapDocumentResponse(document, requestBaseUrl(request)),
+    return_cfop_review: returnCfopReviewResponse(returnCfopResolution)
+  });
 }
 
 function resolveEmitentePayload(payloadOriginal: Record<string, unknown>) {

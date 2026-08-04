@@ -10,6 +10,7 @@ import type {
   InutilizationRecord,
   Issuer,
   MessageItem,
+  ReturnCfopRule,
   ServiceConfig
 } from "../types.js";
 
@@ -23,6 +24,7 @@ export type StoreSnapshotState = {
   distributions: DistributionRecord[];
   distributionDocuments: DistributionDocumentRecord[];
   distributionManifestations: DistributionManifestationRecord[];
+  returnCfopRules: ReturnCfopRule[];
 };
 
 export type PersistenceChanges = Partial<StoreSnapshotState>;
@@ -150,6 +152,21 @@ type FiscalInutilizationRow = {
   updated_at: string;
 };
 
+type FiscalReturnCfopRuleRow = {
+  id: string;
+  company_id: string | null;
+  source_cfop: string | null;
+  profile: string;
+  conditions: Record<string, unknown> | null;
+  same_state_cfop: string | null;
+  interstate_cfop: string | null;
+  risk_level: "low" | "medium" | "high";
+  active: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+};
+
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
@@ -192,7 +209,8 @@ export class SupabasePersistence {
       certificatesResult,
       serviceConfigsResult,
       documentsResult,
-      documentEventsResult
+      documentEventsResult,
+      returnCfopRulesResult
     ] = await Promise.all([
       this.client.from("fiscal_companies").select("*").order("created_at"),
       this.client.from("fiscal_company_environments").select("*").order("created_at"),
@@ -202,7 +220,11 @@ export class SupabasePersistence {
       this.client
         .from("fiscal_document_events")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false }),
+      this.client
+        .from("fiscal_return_cfop_rules")
+        .select("*")
+        .order("created_at")
     ]);
 
     const error =
@@ -211,7 +233,8 @@ export class SupabasePersistence {
       certificatesResult.error ??
       serviceConfigsResult.error ??
       documentsResult.error ??
-      documentEventsResult.error;
+      documentEventsResult.error ??
+      returnCfopRulesResult.error;
     if (error) {
       throw new Error(`Falha ao carregar estado fiscal do Supabase: ${error.message}`);
     }
@@ -229,6 +252,7 @@ export class SupabasePersistence {
 
     const companies = (companiesResult.data ?? []) as FiscalCompanyRow[];
     const companiesById = new Map(companies.map((company) => [company.id, company]));
+    const companyCnpjById = new Map(companies.map((company) => [company.id, company.cnpj]));
     const environments = (environmentsResult.data ?? []) as FiscalEnvironmentRow[];
     const environmentById = new Map(environments.map((environment) => [environment.id, environment]));
     const issuers = environments.flatMap(
@@ -257,6 +281,22 @@ export class SupabasePersistence {
     );
 
     const issuerByCnpj = new Map(issuers.map((issuer) => [issuer.cnpj, issuer]));
+    const returnCfopRules = ((returnCfopRulesResult.data ?? []) as FiscalReturnCfopRuleRow[]).map(
+      (rule): ReturnCfopRule => ({
+        id: rule.id,
+        companyCnpj: rule.company_id ? companyCnpjById.get(rule.company_id) ?? null : null,
+        sourceCfop: rule.source_cfop,
+        profile: rule.profile,
+        conditions: rule.conditions ?? {},
+        sameStateCfop: rule.same_state_cfop,
+        interstateCfop: rule.interstate_cfop,
+        riskLevel: rule.risk_level,
+        active: rule.active,
+        source: rule.source,
+        createdAt: rule.created_at,
+        updatedAt: rule.updated_at
+      })
+    );
     const certificates = ((certificatesResult.data ?? []) as FiscalCertificateRow[]).map(
       (certificate) => ({
         id: certificate.id,
@@ -410,7 +450,7 @@ export class SupabasePersistence {
       serviceConfigs,
       documents,
       documentEvents,
-      inutilizations, distributions, distributionDocuments, distributionManifestations
+      inutilizations, distributions, distributionDocuments, distributionManifestations, returnCfopRules
     };
   }
 
@@ -423,6 +463,7 @@ export class SupabasePersistence {
     await this.upsertDocumentEvents(state.documentEvents);
     await this.upsertInutilizations(state.inutilizations, companyIds, environmentIds);
     await this.upsertDistributions(state.distributions, state.distributionDocuments, state.distributionManifestations);
+    await this.upsertReturnCfopRules(state.returnCfopRules, companyIds);
   }
 
   async saveChanges(state: StoreSnapshotState, changes: PersistenceChanges) {
@@ -449,6 +490,9 @@ export class SupabasePersistence {
     if (changes.distributions || changes.distributionDocuments || changes.distributionManifestations) {
       await this.upsertDistributions(changes.distributions ?? [], changes.distributionDocuments ?? [], changes.distributionManifestations ?? []);
     }
+    if (changes.returnCfopRules) {
+      await this.upsertReturnCfopRules(changes.returnCfopRules, companyIds);
+    }
   }
 
   private async upsertDocumentEvents(events: DocumentEventRecord[]) {
@@ -469,6 +513,30 @@ export class SupabasePersistence {
       .upsert(rows, { onConflict: "id" });
     if (error) {
       throw new Error(`Falha ao salvar eventos fiscais: ${error.message}`);
+    }
+  }
+
+  private async upsertReturnCfopRules(rules: ReturnCfopRule[], companyIds: Map<string, string>) {
+    if (!rules.length) return;
+    const rows = rules.map((rule) => ({
+      id: rule.id,
+      company_id: rule.companyCnpj ? companyIds.get(rule.companyCnpj) ?? null : null,
+      source_cfop: rule.sourceCfop,
+      profile: rule.profile,
+      conditions: rule.conditions ?? {},
+      same_state_cfop: rule.sameStateCfop,
+      interstate_cfop: rule.interstateCfop,
+      risk_level: rule.riskLevel,
+      active: rule.active,
+      source: rule.source,
+      created_at: rule.createdAt,
+      updated_at: rule.updatedAt
+    }));
+    const { error } = await this.client
+      .from("fiscal_return_cfop_rules")
+      .upsert(rows, { onConflict: "id" });
+    if (error) {
+      throw new Error(`Falha ao salvar regras de devolucao CFOP: ${error.message}`);
     }
   }
 

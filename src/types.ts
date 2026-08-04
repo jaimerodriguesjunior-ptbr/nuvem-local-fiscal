@@ -162,6 +162,23 @@ export type DocumentEventRecord = {
   createdAt: string;
 };
 
+export type ReturnCfopRiskLevel = "low" | "medium" | "high";
+
+export type ReturnCfopRule = {
+  id: string;
+  companyCnpj: string | null;
+  sourceCfop: string | null;
+  profile: string;
+  conditions: Record<string, unknown>;
+  sameStateCfop: string | null;
+  interstateCfop: string | null;
+  riskLevel: ReturnCfopRiskLevel;
+  active: boolean;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DistributionStatus = "processando" | "concluido" | "erro";
 export type DistributionMode = "dist-nsu" | "cons-nsu" | "cons-chave";
 

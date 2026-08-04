@@ -24,7 +24,8 @@ import type {
   Issuer,
   SefazDocumentType,
   ServiceConfig,
-  ServiceType
+  ServiceType,
+  ReturnCfopRule
 } from "./types.js";
 
 type CreateDocumentInput = {
@@ -113,6 +114,7 @@ export class InMemoryStore {
   distributions: DistributionRecord[];
   distributionDocuments: DistributionDocumentRecord[];
   distributionManifestations: DistributionManifestationRecord[];
+  returnCfopRules: ReturnCfopRule[];
   accessTokens: AccessTokenRecord[];
   private readonly tokenSecret: string;
   private readonly stateFile: string;
@@ -137,6 +139,7 @@ export class InMemoryStore {
     this.distributions = [];
     this.distributionDocuments = [];
     this.distributionManifestations = [];
+    this.returnCfopRules = [];
     this.accessTokens = [];
     this.tokenSecret = tokenSecret;
     this.stateFile = stateFile;
@@ -156,7 +159,8 @@ export class InMemoryStore {
       state.issuers.length ||
       state.certificates.length ||
       state.serviceConfigs.length ||
-      state.documents.length
+      state.documents.length ||
+      state.returnCfopRules.length
     ) {
       this.issuers = state.issuers;
       this.certificates = state.certificates;
@@ -167,6 +171,7 @@ export class InMemoryStore {
       this.distributions = state.distributions;
       this.distributionDocuments = state.distributionDocuments;
       this.distributionManifestations = state.distributionManifestations;
+      this.returnCfopRules = state.returnCfopRules;
       this.writeLocalState();
       return;
     }
@@ -596,6 +601,35 @@ export class InMemoryStore {
 
   getDocumentEvents(documentId: string) {
     return this.documentEvents.filter((event) => event.documentId === documentId);
+  }
+
+  listReturnCfopRules(cnpj?: string) {
+    return this.returnCfopRules.filter((rule) =>
+      rule.active && (!cnpj || !rule.companyCnpj || rule.companyCnpj === cnpj)
+    );
+  }
+
+  upsertReturnCfopRule(input: Omit<ReturnCfopRule, "id" | "createdAt" | "updatedAt"> & { id?: string }) {
+    const now = nowIso();
+    const existing = input.id ? this.returnCfopRules.find((rule) => rule.id === input.id) : undefined;
+    const rule: ReturnCfopRule = {
+      id: existing?.id ?? `returncfop_${randomUUID().slice(0, 12)}`,
+      companyCnpj: input.companyCnpj ?? null,
+      sourceCfop: input.sourceCfop ?? null,
+      profile: input.profile,
+      conditions: input.conditions ?? {},
+      sameStateCfop: input.sameStateCfop ?? null,
+      interstateCfop: input.interstateCfop ?? null,
+      riskLevel: input.riskLevel,
+      active: input.active,
+      source: input.source,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now
+    };
+    if (existing) Object.assign(existing, rule);
+    else this.returnCfopRules.unshift(rule);
+    this.saveState({ returnCfopRules: [rule] });
+    return rule;
   }
 
   authorizeDocument(id: string, tipoDocumento?: DocumentType) {
@@ -1050,6 +1084,7 @@ export class InMemoryStore {
       distributions: this.distributions,
       distributionDocuments: this.distributionDocuments,
       distributionManifestations: this.distributionManifestations,
+      returnCfopRules: this.returnCfopRules,
       summary: {
         clients: this.apiClients.length,
         issuers: this.issuers.length,
@@ -1090,6 +1125,7 @@ export class InMemoryStore {
         distributions?: DistributionRecord[];
         distributionDocuments?: DistributionDocumentRecord[];
         distributionManifestations?: DistributionManifestationRecord[];
+        returnCfopRules?: ReturnCfopRule[];
       };
       this.issuers = state.issuers ?? this.issuers;
       this.certificates = state.certificates ?? [];
@@ -1100,6 +1136,7 @@ export class InMemoryStore {
       this.distributions = state.distributions ?? [];
       this.distributionDocuments = state.distributionDocuments ?? [];
       this.distributionManifestations = state.distributionManifestations ?? [];
+      this.returnCfopRules = state.returnCfopRules ?? [];
     } catch {
       // A falha de leitura nao deve impedir o servidor de desenvolvimento de subir.
     }
@@ -1124,7 +1161,8 @@ export class InMemoryStore {
           inutilizations: this.inutilizations,
           distributions: this.distributions,
           distributionDocuments: this.distributionDocuments,
-          distributionManifestations: this.distributionManifestations
+          distributionManifestations: this.distributionManifestations,
+          returnCfopRules: this.returnCfopRules
         },
         null,
         2
@@ -1143,7 +1181,8 @@ export class InMemoryStore {
       inutilizations: this.inutilizations,
       distributions: this.distributions,
       distributionDocuments: this.distributionDocuments,
-      distributionManifestations: this.distributionManifestations
+      distributionManifestations: this.distributionManifestations,
+      returnCfopRules: this.returnCfopRules
     };
   }
 

@@ -736,6 +736,80 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/admin/api/return-cfop/alerts", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const documentsById = new Map(app.store.documents.map((document) => [document.id, document]));
+    const alerts = app.store.documentEvents
+      .filter((event) => event.eventType === "return_cfop_fallback_applied" || event.eventType === "return_cfop_review_required")
+      .map((event) => ({
+        ...event,
+        document: documentsById.get(event.documentId)
+          ? app.store.getDocumentSnapshot(documentsById.get(event.documentId)!)
+          : null
+      }));
+    return { alerts, rules: app.store.returnCfopRules };
+  });
+
+  app.post("/admin/api/return-cfop/rules", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const sourceCfop = String(body.sourceCfop ?? "").replace(/\D/g, "");
+    const sameStateCfop = String(body.sameStateCfop ?? "").replace(/\D/g, "");
+    const interstateCfop = String(body.interstateCfop ?? "").replace(/\D/g, "");
+    const profile = String(body.profile ?? "").trim();
+    const riskLevel = String(body.riskLevel ?? "medium");
+    const companyCnpj = String(body.companyCnpj ?? "").replace(/\D/g, "");
+    if (!profile || !["low", "medium", "high"].includes(riskLevel) ||
+      (sourceCfop && !/^\d{4}$/.test(sourceCfop)) ||
+      (sameStateCfop && !/^\d{4}$/.test(sameStateCfop)) ||
+      (interstateCfop && !/^\d{4}$/.test(interstateCfop)) ||
+      (companyCnpj && companyCnpj.length !== 14)) {
+      return reply.code(400).send({
+        message: "Informe perfil, nivel de risco e CFOPs de quatro digitos quando preenchidos."
+      });
+    }
+    const conditions = typeof body.conditions === "object" && body.conditions !== null && !Array.isArray(body.conditions)
+      ? body.conditions as Record<string, unknown>
+      : {};
+    const rule = app.store.upsertReturnCfopRule({
+      id: typeof body.id === "string" ? body.id : undefined,
+      companyCnpj: companyCnpj || null,
+      sourceCfop: sourceCfop || null,
+      profile,
+      conditions,
+      sameStateCfop: sameStateCfop || null,
+      interstateCfop: interstateCfop || null,
+      riskLevel: riskLevel as "low" | "medium" | "high",
+      active: body.active !== false,
+      source: String(body.source ?? "admin_reconciliation")
+    });
+    await app.store.waitForPersistence();
+    return { message: "Regra de devolucao salva.", rule };
+  });
+
+  app.post("/admin/api/return-cfop/alerts/:documentId/resolve", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const params = request.params as { documentId: string };
+    const document = app.store.findDocument(params.documentId);
+    if (!document) return reply.code(404).send({ message: "Ocorrencia fiscal nao encontrada." });
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const resolution = String(body.resolution ?? "rule_saved");
+    app.store.addDocumentEvent(document.id, {
+      eventType: "return_cfop_review_resolved",
+      level: "info",
+      message: "Ocorrencia de devolucao conciliada no painel administrativo.",
+      payload: { resolution, note: String(body.note ?? "") }
+    });
+    await app.store.waitForPersistence();
+    return { message: "Ocorrencia conciliada.", document_id: document.id, resolution };
+  });
+
   app.get("/admin/api/documents/:id/events", async (request, reply) => {
     if (!isValidBasic(request.headers.authorization)) {
       return reply.code(401).send(unauthorized());

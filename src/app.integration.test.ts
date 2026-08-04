@@ -1370,6 +1370,61 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(nfeEmission.json().status, "processamento");
     const nfeDocumentId = nfeEmission.json().id as string;
 
+    const returnBasePayload = structuredClone(
+      app.store.findDocument(nfeDocumentId, "NFe")!.payloadOriginal
+    ) as Record<string, any>;
+    returnBasePayload.infNFe.ide = {
+      ...returnBasePayload.infNFe.ide,
+      natOp: "DEVOLUCAO DE COMPRA",
+      finNFe: 4,
+      NFref: [{ refNFe: "41260601997929000108550010000000271727886936" }]
+    };
+    returnBasePayload.infNFe.det[0].prod.CFOP = "5405";
+    returnBasePayload.metadados = {
+      devolucao: {
+        itens: [{ nItem: 1, cfopOrigem: "5405", st: true, cest: "0100100" }]
+      }
+    };
+    const fallbackReturn = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: { ...bearer, "content-type": "application/json" },
+      payload: returnBasePayload
+    });
+    assert.equal(fallbackReturn.statusCode, 202, fallbackReturn.body);
+    assert.equal(fallbackReturn.json().return_cfop_review.pendente, true);
+    const fallbackDocument = app.store.findDocument(fallbackReturn.json().id as string, "NFe")!;
+    const fallbackPayload = fallbackDocument.payloadOriginal as Record<string, any>;
+    assert.equal(fallbackPayload.infNFe.det[0].prod.CFOP, "5202");
+
+    const highRiskReturnPayload = structuredClone(returnBasePayload);
+    highRiskReturnPayload.infNFe.ide.nNF = 323;
+    highRiskReturnPayload.metadados.devolucao.itens[0] = {
+      nItem: 1,
+      cfopOrigem: "5102",
+      finalidadeCompra: "uso_consumo"
+    };
+    const highRiskReturn = await app.inject({
+      method: "POST",
+      url: "/nfe",
+      headers: { ...bearer, "content-type": "application/json" },
+      payload: highRiskReturnPayload
+    });
+    assert.equal(highRiskReturn.statusCode, 409, highRiskReturn.body);
+    assert.doesNotMatch(highRiskReturn.json().message, /Nuvem Local/i);
+    assert.equal(
+      app.store.documentEvents.some((event) => event.eventType === "return_cfop_review_required"),
+      true
+    );
+
+    const returnAlerts = await app.inject({
+      method: "GET",
+      url: "/admin/api/return-cfop/alerts",
+      headers: { authorization: basic }
+    });
+    assert.equal(returnAlerts.statusCode, 200, returnAlerts.body);
+    assert.equal(returnAlerts.json().alerts.length >= 2, true);
+
     const recoveredNfe = app.store.createDocument({
       tipoDocumento: "NFe",
       issuerCnpj: cnpj,

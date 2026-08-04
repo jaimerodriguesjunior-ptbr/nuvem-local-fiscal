@@ -720,6 +720,7 @@ const page = String.raw`<!doctype html>
       <button type="button" data-nav="home" onclick="navigate('home')">Home</button>
       <button type="button" data-nav="companies" onclick="navigate('companies')">Empresas</button>
       <button type="button" data-nav="documents" onclick="navigate('documents')">Documentos</button>
+      <button type="button" data-nav="returns" onclick="navigate('returns')">Devoluções</button>
       <button type="button" data-nav="logs" onclick="navigate('logs')">Logs e debug</button>
     </nav>
     <div class="system-state"><span class="pulse"></span><span>Servidor local ativo</span></div>
@@ -2370,6 +2371,49 @@ const page = String.raw`<!doctype html>
         responseConsole();
     }
 
+    function returnCfopEvents() {
+      return (state.snapshot.documentEvents || []).filter(function(event) {
+        return event.eventType === 'return_cfop_fallback_applied' || event.eventType === 'return_cfop_review_required';
+      });
+    }
+
+    function renderReturns() {
+      const alerts = returnCfopEvents();
+      const resolvedDocumentIds = new Set((state.snapshot.documentEvents || [])
+        .filter(function(event) { return event.eventType === 'return_cfop_review_resolved'; })
+        .map(function(event) { return event.documentId; }));
+      const docs = new Map(state.snapshot.documents.map(function(doc) { return [doc.id, doc]; }));
+      return pageHead(
+        'Conciliação fiscal',
+        'Devoluções',
+        'Acompanhamento de devoluções emitidas com fallback e casos que exigem validação antes da transmissão.'
+      ) +
+      '<section class="metrics"><article class="metric"><div class="metric-label">Pendências</div><div class="metric-value">' +
+        alerts.filter(function(alert) { return !resolvedDocumentIds.has(alert.documentId); }).length +
+      '</div></article><article class="metric"><div class="metric-label">Regras ativas</div><div class="metric-value">' +
+        (state.snapshot.returnCfopRules || []).filter(function(rule) { return rule.active; }).length +
+      '</div></article></section>' +
+      '<section class="surface"><div class="section-head"><div><h2>Ocorrências</h2><p>O cliente recebe a nota nos níveis baixo e médio; esta fila registra o que precisa virar regra.</p></div></section>' +
+      (alerts.length ? '<div class="log-list">' + alerts.map(function(alert) {
+        const doc = docs.get(alert.documentId);
+        const review = alert.payload && alert.payload.returnCfop ? alert.payload.returnCfop : {};
+        const isResolved = resolvedDocumentIds.has(alert.documentId);
+        return '<article class="log"><strong>' + formatDate(alert.createdAt, true) + '</strong>' +
+          '<span>' + badge(isResolved ? 'conciliada' : (review.nivel || 'atenção'), isResolved ? 'ok' : 'warn') + '</span>' +
+          '<span>' + escapeHtml((doc ? 'NF-e #' + doc.numero + ' · ' : '') + alert.message) + '</span>' +
+          '<button type="button" class="btn ghost" onclick="inspectLog(\'' + alert.documentId + '\')">Inspecionar</button>' +
+          (isResolved ? '' : '<button type="button" class="btn ghost" onclick="resolveReturnCfopAlert(\'' + alert.documentId + '\')">Marcar conciliada</button>') +
+        '</article>';
+      }).join('') + '</div>' : '<div class="empty">Nenhuma devolução pendente de conciliação.</div>') +
+      '</section>' +
+      '<section class="surface"><div class="section-head"><div><h2>Nova regra</h2><p>Cadastre uma regra aprovada para que a próxima devolução equivalente seja resolvida automaticamente.</p></div></section>' +
+      '<form id="returnCfopRuleForm"><div class="two-col"><label>CFOP de origem<input name="sourceCfop" inputmode="numeric" maxlength="4" placeholder="5102" /></label>' +
+      '<label>Perfil<input name="profile" required placeholder="resale_standard" /></label></div><div class="two-col"><label>CFOP interno<input name="sameStateCfop" inputmode="numeric" maxlength="4" placeholder="5202" /></label>' +
+      '<label>CFOP interestadual<input name="interstateCfop" inputmode="numeric" maxlength="4" placeholder="6202" /></label></div>' +
+      '<label>Nível<select name="riskLevel"><option value="low">Baixo</option><option value="medium">Médio</option><option value="high">Alto</option></select></label>' +
+      '<div><button type="submit" class="btn">Salvar regra</button></div></form></section>' + responseConsole();
+    }
+
     function renderLogs() {
       const docs = filterDocuments(state.snapshot.documents);
       const logGroups = logEventGroups(docs);
@@ -2652,6 +2696,8 @@ const page = String.raw`<!doctype html>
       if (nfseServiceForm) nfseServiceForm.addEventListener('submit', saveNfseServiceConfig);
       const inutilizationForm = document.getElementById('inutilizationForm');
       if (inutilizationForm) inutilizationForm.addEventListener('submit', createInutilization);
+      const returnCfopRuleForm = document.getElementById('returnCfopRuleForm');
+      if (returnCfopRuleForm) returnCfopRuleForm.addEventListener('submit', saveReturnCfopRule);
     }
 
     function updateNav() {
@@ -2672,6 +2718,7 @@ const page = String.raw`<!doctype html>
       if (state.page === 'new-company') html = renderNewCompany();
       if (state.page === 'company') html = renderCompany();
       if (state.page === 'documents') html = renderDocuments();
+      if (state.page === 'returns') html = renderReturns();
       if (state.page === 'logs') html = renderLogs();
       document.getElementById('app').innerHTML = html;
       updateNav();
@@ -2782,6 +2829,40 @@ const page = String.raw`<!doctype html>
           itens: [],
           totais: {}
         })
+      });
+      setResponse(await response.json());
+      await refreshSnapshot();
+    }
+
+    async function saveReturnCfopRule(event) {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const response = await fetch('/admin/api/return-cfop/rules', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: 'Basic ' + runtimeConfig.adminToken
+        },
+        body: JSON.stringify({
+          sourceCfop: form.get('sourceCfop'),
+          profile: form.get('profile'),
+          sameStateCfop: form.get('sameStateCfop'),
+          interstateCfop: form.get('interstateCfop'),
+          riskLevel: form.get('riskLevel')
+        })
+      });
+      setResponse(await response.json());
+      await refreshSnapshot();
+    }
+
+    async function resolveReturnCfopAlert(documentId) {
+      const response = await fetch('/admin/api/return-cfop/alerts/' + documentId + '/resolve', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: 'Basic ' + runtimeConfig.adminToken
+        },
+        body: JSON.stringify({ resolution: 'reviewed_in_admin' })
       });
       setResponse(await response.json());
       await refreshSnapshot();
