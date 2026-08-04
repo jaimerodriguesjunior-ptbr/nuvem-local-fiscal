@@ -1357,17 +1357,24 @@ Status em 2026-06-12:
 - XML de evento de cancelamento disponivel por endpoint dedicado
 
 ### Fase 5
-Subir producao:
+Produção controlada:
 - certificados reais
 - observabilidade
 - retries
 - backup
 - alertas
 
+Status em 2026-07-03:
+- a VPS e a chave `FISCAL_PRODUCTION_ENABLED` habilitam producao controlada
+- `/ready` confirma `fiscalProductionBlocked=false` quando a transmissao esta liberada
+- retries agendados/processamento distribuido, observabilidade ampliada, backup
+  e alertas continuam como evolucoes abertas
+
 ### Fase 6
-Avaliar NFS-e:
-- somente depois da base estadual estar estavel
-- por conector separado de prefeitura/provedor
+NFS-e municipal e Nacional:
+- Toledo/Equiplano e Guaira/IPM foram implementados como conectores separados
+- a proxima frente e o adaptador de NFS-e Nacional, isolado dos conectores
+  municipais e ativado gradualmente por empresa
 
 ---
 
@@ -1394,7 +1401,8 @@ Vou considerar o projeto pronto para uso inicial quando:
 - primeiro release: `NF-e + NFC-e`
 - estrategia de compatibilidade: request o mais compativel possivel com o atual
 - modelo de deploy: servidor central meu
-- `NFS-e` fica para fase posterior
+- conectores municipais de `NFS-e` ficam separados do motor estadual; o proximo
+  passo de NFS-e e o adaptador Nacional
 - foco inicial: compatibilidade operacional, nao perfeicao de emulacao
 
 ---
@@ -1407,17 +1415,18 @@ Versionamento atual:
 - remoto GitHub configurado
 - commits-base ja publicados
 
-Deploy esperado:
-- servidor central proprio, preferencialmente VPS
-- endpoint HTTPS publico, por exemplo `https://fiscal.seu-dominio.com.br`
+Deploy operacional:
+- servidor central proprio em VPS
+- endpoint HTTPS publico: `https://fiscal.mentebinaria.com`
 - processos separados para Nuvem Local Fiscal e outras integracoes, como WhatsApp
 - Supabase continua como banco central
 - templates de `systemd`, Nginx, ambiente de servidor e backup estao em `deploy/`
 - o processo possui `/health`, `/ready`, encerramento gracioso e validacao rigida para `APP_ENV=production`
 
 Observacao:
-- hoje a Otica esta validada chamando a Nuvem Local Fiscal localmente
-- o proximo salto operacional real e colocar esse mesmo fluxo num servidor sempre ligado
+- a VPS ja esta publicada com HTTPS, Nginx, `systemd` e admin protegido
+- os sistemas clientes publicados continuam em transicao controlada; a Nuvem
+  Local deve ser ativada por empresa e fluxo ja homologado
 
 ---
 

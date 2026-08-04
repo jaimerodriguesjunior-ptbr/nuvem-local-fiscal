@@ -1,4 +1,13 @@
-# Prompt para novo contexto: NFS-e Guaira/PR homologacao
+# Registro historico: implementacao da NFS-e Guaira/PR em homologacao
+
+> Este arquivo preserva o contexto de implementacao iniciado em 13/06/2026 e
+> nao deve ser usado como roadmap atual. O estado consolidado fica em
+> `NUVEMLOCALFISCAL.md` e `docs/roadmap.md`.
+
+> O conector Guaira/IPM ja possui emissao controlada, consulta, XML/PDF e
+> cancelamento implementados. O unico marco municipal ainda em aberto e
+> confirmar consulta e cancelamento usando uma NFS-e de homologacao que a IPM
+> reconheca como consultavel e cancelavel.
 
 Estamos no repo `g:\projetos\nuvem-local-fiscal`.
 
@@ -296,7 +305,7 @@ Estrategia de conectividade IPM:
   - SEFAZ-PR NF-e homologacao em `homologacao.nfe.sefa.pr.gov.br:443`;
   - SEFAZ-PR NFC-e homologacao em `homologacao.nfce.sefa.pr.gov.br:443`.
 
-## Objetivo deste novo contexto
+## Objetivo original deste contexto
 
 Implementar NFS-e Guaira/PR em homologacao usando o provedor IPM/Atende.Net,
 preservando o contrato externo compativel com a Nuvem Fiscal e sem alterar os
@@ -534,7 +543,11 @@ Se o IPM usar conceitos diferentes, traduzir internamente para esse contrato.
 10. Depois do deploy, validar `/ready` e confirmar que
     `fiscalProductionBlocked=false`.
 
-## Ordem recomendada de implementacao
+## Ordem de implementacao executada
+
+Os passos 1 a 13 foram executados. O passo 14 esta implementado no codigo e no
+gateway, mas a confirmacao municipal de sucesso ainda depende de uma NFS-e que
+a IPM reconheca para cancelamento.
 
 1. Inventario tecnico e mapeamento de campos.
 2. Tipos e configuracao IPM por empresa/ambiente.

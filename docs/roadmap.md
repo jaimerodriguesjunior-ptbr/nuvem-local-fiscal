@@ -1,6 +1,6 @@
 # Roadmap atual
 
-## Estado consolidado ate 17/06/2026
+## Estado consolidado ate 04/08/2026
 
 - [x] autenticacao compativel via `POST /oauth/token`
 - [x] persistencia principal em `Supabase`
@@ -15,9 +15,11 @@
 - [x] cancelamento real `NFC-e`
 - [x] cancelamento real `NF-e`
 - [x] `NFS-e` Toledo/Equiplano com emissao, consulta, XML, PDF e cancelamento
-- [x] `NFS-e` Guaira/IPM com emissao homologada, XML/PDF local e cancelamento
-  municipal implementado
+- [x] `NFS-e` Guaira/IPM com emissao homologada, XML/PDF local, consulta e
+  cancelamento municipal implementados
 - [x] VPS homologada com HTTPS, Nginx, `systemd` e admin protegido
+- [x] producao controlada habilitavel por `FISCAL_PRODUCTION_ENABLED`, com
+  verificacao por `/ready`
 
 ## Pendencias ainda abertas
 
@@ -27,20 +29,20 @@
   a IPM efetivamente reconheca como consultaveis/cancelaveis
 - [ ] revisar documentacao operacional sempre que novos marcos forem fechados
 
-## Frente propositalmente adiada
+## Frentes em evolucao
 
-Itens conscientemente adiados para a proxima etapa:
+Itens que ainda exigem trabalho, mas nao bloqueiam o MVP atualmente aberto:
 
 - [ ] adequacao completa as reformas fiscais exigidas a partir de `01/07/2026`
-- [ ] liberacao de producao neste servico
-- [ ] novo caminho alternativo para eventual canal nacional de `NFS-e`
+- [ ] adaptador para a NFS-e Nacional, com parametros municipais, homologacao e
+  ativacao gradual por empresa
+- [ ] migracao controlada dos sistemas clientes publicados para a Nuvem Local
 
 ## Direcao para o proximo ciclo
 
 Quando voltar a mexer no projeto, a ordem recomendada e:
 
-1. revisar impacto real das regras de julho de 2026 no contrato atual
-2. decidir o menor recorte seguro para `NF-e` e `NFC-e`
-3. so depois tocar codigo fiscal
-4. manter producao dos sistemas clientes na Nuvem Fiscal ate a etapa nova estar
-   segura
+1. fechar retries agendados, processamento distribuido e conciliacao de falhas
+2. obter evidencia municipal de consulta e cancelamento para Guaira/IPM
+3. revisar as regras RTC em vigor antes de abrir novos fluxos fiscais
+4. iniciar a transicao para a NFS-e Nacional de forma isolada e reversivel

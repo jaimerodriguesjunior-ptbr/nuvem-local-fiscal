@@ -1,8 +1,19 @@
-# Prompt para novo contexto: NFS-e homologacao
+# Registro historico: abertura da frente de NFS-e em homologacao
+
+> Este arquivo preserva o prompt de inicio da frente, em 13/06/2026. Ele nao e
+> fonte do estado atual. Para o estado consolidado, consultar
+> `NUVEMLOCALFISCAL.md` e `docs/roadmap.md`.
+
+> Marco posterior: Toledo/Equiplano foi homologado ponta a ponta (emissao,
+> consulta, XML, PDF e cancelamento). Guaira/IPM possui emissao, consulta,
+> XML/PDF e cancelamento implementados; a confirmacao municipal de consulta e
+> cancelamento em uma nota reconhecida pela IPM permanece aberta.
 
 Estamos no repo `g:\projetos\nuvem-local-fiscal`.
 
-Antes de comecar, leia o arquivo `NUVEMLOCALFISCAL.md`, porque ele e o documento de apoio principal e foi atualizado com o estado real do projeto em 13/06/2026.
+Antes de comecar, leia o arquivo `NUVEMLOCALFISCAL.md`, documento de apoio
+principal do projeto. A mencao a 13/06 abaixo representa somente o contexto
+original deste registro.
 
 Resumo do estado atual:
 
@@ -26,7 +37,9 @@ Resumo do estado atual:
    - `PUT /empresas/:cnpj/nfse`
    - `POST /empresas/:cnpj/nfse`
    - `GET /empresas/:cnpj/nfse`
-10. Esses endpoints NFS-e ainda nao emitem nota; apenas armazenam login/senha de prefeitura de forma criptografada.
+10. Na data deste prompt, esses endpoints NFS-e ainda nao emitiam nota; apenas
+    armazenavam login/senha de prefeitura de forma criptografada. Esse estado
+    foi superado pelos conectores Toledo/Equiplano e Guaira/IPM.
 
 Contexto operacional validado:
 
@@ -43,11 +56,11 @@ Contexto operacional validado:
 - NFC-e usa CSC salvo por empresa/ambiente/servico.
 - NFS-e sera prefeitura por prefeitura.
 
-Objetivo deste novo contexto:
+Objetivo original deste contexto:
 
 Comecar a frente de NFS-e homologacao de forma controlada, sem quebrar NF-e/NFC-e e sem mexer nos programas clientes sem necessidade.
 
-Prioridade inicial:
+Prioridade inicial original:
 
 1. NFS-e homologacao em Guaira/PR.
 2. NFS-e homologacao em Toledo/PR.
@@ -147,10 +160,13 @@ aprovacao explicita, a UI admin tambem passou a oferecer:
      `--confirm=TRANSMITIR_NFSE_TOLEDO_HOMOLOGACAO`
 7. `npm run typecheck`, `npm test` e `npm run build` passaram.
 
-Intervencao necessaria para o proximo passo:
+Intervencao que foi necessaria para o primeiro teste Toledo:
 
 - confirmar os dados reais do prestador Toledo que sera usado no primeiro
   teste: CNPJ, inscricao municipal, `idEntidade`, codigo de servico, aliquota
   e tomador de homologacao
 - confirmar que o A1 correto desse CNPJ esta cadastrado na Nuvem Local
 - aplicar a migracao nova no Supabase antes de testar pela VPS
+
+Essas intervencoes foram atendidas: a migracao foi aplicada e o fluxo Toledo
+foi validado em homologacao, inclusive com cancelamento municipal confirmado.
