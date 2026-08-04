@@ -741,14 +741,25 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(401).send(unauthorized());
     }
     const documentsById = new Map(app.store.documents.map((document) => [document.id, document]));
+    const resolutionsByDocumentId = new Map(
+      app.store.documentEvents
+        .filter((event) => event.eventType === "return_cfop_review_resolved")
+        .map((event) => [event.documentId, event])
+    );
     const alerts = app.store.documentEvents
       .filter((event) => event.eventType === "return_cfop_fallback_applied" || event.eventType === "return_cfop_review_required")
-      .map((event) => ({
-        ...event,
-        document: documentsById.get(event.documentId)
-          ? app.store.getDocumentSnapshot(documentsById.get(event.documentId)!)
-          : null
-      }));
+      .map((event) => {
+        const resolution = resolutionsByDocumentId.get(event.documentId);
+        return {
+          ...event,
+          resolved: Boolean(resolution),
+          resolvedAt: resolution?.createdAt ?? null,
+          resolution: resolution?.payload ?? null,
+          document: documentsById.get(event.documentId)
+            ? app.store.getDocumentSnapshot(documentsById.get(event.documentId)!)
+            : null
+        };
+      });
     return { alerts, rules: app.store.returnCfopRules };
   });
 
@@ -771,6 +782,9 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(400).send({
         message: "Informe perfil, nivel de risco e CFOPs de quatro digitos quando preenchidos."
       });
+    }
+    if (companyCnpj && !app.store.findIssuerByCnpj(companyCnpj)) {
+      return reply.code(400).send({ message: "Cadastre a empresa antes de criar uma regra especifica por CNPJ." });
     }
     const conditions = typeof body.conditions === "object" && body.conditions !== null && !Array.isArray(body.conditions)
       ? body.conditions as Record<string, unknown>

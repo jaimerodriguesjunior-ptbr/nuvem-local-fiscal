@@ -31,13 +31,15 @@ Os clientes atuais permanecem compativeis: se nao enviarem metadados, a devoluca
 
 Tambem sao aceitos os aliases em ingles (`metadata.return`, `sourceCfop`, `fuel`, `purchasePurpose`). A correspondencia e feita por `nItem` ou por codigo do produto.
 
+`finalidadeCompra` tambem pode ser informada no nivel de `devolucao`, quando vale para todos os itens; o valor do item prevalece. `revenda` e `resale` sao equivalentes, assim como as formas de uso/consumo e ativo imobilizado.
+
 ## Niveis de decisao
 
 | Nivel | Resultado | Efeito para o cliente |
 | --- | --- | --- |
 | Baixo | Regra da biblioteca aplicada | Emissao normal, sem alerta. |
 | Medio | Fallback `5202` (interna) ou `6202` (interestadual) | Emissao continua e surge uma ocorrencia no admin. |
-| Alto | Uso/consumo ou ativo/imobilizado informado | Emissao e interrompida antes da transmissao, com mensagem neutra e chamado registrado para analise. |
+| Alto | Uso/consumo, ativo/imobilizado ou exterior | Emissao e interrompida antes da transmissao, com mensagem neutra e chamado registrado para analise. |
 
 Para combustiveis/lubrificantes, a biblioteca inicial tambem contempla as devolucoes `5661/6661` quando a origem e `5655/5656`.
 
@@ -45,7 +47,7 @@ O fallback e uma decisao operacional para nao travar urgencias. A ocorrencia pre
 
 ## Biblioteca inicial
 
-A migracao `20260804_001_return_cfop_library.sql` cria `fiscal_return_cfop_rules` e inclui regras globais para:
+As migrations `20260804_001_return_cfop_library.sql` e `20260804_002_return_cfop_hardening.sql` criam e protegem `fiscal_return_cfop_rules`, incluindo regras globais para:
 
 | CFOP de origem | Perfil | Devolucao interna / interestadual |
 | --- | --- | --- |
@@ -70,4 +72,5 @@ Isso e material suficiente para iniciar a biblioteca, nao para presumir todas as
 
 - O resolvedor so roda em NF-e com finalidade de devolucao; vendas e outros documentos nao sao modificados.
 - A migracao deve ser aplicada apenas no banco do Nuvem Local Fiscal.
+- A tabela usa RLS e nao expoe regras para chaves anonimas/autenticadas; o backend usa a service role.
 - Esta entrega nao altera repositorios nem bancos dos programas clientes e nao inclui deploy.

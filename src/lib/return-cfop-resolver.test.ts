@@ -50,6 +50,19 @@ test("resolve devolucao de revenda por regra central", () => {
   assert.equal(normalized.infNFe.det[0].prod.CFOP, "5202");
 });
 
+test("aceita a finalidade documentada em portugues para regra semeada em ingles", () => {
+  const seededRules = rules.map((rule) => ({
+    ...rule,
+    conditions: { purchasePurpose: "resale" }
+  }));
+  const input = payload({
+    metadados: { devolucao: { itens: [{ nItem: 1, cfopOrigem: "5102", finalidadeCompra: "revenda" }] } }
+  });
+  const result = resolveReturnCfop(input, "PR", seededRules);
+  assert.equal(result.needsReview, false);
+  assert.equal(result.items[0].profile, "resale_standard");
+});
+
 test("usa fallback e cria pendencia quando a combinacao ainda nao existe", () => {
   const input = payload({
     dest: { enderDest: { UF: "SP" } },
@@ -70,5 +83,22 @@ test("bloqueia apenas quando a origem informa uso e consumo ou ativo", () => {
   const result = resolveReturnCfop(input, "PR", rules);
   assert.equal(result.shouldBlock, true);
   assert.match(result.clientMessage ?? "", /validacao fiscal especifica/i);
+  assert.equal(result.items[0].outputCfop, null);
+});
+
+test("herda a finalidade global da devolucao quando o item nao a repete", () => {
+  const input = payload({
+    metadados: { devolucao: { finalidadeCompra: "uso e consumo", itens: [{ nItem: 1, cfopOrigem: "5102" }] } }
+  });
+  const result = resolveReturnCfop(input, "PR", rules);
+  assert.equal(result.shouldBlock, true);
+  assert.equal(result.items[0].profile, "review_required");
+});
+
+test("exige revisao para devolucao ao exterior em vez de aplicar fallback interestadual", () => {
+  const input = payload({ dest: { enderDest: { UF: "EX" } } });
+  const result = resolveReturnCfop(input, "PR", rules);
+  assert.equal(result.shouldBlock, true);
+  assert.equal(result.items[0].profile, "exterior_review_required");
   assert.equal(result.items[0].outputCfop, null);
 });

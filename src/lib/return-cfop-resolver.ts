@@ -43,6 +43,26 @@ function bool(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1" || value === "S";
 }
 
+function purchasePurpose(value: unknown) {
+  const normalized = text(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s/-]+/g, "_");
+  const aliases: Record<string, string> = {
+    revenda: "resale",
+    comercializacao: "resale",
+    resale: "resale",
+    uso_consumo: "use_consumption",
+    uso_e_consumo: "use_consumption",
+    use_consumption: "use_consumption",
+    ativo: "fixed_asset",
+    ativo_imobilizado: "fixed_asset",
+    fixed_asset: "fixed_asset"
+  };
+  return aliases[normalized] ?? normalized;
+}
+
 function root(payload: JsonObject) {
   return asObject(payload.infNFe) ?? payload;
 }
@@ -68,20 +88,27 @@ function itemMetadata(metadata: JsonObject, detail: JsonObject, index: number) {
     }) ?? {};
 }
 
-function destinationIsSameState(document: JsonObject, issuerUf: string, metadata: JsonObject, currentCfop: string) {
+function destinationScope(
+  document: JsonObject,
+  issuerUf: string,
+  metadata: JsonObject,
+  currentCfop: string,
+  sourceCfop: string | null
+) {
   const destination = asObject(document.dest) ?? asObject(document.destinatario) ?? {};
   const address = asObject(destination.enderDest) ?? asObject(destination.endereco) ?? {};
   const destinationUf = text(address.UF ?? address.uf ?? destination.UF ?? destination.uf ?? metadata.fornecedorUf).toUpperCase();
-  if (issuerUf && destinationUf) return issuerUf.toUpperCase() === destinationUf;
-  if (currentCfop.startsWith("6")) return false;
-  return true;
+  if (destinationUf === "EX" || currentCfop.startsWith("7") || sourceCfop?.startsWith("7")) return "exterior" as const;
+  if (issuerUf && destinationUf) return issuerUf.toUpperCase() === destinationUf ? "same_state" as const : "interstate" as const;
+  if (currentCfop.startsWith("6") || sourceCfop?.startsWith("6")) return "interstate" as const;
+  return "same_state" as const;
 }
 
 function matchesRule(rule: ReturnCfopRule, sourceCfop: string, metadata: JsonObject) {
   if (!rule.active || (rule.sourceCfop && rule.sourceCfop !== sourceCfop)) return false;
   const conditions = rule.conditions ?? {};
-  const requiredPurpose = text(conditions.purchasePurpose);
-  const actualPurpose = text(metadata.finalidadeCompra ?? metadata.purchasePurpose ?? metadata.finalidade).toLowerCase();
+  const requiredPurpose = purchasePurpose(conditions.purchasePurpose);
+  const actualPurpose = purchasePurpose(metadata.finalidadeCompra ?? metadata.purchasePurpose ?? metadata.finalidade);
   if (requiredPurpose && actualPurpose && requiredPurpose !== actualPurpose) return false;
   if (conditions.fuel === true && !bool(metadata.combustivel ?? metadata.fuel)) {
     // Os CFOPs de combustivel da biblioteca inicial ja constituem evidencia suficiente.
@@ -90,13 +117,14 @@ function matchesRule(rule: ReturnCfopRule, sourceCfop: string, metadata: JsonObj
   return true;
 }
 
-function fallbackCfop(sameState: boolean) {
-  return sameState ? "5202" : "6202";
+function fallbackCfop(scope: "same_state" | "interstate") {
+  return scope === "same_state" ? "5202" : "6202";
 }
 
 function highRisk(metadata: JsonObject) {
-  const purpose = text(metadata.finalidadeCompra ?? metadata.purchasePurpose ?? metadata.finalidade).toLowerCase();
-  return ["uso_consumo", "uso e consumo", "ativo", "ativo_imobilizado"].includes(purpose);
+  return ["use_consumption", "fixed_asset"].includes(
+    purchasePurpose(metadata.finalidadeCompra ?? metadata.purchasePurpose ?? metadata.finalidade)
+  );
 }
 
 export function resolveReturnCfop(
@@ -115,9 +143,21 @@ export function resolveReturnCfop(
   const items: ReturnCfopItemDecision[] = details.map((detail, itemIndex): ReturnCfopItemDecision => {
     const product = asObject(detail.prod) ?? detail;
     const currentCfop = cfop(product.CFOP ?? product.cfop);
-    const source = itemMetadata(metadata, detail, itemIndex);
+    const source = { ...metadata, ...itemMetadata(metadata, detail, itemIndex) };
     const sourceCfop = cfop(source.cfopOrigem ?? source.sourceCfop ?? source.CFOP ?? source.cfop) || null;
-    const sameState = destinationIsSameState(document, issuerUf, metadata, currentCfop);
+    const scope = destinationScope(document, issuerUf, metadata, currentCfop, sourceCfop);
+
+    if (scope === "exterior") {
+      return {
+        itemIndex,
+        sourceCfop,
+        outputCfop: null,
+        profile: "exterior_review_required",
+        riskLevel: "high" as const,
+        fallbackApplied: false,
+        reason: "A devolucao para o exterior exige validacao fiscal especifica."
+      };
+    }
 
     if (highRisk(source)) {
       return {
@@ -133,7 +173,7 @@ export function resolveReturnCfop(
 
     const rule = rules.find((candidate) => matchesRule(candidate, sourceCfop ?? "", source));
     if (rule) {
-      const outputCfop = sameState ? rule.sameStateCfop : rule.interstateCfop;
+      const outputCfop = scope === "same_state" ? rule.sameStateCfop : rule.interstateCfop;
       if (outputCfop) {
         return {
           itemIndex,
@@ -150,7 +190,7 @@ export function resolveReturnCfop(
     return {
       itemIndex,
       sourceCfop,
-      outputCfop: fallbackCfop(sameState),
+      outputCfop: fallbackCfop(scope),
       profile: bool(source.combustivel ?? source.fuel) || ["5655", "5656", "6655", "6656"].includes(sourceCfop ?? "")
         ? "fuel_lubricant_unresolved"
         : bool(source.st ?? source.substituicaoTributaria) || text(source.cest)

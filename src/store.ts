@@ -604,9 +604,15 @@ export class InMemoryStore {
   }
 
   listReturnCfopRules(cnpj?: string) {
-    return this.returnCfopRules.filter((rule) =>
-      rule.active && (!cnpj || !rule.companyCnpj || rule.companyCnpj === cnpj)
-    );
+    return this.returnCfopRules
+      .filter((rule) => rule.active && (!cnpj || !rule.companyCnpj || rule.companyCnpj === cnpj))
+      .sort((left, right) => {
+        const companyPriority = Number(right.companyCnpj === cnpj) - Number(left.companyCnpj === cnpj);
+        if (companyPriority) return companyPriority;
+        const conditionPriority = Object.keys(right.conditions ?? {}).length - Object.keys(left.conditions ?? {}).length;
+        if (conditionPriority) return conditionPriority;
+        return right.updatedAt.localeCompare(left.updatedAt);
+      });
   }
 
   upsertReturnCfopRule(input: Omit<ReturnCfopRule, "id" | "createdAt" | "updatedAt"> & { id?: string }) {

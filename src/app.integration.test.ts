@@ -1424,6 +1424,40 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     });
     assert.equal(returnAlerts.statusCode, 200, returnAlerts.body);
     assert.equal(returnAlerts.json().alerts.length >= 2, true);
+    const resolveReturnAlert = await app.inject({
+      method: "POST",
+      url: `/admin/api/return-cfop/alerts/${fallbackDocument.id}/resolve`,
+      headers: { authorization: basic, "content-type": "application/json" },
+      payload: { resolution: "rule_saved" }
+    });
+    assert.equal(resolveReturnAlert.statusCode, 200, resolveReturnAlert.body);
+    const resolvedReturnAlerts = await app.inject({
+      method: "GET",
+      url: "/admin/api/return-cfop/alerts",
+      headers: { authorization: basic }
+    });
+    assert.equal(resolvedReturnAlerts.statusCode, 200, resolvedReturnAlerts.body);
+    assert.equal(
+      resolvedReturnAlerts.json().alerts.some(
+        (alert: { documentId: string; resolved: boolean }) =>
+          alert.documentId === fallbackDocument.id && alert.resolved
+      ),
+      true
+    );
+    const invalidCompanyReturnRule = await app.inject({
+      method: "POST",
+      url: "/admin/api/return-cfop/rules",
+      headers: { authorization: basic, "content-type": "application/json" },
+      payload: {
+        companyCnpj: "98765432000198",
+        sourceCfop: "5102",
+        profile: "company_only",
+        sameStateCfop: "5202",
+        interstateCfop: "6202",
+        riskLevel: "low"
+      }
+    });
+    assert.equal(invalidCompanyReturnRule.statusCode, 400, invalidCompanyReturnRule.body);
 
     const recoveredNfe = app.store.createDocument({
       tipoDocumento: "NFe",

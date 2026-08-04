@@ -518,6 +518,14 @@ export class SupabasePersistence {
 
   private async upsertReturnCfopRules(rules: ReturnCfopRule[], companyIds: Map<string, string>) {
     if (!rules.length) return;
+    const missingCompanyRule = rules.find(
+      (rule) => rule.companyCnpj && !companyIds.has(rule.companyCnpj)
+    );
+    if (missingCompanyRule?.companyCnpj) {
+      throw new Error(
+        `Nao foi possivel salvar a regra de devolucao: empresa ${missingCompanyRule.companyCnpj} nao existe no cadastro fiscal.`
+      );
+    }
     const rows = rules.map((rule) => ({
       id: rule.id,
       company_id: rule.companyCnpj ? companyIds.get(rule.companyCnpj) ?? null : null,
