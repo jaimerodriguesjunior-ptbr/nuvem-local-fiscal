@@ -908,9 +908,21 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const requestedNextLotNumber = Number(
       rps.lote ?? rps.proximo_lote ?? body.proximo_lote
     );
+    const configuredNationalNextRpsNumber = Number(
+      reusableExistingSettings?.nfseNextRpsNumber ?? 1
+    );
+    const currentNationalNextRpsNumber =
+      Number.isSafeInteger(configuredNationalNextRpsNumber) && configuredNationalNextRpsNumber > 0
+        ? configuredNationalNextRpsNumber
+        : 1;
     const nextRpsNumber =
       requestedNextRpsNumber > 0
-        ? Math.max(requestedNextRpsNumber, usedToledoSequence.rps + 1)
+        ? Math.max(
+            requestedNextRpsNumber,
+            isNationalProvider
+              ? currentNationalNextRpsNumber
+              : usedToledoSequence.rps + 1
+          )
         : undefined;
     const nextLotNumber =
       requestedNextLotNumber > 0

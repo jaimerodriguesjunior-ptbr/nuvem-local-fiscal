@@ -796,6 +796,31 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       "https://sefin.nfse.gov.br/SefinNacional"
     );
 
+    const setNationalDpsSequence = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: { ...bearer, "content-type": "application/json" },
+      payload: { ambiente: "homologacao", rps: { numero: 8 } }
+    });
+    assert.equal(setNationalDpsSequence.statusCode, 200, setNationalDpsSequence.body);
+    assert.deepEqual(app.store.reserveNextNationalDpsNumber(cnpj, "homologacao"), {
+      number: "8",
+      series: "1"
+    });
+    const attemptToRewindNationalDps = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: { ...bearer, "content-type": "application/json" },
+      payload: { ambiente: "homologacao", rps: { numero: 1 } }
+    });
+    assert.equal(attemptToRewindNationalDps.statusCode, 200, attemptToRewindNationalDps.body);
+    const nationalConfigAfterRewind = app.store.findServiceConfigRecord(
+      cnpj,
+      "homologacao",
+      "NFSE"
+    );
+    assert.equal(nationalConfigAfterRewind?.settings.nfseNextRpsNumber, 9);
+
     const nationalNfseEmission = await app.inject({
       method: "POST",
       url: "/nfse/dps",
