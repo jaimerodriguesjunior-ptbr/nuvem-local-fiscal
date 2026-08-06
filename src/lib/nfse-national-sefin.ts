@@ -63,7 +63,9 @@ export function parseNationalSefinResponse(
   const compressedXml = String(
     payload.nfseXmlGZipB64 ?? payload.NFSeXmlGZipB64 ?? payload.xmlNfseGZipB64 ?? ""
   ).trim();
-  let nfseXml: string | null = null;
+  let nfseXml: string | null = rawBody.trim().startsWith("<")
+    ? rawBody.trim()
+    : String(payload.nfseXml ?? payload.xmlNfse ?? "").trim() || null;
   if (compressedXml) {
     try {
       nfseXml = gunzipBase64(compressedXml);
@@ -77,7 +79,7 @@ export function parseNationalSefinResponse(
   }
   const accessKey = String(
     payload.chaveAcesso ?? payload.chNFSe ?? payload.ChaveAcesso ?? ""
-  ).trim() || null;
+  ).trim() || nfseXml?.match(/<chNFSe>([^<]+)<\/chNFSe>/)?.[1]?.trim() || null;
   return {
     accepted: statusCode >= 200 && statusCode < 300 && errors.length === 0,
     statusCode,
@@ -133,6 +135,58 @@ export async function transmitNationalDps(input: {
       rejectUnauthorized: true
     },
     body
+  );
+  return parseNationalSefinResponse(response.statusCode, response.body);
+}
+
+export async function consultNationalDps(input: {
+  endpoint: string;
+  dpsId: string;
+  privateKeyPem: string;
+  certificatePem: string;
+  certificateChainPem?: string;
+  transport?: NationalSefinTransport;
+}): Promise<NationalSefinTransmissionResult> {
+  const target = nationalSefinEndpoint(input.endpoint, `dps/${encodeURIComponent(input.dpsId)}`);
+  const response = await (input.transport ?? requestNationalSefin)(
+    {
+      protocol: target.protocol,
+      hostname: target.hostname,
+      port: target.port || undefined,
+      path: `${target.pathname}${target.search}`,
+      method: "GET",
+      headers: { accept: "application/json" },
+      key: input.privateKeyPem,
+      cert: `${input.certificatePem}${input.certificateChainPem ?? ""}`,
+      rejectUnauthorized: true
+    },
+    ""
+  );
+  return parseNationalSefinResponse(response.statusCode, response.body);
+}
+
+export async function consultNationalNfse(input: {
+  endpoint: string;
+  accessKey: string;
+  privateKeyPem: string;
+  certificatePem: string;
+  certificateChainPem?: string;
+  transport?: NationalSefinTransport;
+}): Promise<NationalSefinTransmissionResult> {
+  const target = nationalSefinEndpoint(input.endpoint, `nfse/${encodeURIComponent(input.accessKey)}`);
+  const response = await (input.transport ?? requestNationalSefin)(
+    {
+      protocol: target.protocol,
+      hostname: target.hostname,
+      port: target.port || undefined,
+      path: `${target.pathname}${target.search}`,
+      method: "GET",
+      headers: { accept: "application/json, application/xml" },
+      key: input.privateKeyPem,
+      cert: `${input.certificatePem}${input.certificateChainPem ?? ""}`,
+      rejectUnauthorized: true
+    },
+    ""
   );
   return parseNationalSefinResponse(response.statusCode, response.body);
 }

@@ -11,7 +11,11 @@ import type {
 } from "../types.js";
 import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
 import { openEncryptedCertificate } from "./certificates.js";
-import { transmitNationalDps } from "./nfse-national-sefin.js";
+import {
+  consultNationalDps as consultNationalDpsAtSefin,
+  consultNationalNfse as consultNationalNfseAtSefin,
+  transmitNationalDps
+} from "./nfse-national-sefin.js";
 import { validateNationalDpsXml } from "./nfse-national-xsd-validator.js";
 
 export const NFSE_NATIONAL_LAYOUT_VERSION = "1.01";
@@ -564,8 +568,12 @@ export async function processNationalNfse(
         throw new Error(errors || `SEFIN Nacional retornou HTTP ${transmission.statusCode}.`);
       }
       transmitted = true;
-      reason = "DPS Nacional transmitida para a SEFIN; aguardando consulta de processamento.";
-      reasonCode = "NFSE_NACIONAL_DPS_TRANSMITTED";
+      reason = processedXml
+        ? "NFS-e Nacional gerada pela SEFIN."
+        : "DPS Nacional transmitida para a SEFIN; aguardando consulta de processamento.";
+      reasonCode = processedXml
+        ? "NFSE_NACIONAL_AUTHORIZED"
+        : "NFSE_NACIONAL_DPS_TRANSMITTED";
     }
     const saved = store.saveMunicipalProcessingResult(document.id, {
       providerName: "nfse-nacional",
@@ -576,7 +584,7 @@ export async function processNationalNfse(
       providerReference: draft.id,
       providerDocumentNumber,
       processedXml,
-      status: "processamento",
+      status: processedXml ? "autorizado" : "processamento",
       reason,
       reasonCode
     });
@@ -609,5 +617,94 @@ export async function processNationalNfse(
     const failed = store.failDocument(document.id, "NFSE_NACIONAL_PAYLOAD_INVALIDO", message);
     await store.waitForPersistence();
     return { document: failed ?? document, transmitted: false, error: message };
+  }
+}
+
+export async function consultNationalNfse(
+  store: InMemoryStore,
+  documentId: string
+): Promise<NationalNfseProcessingResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) throw new Error("Documento NFS-e nao encontrado para consulta.");
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(
+    document.issuerCnpj,
+    document.ambiente,
+    "NFSE"
+  );
+  const certificate = store.findActiveCertificate(document.issuerCnpj);
+  if (!issuer || !serviceConfig?.active || !isNationalNfseConfig(issuer, serviceConfig)) {
+    return { document, transmitted: false, error: "Configuracao do Sistema Nacional NFS-e nao encontrada." };
+  }
+  if (!certificate?.encryptedBundle) {
+    return { document, transmitted: false, error: "Certificado A1 ativo nao encontrado para consultar a SEFIN." };
+  }
+  const dpsId = String(document.providerReference ?? document.chave ?? "").trim();
+  if (!dpsId.startsWith("DPS")) {
+    return { document, transmitted: false, error: "Identificador DPS indisponivel para consulta." };
+  }
+  try {
+    const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
+    const endpoint = resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint);
+    const dps = await consultNationalDpsAtSefin({
+      endpoint,
+      dpsId,
+      privateKeyPem: opened.privateKeyPem,
+      certificatePem: opened.certificatePem,
+      certificateChainPem: opened.certificateChainPem
+    });
+    if (!dps.accepted || !dps.accessKey) {
+      const reason = dps.errors.map((item) => `${item.code}: ${item.description}`).join(" | ") ||
+        "A SEFIN ainda nao disponibilizou a chave da NFS-e para esta DPS.";
+      const saved = store.saveMunicipalProcessingResult(document.id, {
+        providerName: "nfse-nacional",
+        responseBody: dps.rawBody,
+        status: "processamento",
+        reason,
+        reasonCode: "NFSE_NACIONAL_DPS_PENDING"
+      });
+      await store.waitForPersistence();
+      return { document: saved ?? document, transmitted: false, error: null };
+    }
+    const nfse = await consultNationalNfseAtSefin({
+      endpoint,
+      accessKey: dps.accessKey,
+      privateKeyPem: opened.privateKeyPem,
+      certificatePem: opened.certificatePem,
+      certificateChainPem: opened.certificateChainPem
+    });
+    if (!nfse.accepted || !nfse.nfseXml) {
+      const reason = nfse.errors.map((item) => `${item.code}: ${item.description}`).join(" | ") ||
+        "A chave foi localizada, mas o XML da NFS-e ainda nao foi disponibilizado.";
+      const saved = store.saveMunicipalProcessingResult(document.id, {
+        providerName: "nfse-nacional",
+        responseBody: nfse.rawBody,
+        providerDocumentNumber: dps.accessKey,
+        status: "processamento",
+        reason,
+        reasonCode: "NFSE_NACIONAL_NFSE_PENDING"
+      });
+      await store.waitForPersistence();
+      return { document: saved ?? document, transmitted: false, error: null };
+    }
+    const saved = store.saveMunicipalProcessingResult(document.id, {
+      providerName: "nfse-nacional",
+      responseBody: nfse.rawBody,
+      providerDocumentNumber: dps.accessKey,
+      processedXml: nfse.nfseXml,
+      status: "autorizado",
+      reason: "NFS-e Nacional recuperada da SEFIN.",
+      reasonCode: "NFSE_NACIONAL_AUTHORIZED"
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_consulted",
+      message: "Consulta da DPS e da NFS-e concluida na SEFIN Nacional.",
+      payload: { dpsId, accessKey: dps.accessKey }
+    });
+    await store.waitForPersistence();
+    return { document: saved ?? document, transmitted: false, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { document, transmitted: false, error: message };
   }
 }

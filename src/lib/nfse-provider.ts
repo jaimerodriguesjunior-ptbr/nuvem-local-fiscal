@@ -14,6 +14,7 @@ import {
   processToledoNfse
 } from "./nfse-toledo-equiplano.js";
 import {
+  consultNationalNfse,
   isNationalNfseConfig,
   processNationalNfse
 } from "./nfse-national.js";
@@ -76,6 +77,7 @@ export async function consultConfiguredNfse(
   const provider = configuredNfseProvider(store, document);
   if (provider === "guaira-ipm") return consultGuairaIpmNfse(store, documentId);
   if (provider === "toledo-equiplano") return consultToledoNfse(store, documentId);
+  if (provider === "nfse-nacional") return consultNationalNfse(store, documentId);
   return { document, transmitted: false, error: null };
 }
 
