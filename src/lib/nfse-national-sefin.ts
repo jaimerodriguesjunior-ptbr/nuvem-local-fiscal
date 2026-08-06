@@ -48,8 +48,13 @@ export function parseNationalSefinResponse(
   } catch {
     // A SEFIN pode devolver corpo vazio em falhas de infraestrutura.
   }
-  const errors = Array.isArray(payload.erros)
-    ? payload.erros.map((item) => {
+  const rawErrors = Array.isArray(payload.erros)
+    ? payload.erros
+    : payload.erro && typeof payload.erro === "object"
+      ? [payload.erro]
+      : [];
+  const errors = rawErrors
+    .map((item) => {
         const value = (item ?? {}) as Record<string, unknown>;
         return {
           code: String(value.Codigo ?? value.codigo ?? "SEFIN"),
@@ -58,8 +63,7 @@ export function parseNationalSefinResponse(
             ? String(value.Complemento ?? value.complemento)
             : null
         };
-      })
-    : [];
+      });
   const compressedXml = String(
     payload.nfseXmlGZipB64 ?? payload.NFSeXmlGZipB64 ?? payload.xmlNfseGZipB64 ?? ""
   ).trim();

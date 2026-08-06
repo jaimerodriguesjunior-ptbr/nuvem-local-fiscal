@@ -1948,11 +1948,29 @@ async function handleCreateNfseDps(
         "Empresa emitente nao cadastrada neste ambiente. Sincronize ou cadastre a empresa antes de emitir."
     });
   }
+  const issuer = app.store.findIssuerByCnpj(issuerCnpj, ambiente);
+  const serviceConfig = app.store.findServiceConfigRecord(issuerCnpj, ambiente, "NFSE");
+  const configuredProvider = resolveNfseProvider({ issuer, serviceConfig });
+  const payloadForDocument = structuredClone(body);
+  if (configuredProvider === "nfse-nacional") {
+    const reservation = app.store.reserveNextNationalDpsNumber(issuerCnpj, ambiente);
+    if (!reservation) {
+      return reply.code(409).send({
+        message: "Nao foi possivel reservar a numeracao DPS nacional. Revise a configuracao NFS-e."
+      });
+    }
+    const nationalInfDps =
+      typeof payloadForDocument.infDPS === "object" && payloadForDocument.infDPS !== null
+        ? payloadForDocument.infDPS as Record<string, unknown>
+        : payloadForDocument;
+    nationalInfDps.nDPS = reservation.number;
+    nationalInfDps.serie = reservation.series;
+  }
   const document = app.store.createDocument({
     tipoDocumento: "NFSe",
     issuerCnpj,
     ambiente,
-    payloadOriginal: structuredClone(body),
+    payloadOriginal: payloadForDocument,
     payloadNormalizado
   });
   await app.store.waitForPersistence();

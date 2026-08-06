@@ -112,5 +112,11 @@ export async function cancelConfiguredNfse(
   if (provider === "guaira-ipm") {
     return cancelGuairaIpmNfse(store, documentId, reason);
   }
+  if (provider === "nfse-nacional") {
+    throw new Error(
+      "Cancelamento da NFS-e Nacional ainda nao esta implementado. " +
+      "O evento nacional 101101 deve ser integrado antes de habilitar esta operacao."
+    );
+  }
   throw new Error("Provedor NFS-e nao configurado para este emitente.");
 }

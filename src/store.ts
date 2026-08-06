@@ -432,6 +432,26 @@ export class InMemoryStore {
     return serviceConfig;
   }
 
+  // Reserva o numero antes de gerar a DPS. Como este store e processado em um
+  // unico runtime, a atualizacao e sincrona e nao permite que duas requisicoes
+  // locais recebam o mesmo numero/serie.
+  reserveNextNationalDpsNumber(cnpj: string, ambiente: Environment) {
+    const serviceConfig = this.findServiceConfigRecord(cnpj, ambiente, "NFSE");
+    if (serviceConfig?.settings.nfseProvider !== "nfse-nacional") return null;
+
+    const next = Number(serviceConfig.settings.nfseNextRpsNumber ?? 1);
+    if (!Number.isSafeInteger(next) || next < 1 || next > 999_999_999_999_999) {
+      throw new Error("Proximo numero DPS nacional invalido na configuracao.");
+    }
+    serviceConfig.settings.nfseNextRpsNumber = next + 1;
+    serviceConfig.updatedAt = nowIso();
+    this.saveState({ serviceConfigs: [serviceConfig] });
+    return {
+      number: String(next),
+      series: String(serviceConfig.settings.nfseRpsSerie ?? "1")
+    };
+  }
+
   createDocument(input: CreateDocumentInput) {
     const issuer = this.findIssuerByCnpj(input.issuerCnpj, input.ambiente);
     const existingCount = this.documents.filter(

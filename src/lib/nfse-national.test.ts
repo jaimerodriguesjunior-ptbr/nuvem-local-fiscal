@@ -21,6 +21,7 @@ import {
   validateNationalNfseDraft
 } from "./nfse-national.js";
 import {
+  cancelConfiguredNfse,
   configuredNfseProvider,
   processConfiguredNfse
 } from "./nfse-provider.js";
@@ -99,6 +100,10 @@ test("recognizes an explicitly configured national NFS-e provider", () => {
   assert.equal(isNationalNfseConfig(issuer, serviceConfig), true);
   assert.match(resolveNationalSefinEndpoint("homologacao"), /producaorestrita/);
   assert.doesNotMatch(resolveNationalSefinEndpoint("producao"), /producaorestrita/);
+  assert.equal(
+    resolveNationalSefinEndpoint("homologacao", "https://example.invalid/sefin"),
+    resolveNationalSefinEndpoint("homologacao")
+  );
 });
 
 test("normalizes the existing client payload and generates a national DPS", () => {
@@ -173,6 +178,27 @@ test("keeps NBS optional and rejects an invalid NBS when informed", () => {
   );
 });
 
+test("valida formatos nacionais antes de assinar a DPS", () => {
+  const draft = normalizeNationalNfseDraft(
+    document({
+      infDPS: {
+        toma: { fone: "123", email: "email invalido" },
+        serv: {
+          locPrest: { cLocPrestacao: "4108809" },
+          cServ: { cTribNac: "140101", xDescServ: "Servico" }
+        },
+        valores: { vServPrest: { vServ: 100 }, trib: { tribMun: { pAliq: 10 } } }
+      }
+    }),
+    resolveNationalNfseConfig(issuer, serviceConfig)
+  );
+
+  assert.throws(
+    () => validateNationalNfseDraft(draft),
+    /aliquota ISS entre 0,00 e 9,99.*telefone do tomador.*email do tomador/
+  );
+});
+
 test("routes a national document and persists a generated DPS without transmitting", async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -237,4 +263,56 @@ test("routes a national document and persists a generated DPS without transmitti
   assert.equal(result.document.signatureValid, true);
   assert.equal(result.document.xsdValid, true);
   assert.equal(store.getDocumentEvents(created.id)[0]?.eventType, "nfse_nacional_dps_generated");
+});
+
+test("reserva numeros DPS nacionais sequenciais no store", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-number-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
+  store.upsertIssuerEnvironment(issuer.cnpj, "homologacao", {
+    razaoSocial: issuer.razaoSocial,
+    nomeFantasia: issuer.nomeFantasia,
+    uf: issuer.uf,
+    crt: issuer.crt
+  });
+  store.upsertServiceConfig(issuer.cnpj, "homologacao", "NFSE", {
+    active: true,
+    settings: { ...serviceConfig.settings, nfseNextRpsNumber: 41 }
+  });
+
+  assert.deepEqual(store.reserveNextNationalDpsNumber(issuer.cnpj, "homologacao"), {
+    number: "41",
+    series: "1"
+  });
+  assert.deepEqual(store.reserveNextNationalDpsNumber(issuer.cnpj, "homologacao"), {
+    number: "42",
+    series: "1"
+  });
+});
+
+test("declara cancelamento nacional como operacao ainda nao implementada", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-cancel-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
+  store.upsertIssuerEnvironment(issuer.cnpj, "homologacao", {
+    razaoSocial: issuer.razaoSocial,
+    nomeFantasia: issuer.nomeFantasia,
+    uf: issuer.uf,
+    crt: issuer.crt
+  });
+  store.upsertServiceConfig(issuer.cnpj, "homologacao", "NFSE", {
+    active: true,
+    settings: serviceConfig.settings
+  });
+  const created = store.createDocument({
+    tipoDocumento: "NFSe",
+    issuerCnpj: issuer.cnpj,
+    ambiente: "homologacao",
+    payloadOriginal: {},
+    payloadNormalizado: {}
+  });
+  await assert.rejects(
+    () => cancelConfiguredNfse(store, created.id, "Teste"),
+    /Cancelamento da NFS-e Nacional ainda nao esta implementado/
+  );
 });

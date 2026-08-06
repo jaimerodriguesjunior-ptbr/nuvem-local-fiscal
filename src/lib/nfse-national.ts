@@ -173,14 +173,13 @@ function makeDpsId(input: {
 
 export function resolveNationalSefinEndpoint(
   environment: Environment,
-  configuredEndpoint?: unknown
+  _configuredEndpoint?: unknown
 ) {
-  const configured = String(configuredEndpoint ?? "").trim();
-  if (environment === "homologacao") {
-    return configured || NFSE_NATIONAL_RESTRICTED_ENDPOINT;
-  }
-  if (configured && !configured.includes("producaorestrita")) return configured;
-  return NFSE_NATIONAL_PRODUCTION_ENDPOINT;
+  // O endpoint da SEFIN Nacional nao e parametrizavel por empresa: aceitar
+  // uma URL arbitraria aqui permitiria enviar DPS e certificado para terceiro.
+  return environment === "homologacao"
+    ? NFSE_NATIONAL_RESTRICTED_ENDPOINT
+    : NFSE_NATIONAL_PRODUCTION_ENDPOINT;
 }
 
 export function isNationalNfseConfig(
@@ -372,7 +371,17 @@ export function validateNationalNfseDraft(draft: NationalNfseDraft) {
     errors.push("codigo NBS com 9 digitos");
   }
   if (!draft.description) errors.push("descricao do servico");
+  if (draft.description.length > 2000) errors.push("descricao do servico com no maximo 2000 caracteres");
   if (!(draft.serviceValue > 0)) errors.push("valor do servico");
+  if (!Number.isFinite(draft.issRate) || draft.issRate < 0 || draft.issRate > 9.99) {
+    errors.push("aliquota ISS entre 0,00 e 9,99");
+  }
+  if (draft.customerPhone && !/^[0-9]{6,20}$/.test(draft.customerPhone)) {
+    errors.push("telefone do tomador com 6 a 20 digitos");
+  }
+  if (draft.customerEmail && (draft.customerEmail.length > 80 || /\s/.test(draft.customerEmail))) {
+    errors.push("email do tomador com no maximo 80 caracteres e sem espacos");
+  }
   if (draft.customerDocument && ![11, 14].includes(draft.customerDocument.length)) {
     errors.push("CPF/CNPJ do tomador");
   }
@@ -608,13 +617,16 @@ export async function processNationalNfse(
     return { document: saved ?? document, transmitted, error: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const reasonCode = /timeout|timed out|econn|enotfound|eai_again|socket|tls|certificate/i.test(message)
+      ? "NFSE_NACIONAL_TRANSPORT_ERROR"
+      : "NFSE_NACIONAL_PAYLOAD_INVALIDO";
     store.addDocumentEvent(document.id, {
       eventType: "nfse_nacional_processing_failed",
       level: "error",
       message,
       payload: { provider: "nfse-nacional" }
     });
-    const failed = store.failDocument(document.id, "NFSE_NACIONAL_PAYLOAD_INVALIDO", message);
+    const failed = store.failDocument(document.id, reasonCode, message);
     await store.waitForPersistence();
     return { document: failed ?? document, transmitted: false, error: message };
   }

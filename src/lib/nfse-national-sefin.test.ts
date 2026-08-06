@@ -21,7 +21,7 @@ test("compacta a DPS e monta POST autenticado por certificado para a SEFIN", asy
     transport: async (options, body) => {
       requestPath = String(options.path);
       requestBody = body;
-      return { statusCode: 202, body: JSON.stringify({}) };
+      return { statusCode: 201, body: JSON.stringify({}) };
     }
   });
 
@@ -44,6 +44,19 @@ test("interpreta retorno de rejeicao e XML NFS-e compactado", () => {
     description: "Convenio inativo",
     detail: null
   });
+});
+
+test("interpreta o erro singular devolvido pelas consultas da SEFIN", () => {
+  const rejected = parseNationalSefinResponse(
+    403,
+    JSON.stringify({ erro: { codigo: "403", descricao: "Sigilo fiscal" } })
+  );
+  assert.equal(rejected.accepted, false);
+  assert.deepEqual(rejected.errors, [{
+    code: "403",
+    description: "Sigilo fiscal",
+    detail: null
+  }]);
 });
 
 test("consulta DPS e NFS-e pelos endpoints nacionais", async () => {
