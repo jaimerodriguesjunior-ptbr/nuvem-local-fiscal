@@ -433,6 +433,50 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(guairaPdfText, /guaira\.atende\.net/);
     assert.doesNotMatch(guairaPdfText, /MUNICIPIO DE TOLEDO|www\.esnfs\.com\.br/);
 
+    const nationalPdfDocument = app.store.createDocument({
+      tipoDocumento: "NFSe",
+      issuerCnpj: cnpj,
+      ambiente: "homologacao",
+      payloadOriginal: {
+        infDPS: {
+          nDPS: "1",
+          serie: "1",
+          dCompet: "2026-08-06",
+          dhEmi: "2026-08-06T10:00:00-03:00",
+          toma: {
+            CNPJ: "12345678000195",
+            xNome: "Tomador Nacional",
+            end: { xLgr: "Rua Nacional", nro: "1", xMun: "Guaíra", UF: "PR" }
+          },
+          serv: {
+            cServ: { cTribNac: "140101", cNBS: "120013100", xDescServ: "Servico nacional" }
+          },
+          valores: {
+            vServPrest: { vServ: 100 },
+            trib: { tribMun: { pAliq: 2 } }
+          }
+        }
+      },
+      payloadNormalizado: {}
+    });
+    app.store.saveMunicipalProcessingResult(nationalPdfDocument.id, {
+      providerName: "nfse-nacional",
+      status: "autorizado",
+      providerDocumentNumber: "41260835181069000143000000000000000000000000000001",
+      processedXml: "<NFSe><infNFSe><nNFSe>1</nNFSe><chNFSe>41260835181069000143000000000000000000000000000001</chNFSe></infNFSe></NFSe>"
+    });
+    const nationalPdf = await app.inject({
+      method: "GET",
+      url: `/nfse/${nationalPdfDocument.providerLikeId}/pdf`,
+      headers: bearer
+    });
+    assert.equal(nationalPdf.statusCode, 200, nationalPdf.body);
+    const nationalPdfText = nationalPdf.rawPayload.toString("ascii");
+    assert.match(nationalPdfText, /DANFSe v2\.0/);
+    assert.match(nationalPdfText, /NFS-e SEM VALIDADE JURIDICA/);
+    assert.match(nationalPdfText, /ConsultaPublica/);
+    assert.doesNotMatch(nationalPdfText, /MUNICIPIO DE GUAIRA/);
+
     const saveToledoWithoutEntityId = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,

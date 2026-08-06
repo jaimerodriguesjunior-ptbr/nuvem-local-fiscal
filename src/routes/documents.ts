@@ -2338,7 +2338,9 @@ async function handlePdfDownload(
 function createLocalPdf(document: DocumentRecord, issuer: Issuer | null = null) {
   const page =
     document.tipoDocumento === "NFSe"
-      ? nfseContentStream(document, issuer)
+      ? document.providerName === "nfse-nacional"
+        ? nationalDanfseContentStream(document, issuer)
+        : nfseContentStream(document, issuer)
       : document.tipoDocumento === "NFe"
         ? nfeDanfeContentStream(parseDanfeData(document))
         : nfceDanfeContentStream(parseDanfeData(document));
@@ -2372,6 +2374,144 @@ function recordValue(value: unknown) {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
     : {};
+}
+
+// A NT 008/2026 retirou a API central de geracao do DANFSe. O documento
+// auxiliar nacional passa a ser gerado pelo proprio emissor a partir da NFS-e
+// autorizada. Este leiaute e propositalmente separado do PDF municipal abaixo:
+// ele usa a chave nacional e nunca tenta consultar portais de prefeituras.
+function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
+  const payload = recordValue(document.payloadOriginal);
+  const infDps = recordValue(payload.infDPS);
+  const toma = recordValue(infDps.toma);
+  const tomaEnd = recordValue(toma.end);
+  const tomaEndNac = recordValue(tomaEnd.endNac);
+  const serv = recordValue(infDps.serv);
+  const cServ = recordValue(serv.cServ);
+  const valores = recordValue(infDps.valores);
+  const vServPrest = recordValue(valores.vServPrest);
+  const trib = recordValue(valores.trib);
+  const tribMun = recordValue(trib.tribMun);
+  const issuerMetadata = recordValue(issuer?.metadata);
+  const issuerAddress = recordValue(issuerMetadata.endereco);
+  const xml = document.xml ?? "";
+  const xmlValue = (...names: string[]) => {
+    for (const name of names) {
+      const value = xml.match(new RegExp(`<${name}[^>]*>([^<]+)</${name}>`, "i"))?.[1];
+      if (value) return value.trim();
+    }
+    return "";
+  };
+  const accessKey = xmlValue("chNFSe", "chNFS-e", "chaveAcesso") || document.chave || "";
+  const nfseNumber = xmlValue("nNFSe", "nNfse", "numero") || String(document.numero);
+  const issueDate = xmlValue("dhEmi", "dhProc", "dEmi") || String(infDps.dhEmi ?? document.createdAt);
+  const dpsNumber = xmlValue("nDPS") || String(infDps.nDPS ?? document.numero);
+  const dpsSeries = xmlValue("serie") || String(infDps.serie ?? "1");
+  const issuerName = issuer?.razaoSocial ?? String(issuerMetadata.razao_social ?? "");
+  const issuerMunicipality = String(issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
+  const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
+  const serviceValue = Number(vServPrest.vServ ?? 0);
+  const aliquota = Number(tribMun.pAliq ?? 0);
+  const issValue = Number(((serviceValue * aliquota) / 100).toFixed(2));
+  const money = (value: number) => value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const formattedDate = issueDate
+    ? new Date(issueDate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+    : "";
+  const consultationUrl = accessKey
+    ? `https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=${accessKey}`
+    : "";
+  const commands: string[] = ["0.5 w"];
+  const left = 28;
+  const right = 567;
+  const width = right - left;
+  const line = (x1: number, y1: number, x2: number, y2: number) =>
+    commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
+  const rect = (x: number, y: number, w: number, h: number) =>
+    commands.push(`${x} ${y} ${w} ${h} re S`);
+  const text = (x: number, y: number, size: number, value: string, font = "F1") =>
+    commands.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdf(value)}) Tj ET`);
+  const center = (y: number, size: number, value: string, font = "F1") => {
+    const estimated = pdfText(value).length * size * 0.48;
+    text(left + Math.max(2, (width - estimated) / 2), y, size, value, font);
+  };
+  const section = (top: number, title: string) => {
+    commands.push("0.90 g");
+    commands.push(`${left} ${top - 18} ${width} 18 re f`);
+    commands.push("0 G");
+    rect(left, top - 18, width, 18);
+    text(left + 6, top - 12, 7, title, "F2");
+  };
+  const label = (x: number, y: number, title: string, value: string, maxWidth = 230) => {
+    text(x, y, 6, title);
+    const rendered = wrapPdfTextByWidth(value, maxWidth, 7, "F2")[0] ?? "";
+    text(x, y - 10, 7, rendered, "F2");
+  };
+
+  rect(left, 28, width, 786);
+  center(792, 13, "DANFSe v2.0", "F2");
+  center(778, 8, "Documento Auxiliar da Nota Fiscal de Servico Eletronica", "F2");
+  text(left + 12, 750, 7, "Numero da NFS-e:");
+  text(left + 100, 750, 10, nfseNumber, "F2");
+  text(left + 12, 735, 7, "Data e hora de emissao:");
+  text(left + 120, 735, 8, formattedDate, "F2");
+  text(left + 12, 720, 7, "Chave de acesso:");
+  text(left + 90, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
+  if (document.ambiente === "homologacao") {
+    center(701, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
+  }
+  if (consultationUrl) drawQrCode(commands, consultationUrl, 488, 724, 62);
+
+  section(680, "IDENTIFICACAO DA DPS");
+  label(left + 10, 648, "Numero da DPS", dpsNumber);
+  label(left + 180, 648, "Serie", dpsSeries);
+  label(left + 280, 648, "Competencia", String(infDps.dCompet ?? ""));
+  label(left + 420, 648, "Ambiente", document.ambiente === "homologacao" ? "Producao restrita" : "Producao");
+
+  section(615, "PRESTADOR DE SERVICOS");
+  label(left + 10, 583, "Nome/Razao social", issuerName, 300);
+  label(left + 330, 583, "CPF/CNPJ", formatCnpj(document.issuerCnpj), 180);
+  label(left + 10, 550, "Inscricao municipal", String(issuerMetadata.inscricao_municipal ?? ""));
+  label(left + 180, 550, "Municipio", issuerMunicipality, 180);
+  label(left + 380, 550, "UF", String(issuerAddress.uf ?? ""), 80);
+
+  section(517, "TOMADOR DE SERVICOS");
+  label(left + 10, 485, "Nome/Razao social", String(toma.xNome ?? ""), 300);
+  label(left + 330, 485, "CPF/CNPJ", formatFiscalDocument(recipientDocument), 180);
+  const recipientAddress = [tomaEnd.xLgr, tomaEnd.nro, tomaEnd.xCpl, tomaEnd.xBairro]
+    .filter(Boolean).join(" - ");
+  label(left + 10, 452, "Endereco", recipientAddress, 300);
+  label(left + 330, 452, "Municipio/UF", `${String(tomaEnd.xMun ?? tomaEndNac.xMun ?? "")} ${String(tomaEnd.UF ?? "")}`, 180);
+
+  section(419, "SERVICO PRESTADO");
+  label(left + 10, 387, "Codigo de tributacao nacional", String(cServ.cTribNac ?? ""), 150);
+  label(left + 180, 387, "NBS", String(cServ.cNBS ?? ""), 120);
+  label(left + 320, 387, "Codigo municipal", String(cServ.cTribMun ?? ""), 160);
+  const descriptionLines = wrapPdfTextByWidth(String(cServ.xDescServ ?? ""), width - 20, 7).slice(0, 6);
+  text(left + 10, 355, 6, "Discriminacao do servico:");
+  descriptionLines.forEach((description, index) => text(left + 10, 343 - index * 10, 7, description));
+
+  section(265, "VALORES E TRIBUTACAO");
+  label(left + 10, 233, "Valor do servico (R$)", money(serviceValue));
+  label(left + 145, 233, "Base de calculo (R$)", money(serviceValue));
+  label(left + 300, 233, "Aliquota ISS (%)", aliquota.toFixed(2));
+  label(left + 420, 233, "ISS devido (R$)", money(issValue));
+  label(left + 10, 200, "Valor liquido (R$)", money(serviceValue));
+  label(left + 145, 200, "ISS retido", String(tribMun.indRetISS ?? "1") === "2" ? "Sim" : "Nao");
+
+  section(167, "INFORMACOES COMPLEMENTARES");
+  const info = [
+    `NFS-e nacional ${nfseNumber}.`,
+    accessKey ? `Consulte pela chave ${accessKey}.` : "Chave de acesso nao informada no retorno.",
+    "Documento auxiliar gerado localmente conforme NT 008/2026."
+  ].join(" ");
+  wrapPdfTextByWidth(info, width - 20, 7).slice(0, 4)
+    .forEach((value, index) => text(left + 10, 137 - index * 11, 7, value));
+  if (consultationUrl) text(left + 10, 72, 6, consultationUrl);
+
+  return { width: 595, height: 842, content: commands.join("\n") };
 }
 
 function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
