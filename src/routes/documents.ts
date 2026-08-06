@@ -2025,6 +2025,7 @@ async function handleGetDocument(
     query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
   const shouldAutoConsult =
     storedDocument.tipoDocumento === "NFSe" &&
+    configuredNfseProvider(app.store, storedDocument) === "toledo-equiplano" &&
     canConsultToledoNfseDocument(storedDocument) &&
     storedDocument.motivoStatus !== "NFSE_IPM_DRY_RUN";
   if (
