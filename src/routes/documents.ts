@@ -30,6 +30,7 @@ import {
   canConsultToledoNfseDocument,
   resolveToledoEndpoint
 } from "../lib/nfse-toledo-equiplano.js";
+import { resolveNationalSefinEndpoint } from "../lib/nfse-national.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
 import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { applyReturnCfopResolution, resolveReturnCfop, type ReturnCfopResolution } from "../lib/return-cfop-resolver.js";
@@ -748,6 +749,24 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         exige_assinatura: serviceConfig.settings.nfseRequiresSignature === true,
         modo_teste: serviceConfig.settings.nfseTestMode !== false,
         transmissao_automatica: serviceConfig.settings.autoTransmit === true
+      },
+      nacional: {
+        endpoint: serviceConfig.settings.nfseEndpoint ?? null,
+        inscricao_municipal: serviceConfig.settings.nfseInscricaoMunicipal ?? null,
+        versao_leiaute: serviceConfig.settings.nfseNationalLayoutVersion ?? null,
+        codigo_tributacao_nacional: serviceConfig.settings.nfseNationalTaxCode ?? null,
+        codigo_tributacao_municipal:
+          serviceConfig.settings.nfseNationalMunicipalTaxCode ?? null,
+        codigo_nbs: serviceConfig.settings.nfseNationalNbsCode ?? null,
+        opcao_simples_nacional:
+          serviceConfig.settings.nfseNationalSimpleOption ?? null,
+        regime_apuracao_simples:
+          serviceConfig.settings.nfseNationalSimpleTaxRegime ?? null,
+        regime_especial_tributacao:
+          serviceConfig.settings.nfseNationalSpecialTaxRegime ?? null,
+        tributacao_issqn: serviceConfig.settings.nfseNationalIssTaxation ?? null,
+        retencao_issqn: serviceConfig.settings.nfseNationalIssRetention ?? null,
+        transmissao_automatica: serviceConfig.settings.autoTransmit === true
       }
     };
   });
@@ -773,6 +792,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       typeof body.ipm === "object" && body.ipm !== null
         ? (body.ipm as Record<string, unknown>)
         : {};
+    const nacional =
+      typeof body.nacional === "object" && body.nacional !== null
+        ? (body.nacional as Record<string, unknown>)
+        : {};
     const municipio =
       typeof body.municipio === "object" && body.municipio !== null
         ? (body.municipio as Record<string, unknown>)
@@ -784,7 +807,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const login = String(prefeitura.login ?? prefeitura.usuario ?? "").trim();
     const password = String(prefeitura.senha ?? prefeitura.password ?? "").trim();
     const providerInput = String(
-      body.provedor ?? body.provider ?? equiplano.provedor ?? ""
+      body.provedor ??
+        body.provider ??
+        equiplano.provedor ??
+        nacional.provedor ??
+        ""
     ).trim();
 
     if (cnpj.length !== 14) {
@@ -828,7 +855,12 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           prefeitura.inscricao_municipal
         )
     );
-    const allowIncompleteExistingUpdate = !login && !password && hasPartialConfigData;
+    const allowIncompleteExistingUpdate =
+      Boolean(existingServiceConfig) &&
+      !providerInput &&
+      !login &&
+      !password &&
+      hasPartialConfigData;
 
     const requiresMunicipalLogin = ruleProfile?.requiresMunicipalLogin ?? true;
     const requiresMunicipalPassword = ruleProfile?.requiresMunicipalPassword ?? true;
@@ -843,7 +875,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     }
 
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
+    const isNationalProvider = effectiveProvider === "nfse-nacional";
     const configuredNfseEndpoint = firstNonEmptyText(
+      nacional.endpoint,
       ipm.endpoint,
       equiplano.endpoint,
       body.endpoint,
@@ -898,7 +932,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       ) || undefined,
       nfseEndpoint: isToledoProvider
         ? resolveToledoEndpoint(environment, configuredNfseEndpoint)
-        : configuredNfseEndpoint || undefined,
+        : isNationalProvider
+          ? resolveNationalSefinEndpoint(environment, configuredNfseEndpoint)
+          : configuredNfseEndpoint || undefined,
       nfseSoapAction: firstNonEmptyText(
         equiplano.soap_action,
         equiplano.soapAction,
@@ -919,6 +955,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
             ? "soap" as const
             : undefined,
       nfseInscricaoMunicipal: firstNonEmptyText(
+        nacional.inscricao_municipal,
         equiplano.inscricao_municipal,
         body.inscricao_municipal,
         prefeitura.inscricao_municipal,
@@ -993,10 +1030,69 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         ruleProfile?.defaults.taxSituation
       ) || undefined,
       nfseRequiresSignature:
-        ipm.exige_assinatura === true || body.exige_assinatura === true,
+        isNationalProvider ||
+        ipm.exige_assinatura === true ||
+        body.exige_assinatura === true,
       nfseTestMode: ipm.modo_teste === true || body.modo_teste === true,
+      nfseNationalLayoutVersion: firstNonEmptyText(
+        nacional.versao_leiaute,
+        nacional.layout_version,
+        reusableExistingSettings?.nfseNationalLayoutVersion,
+        isNationalProvider ? "1.01" : ""
+      ) || undefined,
+      nfseNationalTaxCode: firstNonEmptyText(
+        nacional.codigo_tributacao_nacional,
+        nacional.cTribNac,
+        servico.codigo_tributacao_nacional,
+        servico.cTribNac,
+        reusableExistingSettings?.nfseNationalTaxCode
+      ).replace(/\D/g, "") || undefined,
+      nfseNationalMunicipalTaxCode: firstNonEmptyText(
+        nacional.codigo_tributacao_municipal,
+        nacional.cTribMun,
+        servico.codigo_tributacao_municipal,
+        servico.cTribMun,
+        reusableExistingSettings?.nfseNationalMunicipalTaxCode
+      ).replace(/\D/g, "") || undefined,
+      nfseNationalNbsCode: firstNonEmptyText(
+        nacional.codigo_nbs,
+        nacional.cNBS,
+        servico.codigo_nbs,
+        servico.cNBS,
+        reusableExistingSettings?.nfseNationalNbsCode
+      ).replace(/\D/g, "") || undefined,
+      nfseNationalSimpleOption: (firstNonEmptyText(
+        nacional.opcao_simples_nacional,
+        nacional.opSimpNac,
+        reusableExistingSettings?.nfseNationalSimpleOption,
+        isNationalProvider ? "3" : ""
+      ) || undefined) as "1" | "2" | "3" | undefined,
+      nfseNationalSimpleTaxRegime: (firstNonEmptyText(
+        nacional.regime_apuracao_simples,
+        nacional.regApTribSN,
+        reusableExistingSettings?.nfseNationalSimpleTaxRegime,
+        isNationalProvider ? "1" : ""
+      ) || undefined) as "1" | "2" | "3" | undefined,
+      nfseNationalSpecialTaxRegime: (firstNonEmptyText(
+        nacional.regime_especial_tributacao,
+        nacional.regEspTrib,
+        reusableExistingSettings?.nfseNationalSpecialTaxRegime,
+        isNationalProvider ? "0" : ""
+      ) || undefined) as "0" | "1" | "2" | "3" | "4" | "5" | "6" | "9" | undefined,
+      nfseNationalIssTaxation: (firstNonEmptyText(
+        nacional.tributacao_issqn,
+        nacional.tribISSQN,
+        reusableExistingSettings?.nfseNationalIssTaxation,
+        isNationalProvider ? "1" : ""
+      ) || undefined) as "1" | "2" | "3" | "4" | undefined,
+      nfseNationalIssRetention: (firstNonEmptyText(
+        nacional.retencao_issqn,
+        nacional.tpRetISSQN,
+        reusableExistingSettings?.nfseNationalIssRetention,
+        isNationalProvider ? "1" : ""
+      ) || undefined) as "1" | "2" | "3" | undefined,
       // Dry-run municipal foi descontinuado. Homologacao continua controlada por nfseTestMode.
-      autoTransmit: true
+      autoTransmit: isNationalProvider ? false : true
     };
     const configValidation = validateNfseConfigDraft({
       cnpj,
@@ -1056,7 +1152,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           nfseProvider: source.nfseProvider,
           nfseMunicipalityCode: source.nfseMunicipalityCode,
           nfseMunicipalityName: source.nfseMunicipalityName,
-          nfseEndpoint: source.nfseEndpoint,
+          nfseEndpoint: isNationalProvider
+            ? resolveNationalSefinEndpoint("producao")
+            : source.nfseEndpoint,
           nfseSoapAction: source.nfseSoapAction,
           nfseRequestFormat: source.nfseRequestFormat,
           nfseInscricaoMunicipal: source.nfseInscricaoMunicipal,
@@ -1070,8 +1168,19 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           nfseDefaultActivityCode: source.nfseDefaultActivityCode,
           nfseDefaultTaxSituation: source.nfseDefaultTaxSituation,
           nfseRequiresSignature: source.nfseRequiresSignature,
+          nfseNationalLayoutVersion: source.nfseNationalLayoutVersion,
+          nfseNationalTaxCode: source.nfseNationalTaxCode,
+          nfseNationalMunicipalTaxCode: source.nfseNationalMunicipalTaxCode,
+          nfseNationalNbsCode: source.nfseNationalNbsCode,
+          nfseNationalSimpleOption: source.nfseNationalSimpleOption,
+          nfseNationalSimpleTaxRegime: source.nfseNationalSimpleTaxRegime,
+          nfseNationalSpecialTaxRegime: source.nfseNationalSpecialTaxRegime,
+          nfseNationalIssTaxation: source.nfseNationalIssTaxation,
+          nfseNationalIssRetention: source.nfseNationalIssRetention,
           nfseTestMode: productionConfig?.settings.nfseTestMode ?? false,
-          autoTransmit: productionConfig?.settings.autoTransmit ?? true
+          autoTransmit: isNationalProvider
+            ? false
+            : productionConfig?.settings.autoTransmit ?? true
         },
         secretsEncrypted: requiresMunicipalPassword
           ? serviceConfig.secretsEncrypted ?? undefined

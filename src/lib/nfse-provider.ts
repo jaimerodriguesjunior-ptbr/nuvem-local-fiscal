@@ -13,6 +13,10 @@ import {
   isToledoNfseConfig,
   processToledoNfse
 } from "./nfse-toledo-equiplano.js";
+import {
+  isNationalNfseConfig,
+  processNationalNfse
+} from "./nfse-national.js";
 
 export type NfseProviderResult = {
   document: DocumentRecord;
@@ -38,6 +42,7 @@ export function configuredNfseProvider(
   const { issuer, serviceConfig } = providerContext(store, document);
   if (isGuairaIpmConfig(issuer, serviceConfig)) return "guaira-ipm";
   if (isToledoNfseConfig(issuer, serviceConfig)) return "toledo-equiplano";
+  if (isNationalNfseConfig(issuer, serviceConfig)) return "nfse-nacional";
   return null;
 }
 
@@ -52,6 +57,7 @@ export async function processConfiguredNfse(
   const provider = configuredNfseProvider(store, document);
   if (provider === "guaira-ipm") return processGuairaIpmNfse(store, documentId);
   if (provider === "toledo-equiplano") return processToledoNfse(store, documentId);
+  if (provider === "nfse-nacional") return processNationalNfse(store, documentId);
 
   const message = "Provedor NFS-e nao configurado para este emitente.";
   const failed = store.failDocument(document.id, "CONFIGURACAO_NFSE", message);

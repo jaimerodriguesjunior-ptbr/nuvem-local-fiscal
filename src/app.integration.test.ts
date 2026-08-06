@@ -698,6 +698,90 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(toledoConfigAfterLowSequence.json().rps.numero, 1);
     assert.equal(toledoConfigAfterLowSequence.json().rps.lote, 1);
 
+    const saveNationalNfseConfig = await app.inject({
+      method: "PUT",
+      url: `/empresas/${cnpj}/nfse`,
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        provedor: "nfse-nacional",
+        municipio: {
+          codigo_ibge: "4108809",
+          nome: "Guaira"
+        },
+        rps: { serie: "1" },
+        nacional: {
+          inscricao_municipal: "324743",
+          versao_leiaute: "1.01",
+          codigo_tributacao_nacional: "140101",
+          opcao_simples_nacional: "3",
+          regime_apuracao_simples: "1",
+          regime_especial_tributacao: "0",
+          tributacao_issqn: "1",
+          retencao_issqn: "1"
+        }
+      }
+    });
+    assert.equal(saveNationalNfseConfig.statusCode, 200, saveNationalNfseConfig.body);
+
+    const nationalNfseConfig = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}/nfse?ambiente=homologacao`,
+      headers: bearer
+    });
+    assert.equal(nationalNfseConfig.statusCode, 200, nationalNfseConfig.body);
+    assert.equal(nationalNfseConfig.json().provedor, "nfse-nacional");
+    assert.equal(
+      nationalNfseConfig.json().nacional.codigo_tributacao_nacional,
+      "140101"
+    );
+    assert.equal(nationalNfseConfig.json().nacional.codigo_nbs, null);
+    assert.equal(nationalNfseConfig.json().nacional.transmissao_automatica, false);
+    const nationalProductionConfig = app.store.findServiceConfigRecord(
+      cnpj,
+      "producao",
+      "NFSE"
+    );
+    assert.ok(nationalProductionConfig);
+    assert.equal(nationalProductionConfig.settings.autoTransmit, false);
+    assert.equal(
+      nationalProductionConfig.settings.nfseEndpoint,
+      "https://sefin.nfse.gov.br/SefinNacional"
+    );
+
+    const nationalNfseEmission = await app.inject({
+      method: "POST",
+      url: "/nfse/dps",
+      headers: {
+        ...bearer,
+        "content-type": "application/json"
+      },
+      payload: {
+        ambiente: "homologacao",
+        infDPS: {
+          dhEmi: "2026-08-06T10:15:30-03:00",
+          prest: { CNPJ: cnpj },
+          toma: { CPF: "12345678909", xNome: "Tomador Nacional Teste" },
+          serv: {
+            locPrest: { cLocPrestacao: "4108809" },
+            cServ: { xDescServ: "Servico de teste NFS-e Nacional" }
+          },
+          valores: { vServPrest: { vServ: 100 } }
+        }
+      }
+    });
+    assert.equal(nationalNfseEmission.statusCode, 202, nationalNfseEmission.body);
+    assert.equal(nationalNfseEmission.json().provedor, "nfse-nacional");
+    assert.equal(nationalNfseEmission.json().status, "processamento");
+    assert.equal(
+      nationalNfseEmission.json().motivo_status,
+      "NFSE_NACIONAL_DPS_GENERATED"
+    );
+    assert.equal(nationalNfseEmission.json().transmissao_municipal, false);
+
     const remoteCompany = await app.inject({
       method: "GET",
       url: `/empresas/${cnpj}`,

@@ -1,7 +1,10 @@
 import type { Environment, Issuer, ServiceConfig } from "../types.js";
 import { config } from "../config.js";
 
-export type NfseProviderId = "guaira-ipm" | "toledo-equiplano";
+export type NfseProviderId =
+  | "guaira-ipm"
+  | "toledo-equiplano"
+  | "nfse-nacional";
 
 export type NfseRuleProfile = {
   provider: NfseProviderId;
@@ -111,6 +114,32 @@ export const NFSE_RULE_PROFILES: Record<NfseProviderId, NfseRuleProfile> = {
       "nfseDefaultServiceCode",
       "nfseDefaultAliquotaIss"
     ]
+  },
+  "nfse-nacional": {
+    provider: "nfse-nacional",
+    displayName: "Sistema Nacional NFS-e",
+    municipalityCode: "",
+    municipalityName: "Municipio configurado",
+    ruleSetVersion: "snnfse-prodrest-v1.01-20260727",
+    effectiveFrom: "2026-07-27",
+    requiresMunicipalLogin: false,
+    requiresMunicipalPassword: false,
+    requiresCertificateForTransmission: true,
+    productionTransmissionEnabled: false,
+    defaults: {
+      endpoint:
+        "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional",
+      rpsSeries: "1"
+    },
+    requiredSettings: [
+      "nfseInscricaoMunicipal",
+      "nfseRpsSerie",
+      "nfseNationalTaxCode",
+      "nfseNationalSimpleOption",
+      "nfseNationalSpecialTaxRegime",
+      "nfseNationalIssTaxation",
+      "nfseNationalIssRetention"
+    ]
   }
 };
 
@@ -122,6 +151,15 @@ export function normalizeNfseProvider(value: unknown): NfseProviderId | null {
   }
   if (provider.includes("toledo") || provider.includes("equiplano")) {
     return "toledo-equiplano";
+  }
+  if (
+    provider === "nacional" ||
+    provider.includes("nfse-nacional") ||
+    provider.includes("nfse nacional") ||
+    provider.includes("sistema nacional") ||
+    provider.includes("sefin")
+  ) {
+    return "nfse-nacional";
   }
   return null;
 }
@@ -170,7 +208,12 @@ export function assertNfseProviderMunicipalityCompatibility(input: {
   municipalityCode: unknown;
 }) {
   const municipalityProvider = nfseProviderFromMunicipality(input.municipalityCode);
-  if (input.provider && municipalityProvider && input.provider !== municipalityProvider) {
+  if (
+    input.provider &&
+    input.provider !== "nfse-nacional" &&
+    municipalityProvider &&
+    input.provider !== municipalityProvider
+  ) {
     return `Municipio ${digitsOnly(input.municipalityCode)} pertence ao provedor ${municipalityProvider}, nao ${input.provider}.`;
   }
   return null;
@@ -201,6 +244,43 @@ export function validateNfseConfigDraft(draft: NfseConfigDraft) {
     const value = draft.settings[setting];
     if (value === undefined || value === null || value === "") {
       errors.push(`Informe ${setting} para ${profile.displayName}.`);
+    }
+  }
+
+  if (provider === "nfse-nacional") {
+    const settings = draft.settings;
+    if (settings.nfseNationalLayoutVersion !== "1.01") {
+      errors.push("Versao de leiaute nacional suportada nesta etapa: 1.01.");
+    }
+    if (!/^[0-9]{7}$/.test(digitsOnly(draft.municipalityCode))) {
+      errors.push("Informe municipio IBGE com 7 digitos para Sistema Nacional NFS-e.");
+    }
+    if (!/^[0-9]{6}$/.test(digitsOnly(settings.nfseNationalTaxCode))) {
+      errors.push("Informe codigo de tributacao nacional com 6 digitos.");
+    }
+    if (
+      settings.nfseNationalMunicipalTaxCode &&
+      !/^[0-9]{3}$/.test(digitsOnly(settings.nfseNationalMunicipalTaxCode))
+    ) {
+      errors.push("Codigo de tributacao municipal deve ter 3 digitos.");
+    }
+    if (
+      settings.nfseNationalNbsCode &&
+      !/^[0-9]{9}$/.test(digitsOnly(settings.nfseNationalNbsCode))
+    ) {
+      errors.push("Codigo NBS deve ter 9 digitos.");
+    }
+    if (
+      settings.nfseRpsSerie &&
+      !/^(?:[0-9]{1,4}|[0-8][0-9]{4})$/.test(String(settings.nfseRpsSerie))
+    ) {
+      errors.push("Serie DPS invalida para o leiaute nacional 1.01.");
+    }
+    if (
+      settings.nfseNationalSimpleOption === "3" &&
+      !settings.nfseNationalSimpleTaxRegime
+    ) {
+      errors.push("Informe regime de apuracao do Simples Nacional para ME/EPP.");
     }
   }
 

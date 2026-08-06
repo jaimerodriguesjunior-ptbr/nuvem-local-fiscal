@@ -446,8 +446,16 @@ export class InMemoryStore {
       typeof infNFe.ide === "object" && infNFe.ide !== null
         ? (infNFe.ide as Record<string, unknown>)
         : {};
-    const payloadNumero = Number(ide.nNF);
-    const payloadSerie = Number(ide.serie);
+    const infDps =
+      typeof payload.infDPS === "object" && payload.infDPS !== null
+        ? (payload.infDPS as Record<string, unknown>)
+        : payload;
+    const payloadNumero = Number(
+      input.tipoDocumento === "NFSe" ? infDps.nDPS : ide.nNF
+    );
+    const payloadSerie = Number(
+      input.tipoDocumento === "NFSe" ? infDps.serie : ide.serie
+    );
     const fallbackSerie = issuer
       ? input.tipoDocumento === "NFe"
         ? issuer.serieNfe

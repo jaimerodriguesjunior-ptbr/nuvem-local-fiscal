@@ -10,6 +10,10 @@ Este documento registra a decisao arquitetural e o plano inicial. Ele nao
 autoriza alteracao de codigo, configuracao, banco, numeracao ou deploy antes da
 revisao do plano.
 
+Implementacao iniciada em 06/08/2026 na branch
+`feat/nfse-sistema-nacional`. O estado tecnico da primeira fatia esta em
+`docs/NFSE_NACIONAL_IMPLEMENTACAO.md`.
+
 ## Decisao arquitetural
 
 A NFS-e Nacional tera um unico adaptador tecnico na Nuvem Local. Nao sera criado

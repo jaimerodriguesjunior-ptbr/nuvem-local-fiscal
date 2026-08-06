@@ -86,6 +86,15 @@ export type ServiceConfig = {
     nfseDefaultTaxSituation?: string;
     nfseRequiresSignature?: boolean;
     nfseTestMode?: boolean;
+    nfseNationalLayoutVersion?: string;
+    nfseNationalTaxCode?: string;
+    nfseNationalMunicipalTaxCode?: string;
+    nfseNationalNbsCode?: string;
+    nfseNationalSimpleOption?: "1" | "2" | "3";
+    nfseNationalSimpleTaxRegime?: "1" | "2" | "3";
+    nfseNationalSpecialTaxRegime?: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "9";
+    nfseNationalIssTaxation?: "1" | "2" | "3" | "4";
+    nfseNationalIssRetention?: "1" | "2" | "3";
     distribuicaoAutomatica?: boolean;
     distribuicaoIntervaloHoras?: number;
     cienciaAutomatica?: boolean;
