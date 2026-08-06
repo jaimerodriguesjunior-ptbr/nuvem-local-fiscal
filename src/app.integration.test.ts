@@ -773,13 +773,14 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
         }
       }
     });
-    assert.equal(nationalNfseEmission.statusCode, 202, nationalNfseEmission.body);
+    assert.equal(nationalNfseEmission.statusCode, 422, nationalNfseEmission.body);
     assert.equal(nationalNfseEmission.json().provedor, "nfse-nacional");
-    assert.equal(nationalNfseEmission.json().status, "processamento");
+    assert.equal(nationalNfseEmission.json().status, "erro");
     assert.equal(
       nationalNfseEmission.json().motivo_status,
-      "NFSE_NACIONAL_DPS_GENERATED"
+      "NFSE_NACIONAL_PAYLOAD_INVALIDO"
     );
+    assert.match(nationalNfseEmission.json().motivo, /certificado A1 ativo/i);
     assert.equal(nationalNfseEmission.json().transmissao_municipal, false);
 
     const remoteCompany = await app.inject({

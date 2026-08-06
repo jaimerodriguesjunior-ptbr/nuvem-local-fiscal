@@ -1,3 +1,7 @@
+import { DOMParser } from "@xmldom/xmldom";
+import { SignedXml } from "xml-crypto";
+
+import { config } from "../config.js";
 import type { InMemoryStore } from "../store.js";
 import type {
   DocumentRecord,
@@ -6,6 +10,8 @@ import type {
   ServiceConfig
 } from "../types.js";
 import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
+import { openEncryptedCertificate } from "./certificates.js";
+import { validateNationalDpsXml } from "./nfse-national-xsd-validator.js";
 
 export const NFSE_NATIONAL_LAYOUT_VERSION = "1.01";
 export const NFSE_NATIONAL_SCHEMA_RELEASE = "20260727";
@@ -15,6 +21,12 @@ export const NFSE_NATIONAL_RESTRICTED_ENDPOINT =
   "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional";
 export const NFSE_NATIONAL_PRODUCTION_ENDPOINT =
   "https://sefin.nfse.gov.br/SefinNacional";
+
+const XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
+const C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+const ENVELOPED = `${XMLDSIG}enveloped-signature`;
+const SHA256 = "http://www.w3.org/2001/04/xmlenc#sha256";
+const RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
 
 export type NationalNfseConfig = {
   environment: Environment;
@@ -74,6 +86,12 @@ export type NationalNfseProcessingResult = {
   error: string | null;
 };
 
+export type SignedNationalDpsResult = {
+  unsignedXml: string;
+  signedXml: string;
+  signatureValid: boolean;
+};
+
 function asRecord(value: unknown) {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -110,6 +128,13 @@ function escapeXml(value: unknown) {
 function optionalTag(name: string, value: unknown) {
   const text = String(value ?? "").trim();
   return text ? `<${name}>${escapeXml(text)}</${name}>` : "";
+}
+
+function certificateBody(certificatePem: string) {
+  return certificatePem
+    .replace(/-----BEGIN CERTIFICATE-----/g, "")
+    .replace(/-----END CERTIFICATE-----/g, "")
+    .replace(/\s+/g, "");
 }
 
 function localDateTime(value: unknown) {
@@ -407,6 +432,45 @@ export function buildNationalDpsXml(
   ].join("");
 }
 
+export function signNationalDpsXml(input: {
+  unsignedXml: string;
+  privateKeyPem: string;
+  certificatePem: string;
+}): SignedNationalDpsResult {
+  const signer = new SignedXml({
+    privateKey: input.privateKeyPem,
+    publicCert: input.certificatePem,
+    getKeyInfoContent: () =>
+      `<X509Data><X509Certificate>${certificateBody(input.certificatePem)}</X509Certificate></X509Data>`
+  });
+  signer.addReference({
+    xpath: "//*[local-name(.)='infDPS']",
+    digestAlgorithm: SHA256,
+    transforms: [ENVELOPED, C14N]
+  });
+  signer.canonicalizationAlgorithm = C14N;
+  signer.signatureAlgorithm = RSA_SHA256;
+  signer.computeSignature(input.unsignedXml, {
+    location: { reference: "//*[local-name(.)='infDPS']", action: "after" }
+  });
+  const signedXml = signer.getSignedXml();
+  const xml = new DOMParser().parseFromString(signedXml, "application/xml");
+  const signatureNode = xml.getElementsByTagNameNS(XMLDSIG, "Signature").item(0);
+  if (!signatureNode) {
+    throw new Error("A assinatura XML da DPS nao foi inserida.");
+  }
+  const verifier = new SignedXml({
+    publicCert: input.certificatePem,
+    getCertFromKeyInfo: () => null
+  });
+  verifier.loadSignature(signatureNode);
+  return {
+    unsignedXml: input.unsignedXml,
+    signedXml,
+    signatureValid: verifier.checkSignature(signedXml)
+  };
+}
+
 export async function processNationalNfse(
   store: InMemoryStore,
   documentId: string
@@ -441,14 +505,44 @@ export async function processNationalNfse(
   }
 
   try {
-    const config = resolveNationalNfseConfig(issuer, serviceConfig);
-    const draft = normalizeNationalNfseDraft(document, config);
-    const generatedXml = buildNationalDpsXml(config, draft);
+    const nationalConfig = resolveNationalNfseConfig(issuer, serviceConfig);
+    const draft = normalizeNationalNfseDraft(document, nationalConfig);
+    const generatedXml = buildNationalDpsXml(nationalConfig, draft);
+    const certificate = store.findActiveCertificate(document.issuerCnpj);
+    if (!certificate?.encryptedBundle) {
+      throw new Error("Certificado A1 ativo nao encontrado para assinar a DPS Nacional.");
+    }
+    const openedCertificate = openEncryptedCertificate(
+      certificate.encryptedBundle,
+      config.certificateEncryptionKey
+    );
+    const signed = signNationalDpsXml({
+      unsignedXml: generatedXml,
+      privateKeyPem: openedCertificate.privateKeyPem,
+      certificatePem: openedCertificate.certificatePem
+    });
+    const xsd = validateNationalDpsXml(signed.signedXml);
+    store.saveSignedXml(document.id, {
+      accessKey: draft.id,
+      unsignedXml: signed.unsignedXml,
+      signedXml: signed.signedXml,
+      signatureValid: signed.signatureValid,
+      xsdValid: xsd.valid,
+      xsdErrors: xsd.errors,
+      certificateId: certificate.id
+    });
+    if (!signed.signatureValid) {
+      throw new Error("A assinatura digital da DPS Nacional nao foi validada.");
+    }
+    if (!xsd.valid) {
+      throw new Error(`DPS Nacional reprovada no XSD: ${xsd.errors.join(" | ")}`);
+    }
     const reason =
-      "DPS nacional gerada localmente; assinatura, validacao XSD e transmissao ainda nao executadas.";
+      "DPS nacional gerada, assinada e validada localmente; transmissao ainda nao executada.";
     const saved = store.saveMunicipalProcessingResult(document.id, {
       providerName: "nfse-nacional",
       generatedXml,
+      signedXml: signed.signedXml,
       requestBody: generatedXml,
       providerReference: draft.id,
       status: "processamento",
@@ -460,11 +554,14 @@ export async function processNationalNfse(
       message: reason,
       payload: {
         provider: "nfse-nacional",
-        layoutVersion: config.layoutVersion,
+        layoutVersion: nationalConfig.layoutVersion,
         schemaRelease: NFSE_NATIONAL_SCHEMA_RELEASE,
         municipalityCode: draft.municipalityCode,
         nationalTaxCode: draft.nationalTaxCode,
         nbsCode: draft.nbsCode || null,
+        signatureValid: signed.signatureValid,
+        xsdValid: xsd.valid,
+        xsdSchema: xsd.schema,
         transmitted: false
       }
     });

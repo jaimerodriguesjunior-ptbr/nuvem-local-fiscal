@@ -68,7 +68,7 @@ test("validates national tax, municipal and optional NBS codes", () => {
   assert.match(result.errors.join(" "), /tributacao nacional com 6 digitos/);
   assert.match(result.errors.join(" "), /tributacao municipal deve ter 3 digitos/);
   assert.match(result.errors.join(" "), /NBS deve ter 9 digitos/);
-  assert.match(result.errors.join(" "), /Serie DPS invalida/);
+  assert.match(result.errors.join(" "), /Serie DPS para emissao via API/);
   assert.match(result.errors.join(" "), /regime de apuracao/);
 });
 

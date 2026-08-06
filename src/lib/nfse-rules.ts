@@ -270,11 +270,13 @@ export function validateNfseConfigDraft(draft: NfseConfigDraft) {
     ) {
       errors.push("Codigo NBS deve ter 9 digitos.");
     }
+    const dpsSeries = String(settings.nfseRpsSerie ?? "").trim();
     if (
-      settings.nfseRpsSerie &&
-      !/^(?:[0-9]{1,4}|[0-8][0-9]{4})$/.test(String(settings.nfseRpsSerie))
+      !/^\d{1,5}$/.test(dpsSeries) ||
+      Number(dpsSeries) < 1 ||
+      Number(dpsSeries) > 49_999
     ) {
-      errors.push("Serie DPS invalida para o leiaute nacional 1.01.");
+      errors.push("Serie DPS para emissao via API deve estar entre 1 e 49999.");
     }
     if (
       settings.nfseNationalSimpleOption === "3" &&

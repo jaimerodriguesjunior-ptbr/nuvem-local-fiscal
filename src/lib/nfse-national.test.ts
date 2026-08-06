@@ -5,9 +5,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { parseXml } from "libxmljs2";
+import forge from "node-forge";
 
+import { config } from "../config.js";
 import type { DocumentRecord, Issuer, ServiceConfig } from "../types.js";
 import { InMemoryStore } from "../store.js";
+import { encryptCertificateBundle } from "./certificates.js";
 import {
   buildNationalDpsXml,
   isNationalNfseConfig,
@@ -21,6 +24,22 @@ import {
   configuredNfseProvider,
   processConfiguredNfse
 } from "./nfse-provider.js";
+
+function createTestPfx(password: string) {
+  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const certificate = forge.pki.createCertificate();
+  certificate.publicKey = keys.publicKey;
+  certificate.serialNumber = "02";
+  certificate.validity.notBefore = new Date(Date.now() - 60_000);
+  certificate.validity.notAfter = new Date(Date.now() + 86_400_000);
+  certificate.setSubject([{ name: "commonName", value: "NFS-e Nacional Teste" }]);
+  certificate.setIssuer(certificate.subject.attributes);
+  certificate.sign(keys.privateKey, forge.md.sha256.create());
+  const p12 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [certificate], password, {
+    algorithm: "3des"
+  });
+  return Buffer.from(forge.asn1.toDer(p12).getBytes(), "binary");
+}
 
 const issuer: Issuer = {
   id: "issuer_nht",
@@ -174,6 +193,20 @@ test("routes a national document and persists a generated DPS without transmitti
     active: true,
     settings: serviceConfig.settings
   });
+  const password = "senha-nfse-nacional";
+  const certificate = store.createOrReplaceCertificate(issuer.cnpj, {
+    fileName: "nfse-nacional-teste.pfx",
+    encryptedBundle: encryptCertificateBundle(
+      { pfxBase64: createTestPfx(password).toString("base64"), password },
+      config.certificateEncryptionKey
+    ),
+    validFrom: new Date(Date.now() - 60_000).toISOString(),
+    validUntil: new Date(Date.now() + 86_400_000).toISOString(),
+    serialNumber: "02",
+    subject: "CN=NFS-e Nacional Teste",
+    holderCnpj: issuer.cnpj
+  });
+  assert.ok(certificate);
   const created = store.createDocument({
     tipoDocumento: "NFSe",
     issuerCnpj: issuer.cnpj,
@@ -200,5 +233,8 @@ test("routes a national document and persists a generated DPS without transmitti
   assert.equal(result.document.providerName, "nfse-nacional");
   assert.equal(result.document.motivoStatus, "NFSE_NACIONAL_DPS_GENERATED");
   assert.match(result.document.xmlGenerated ?? "", /<DPS /);
+  assert.match(result.document.xmlSigned ?? "", /<Signature xmlns="http:\/\/www.w3.org\/2000\/09\/xmldsig#">/);
+  assert.equal(result.document.signatureValid, true);
+  assert.equal(result.document.xsdValid, true);
   assert.equal(store.getDocumentEvents(created.id)[0]?.eventType, "nfse_nacional_dps_generated");
 });
