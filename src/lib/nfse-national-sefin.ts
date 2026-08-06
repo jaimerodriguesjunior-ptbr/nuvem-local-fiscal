@@ -1,0 +1,138 @@
+import { gzipSync, gunzipSync } from "node:zlib";
+import { request as httpsRequest } from "node:https";
+import type { RequestOptions } from "node:https";
+
+export type NationalSefinError = {
+  code: string;
+  description: string;
+  detail: string | null;
+};
+
+export type NationalSefinTransmissionResult = {
+  accepted: boolean;
+  statusCode: number;
+  accessKey: string | null;
+  nfseXml: string | null;
+  rawBody: string;
+  errors: NationalSefinError[];
+};
+
+export type NationalSefinTransport = (
+  options: RequestOptions,
+  body: string
+) => Promise<{ statusCode: number; body: string }>;
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+export function gzipBase64(xml: string) {
+  return gzipSync(Buffer.from(xml, "utf8")).toString("base64");
+}
+
+export function gunzipBase64(value: string) {
+  return gunzipSync(Buffer.from(value, "base64")).toString("utf8");
+}
+
+export function nationalSefinEndpoint(baseUrl: string, path: string) {
+  return new URL(path.replace(/^\/+/, ""), `${trimTrailingSlash(baseUrl)}/`);
+}
+
+export function parseNationalSefinResponse(
+  statusCode: number,
+  rawBody: string
+): NationalSefinTransmissionResult {
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch {
+    // A SEFIN pode devolver corpo vazio em falhas de infraestrutura.
+  }
+  const errors = Array.isArray(payload.erros)
+    ? payload.erros.map((item) => {
+        const value = (item ?? {}) as Record<string, unknown>;
+        return {
+          code: String(value.Codigo ?? value.codigo ?? "SEFIN"),
+          description: String(value.Descricao ?? value.descricao ?? "Erro retornado pela SEFIN."),
+          detail: value.Complemento ?? value.complemento
+            ? String(value.Complemento ?? value.complemento)
+            : null
+        };
+      })
+    : [];
+  const compressedXml = String(
+    payload.nfseXmlGZipB64 ?? payload.NFSeXmlGZipB64 ?? payload.xmlNfseGZipB64 ?? ""
+  ).trim();
+  let nfseXml: string | null = null;
+  if (compressedXml) {
+    try {
+      nfseXml = gunzipBase64(compressedXml);
+    } catch {
+      errors.push({
+        code: "SEFIN_XML_GZIP",
+        description: "A resposta da SEFIN contem XML compactado invalido.",
+        detail: null
+      });
+    }
+  }
+  const accessKey = String(
+    payload.chaveAcesso ?? payload.chNFSe ?? payload.ChaveAcesso ?? ""
+  ).trim() || null;
+  return {
+    accepted: statusCode >= 200 && statusCode < 300 && errors.length === 0,
+    statusCode,
+    accessKey,
+    nfseXml,
+    rawBody,
+    errors
+  };
+}
+
+export const requestNationalSefin: NationalSefinTransport = (options, body) =>
+  new Promise((resolve, reject) => {
+    const request = httpsRequest(options, (response) => {
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+      response.on("end", () =>
+        resolve({
+          statusCode: response.statusCode ?? 0,
+          body: Buffer.concat(chunks).toString("utf8")
+        })
+      );
+    });
+    request.setTimeout(30_000, () => request.destroy(new Error("Timeout ao chamar a SEFIN Nacional.")));
+    request.on("error", reject);
+    request.write(body);
+    request.end();
+  });
+
+export async function transmitNationalDps(input: {
+  endpoint: string;
+  signedDpsXml: string;
+  privateKeyPem: string;
+  certificatePem: string;
+  certificateChainPem?: string;
+  transport?: NationalSefinTransport;
+}): Promise<NationalSefinTransmissionResult> {
+  const target = nationalSefinEndpoint(input.endpoint, "nfse");
+  const body = JSON.stringify({ dpsXmlGZipB64: gzipBase64(input.signedDpsXml) });
+  const response = await (input.transport ?? requestNationalSefin)(
+    {
+      protocol: target.protocol,
+      hostname: target.hostname,
+      port: target.port || undefined,
+      path: `${target.pathname}${target.search}`,
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json; charset=utf-8",
+        "content-length": Buffer.byteLength(body)
+      },
+      key: input.privateKeyPem,
+      cert: `${input.certificatePem}${input.certificateChainPem ?? ""}`,
+      rejectUnauthorized: true
+    },
+    body
+  );
+  return parseNationalSefinResponse(response.statusCode, response.body);
+}

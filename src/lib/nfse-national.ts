@@ -11,6 +11,7 @@ import type {
 } from "../types.js";
 import { resolveNfseProvider, validateNfseRuntimePolicy } from "./nfse-rules.js";
 import { openEncryptedCertificate } from "./certificates.js";
+import { transmitNationalDps } from "./nfse-national-sefin.js";
 import { validateNationalDpsXml } from "./nfse-national-xsd-validator.js";
 
 export const NFSE_NATIONAL_LAYOUT_VERSION = "1.01";
@@ -537,17 +538,47 @@ export async function processNationalNfse(
     if (!xsd.valid) {
       throw new Error(`DPS Nacional reprovada no XSD: ${xsd.errors.join(" | ")}`);
     }
-    const reason =
+    const autoTransmit = serviceConfig.settings.autoTransmit === true;
+    let transmitted = false;
+    let responseBody: string | null = null;
+    let processedXml: string | null = null;
+    let providerDocumentNumber: string | null = null;
+    let reason =
       "DPS nacional gerada, assinada e validada localmente; transmissao ainda nao executada.";
+    let reasonCode = "NFSE_NACIONAL_DPS_GENERATED";
+    if (autoTransmit) {
+      const transmission = await transmitNationalDps({
+        endpoint: resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint),
+        signedDpsXml: signed.signedXml,
+        privateKeyPem: openedCertificate.privateKeyPem,
+        certificatePem: openedCertificate.certificatePem,
+        certificateChainPem: openedCertificate.certificateChainPem
+      });
+      responseBody = transmission.rawBody;
+      processedXml = transmission.nfseXml;
+      providerDocumentNumber = transmission.accessKey;
+      if (!transmission.accepted) {
+        const errors = transmission.errors
+          .map((item) => `${item.code}: ${item.description}${item.detail ? ` (${item.detail})` : ""}`)
+          .join(" | ");
+        throw new Error(errors || `SEFIN Nacional retornou HTTP ${transmission.statusCode}.`);
+      }
+      transmitted = true;
+      reason = "DPS Nacional transmitida para a SEFIN; aguardando consulta de processamento.";
+      reasonCode = "NFSE_NACIONAL_DPS_TRANSMITTED";
+    }
     const saved = store.saveMunicipalProcessingResult(document.id, {
       providerName: "nfse-nacional",
       generatedXml,
       signedXml: signed.signedXml,
       requestBody: generatedXml,
+      responseBody,
       providerReference: draft.id,
+      providerDocumentNumber,
+      processedXml,
       status: "processamento",
       reason,
-      reasonCode: "NFSE_NACIONAL_DPS_GENERATED"
+      reasonCode
     });
     store.addDocumentEvent(document.id, {
       eventType: "nfse_nacional_dps_generated",
@@ -562,11 +593,11 @@ export async function processNationalNfse(
         signatureValid: signed.signatureValid,
         xsdValid: xsd.valid,
         xsdSchema: xsd.schema,
-        transmitted: false
+        transmitted
       }
     });
     await store.waitForPersistence();
-    return { document: saved ?? document, transmitted: false, error: null };
+    return { document: saved ?? document, transmitted, error: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     store.addDocumentEvent(document.id, {
