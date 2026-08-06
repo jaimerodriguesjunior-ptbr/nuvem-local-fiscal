@@ -19,7 +19,8 @@ import {
   configuredNfseProvider,
   consultConfiguredNfse,
   processConfiguredNfse,
-  transmitConfiguredNfseTest
+  transmitConfiguredNfseTest,
+  transmitConfiguredNationalNfseHomologation
 } from "../lib/nfse-provider.js";
 import {
   getNfseRuleProfile,
@@ -559,6 +560,10 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.post("/nfse/:id/transmitir-teste", async (request, reply) => {
     return handleTransmitNfseTest(app, request, reply);
+  });
+
+  app.post("/nfse/:id/transmitir-homologacao-nacional", async (request, reply) => {
+    return handleTransmitNationalNfseHomologation(app, request, reply);
   });
 
   app.get("/nfe/:id/xml", async (request, reply) => {
@@ -2292,6 +2297,54 @@ async function handleTransmitNfseTest(
       message,
       transmissao_municipal: false,
       provedor: "guaira-ipm"
+    });
+  }
+}
+
+async function handleTransmitNationalNfseHomologation(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const params = request.params as { id: string };
+  const body = (request.body as Record<string, unknown> | undefined) ?? {};
+  const confirmation = String(body.confirmacao ?? body.confirmation ?? "").trim();
+  if (confirmation !== "TRANSMITIR DPS NACIONAL EM HOMOLOGACAO") {
+    return reply.code(400).send({
+      message: "Confirmacao invalida. Informe exatamente TRANSMITIR DPS NACIONAL EM HOMOLOGACAO.",
+      transmite_documento: false
+    });
+  }
+
+  const document = app.store.findDocument(params.id, "NFSe");
+  if (!document) {
+    return reply.code(404).send({ message: "NFS-e nao encontrada." });
+  }
+  if (document.ambiente !== "homologacao" || document.providerName !== "nfse-nacional") {
+    return reply.code(409).send({
+      message: "Esta rota aceita somente DPS Nacional pendente em homologacao.",
+      transmite_documento: false
+    });
+  }
+
+  try {
+    const result = await transmitConfiguredNationalNfseHomologation(app.store, document.id);
+    return reply.code(result.error ? 422 : 200).send({
+      ...mapDocumentResponse(result.document, requestBaseUrl(request)),
+      message: result.error ?? result.document.motivo,
+      transmissao_nacional: result.transmitted,
+      provedor: "nfse-nacional",
+      ambiente: "homologacao"
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    request.log.error({ err: error, documentId: document.id }, message);
+    return reply.code(409).send({
+      ...mapDocumentResponse(document, requestBaseUrl(request)),
+      message,
+      transmissao_nacional: false,
+      provedor: "nfse-nacional",
+      ambiente: "homologacao"
     });
   }
 }

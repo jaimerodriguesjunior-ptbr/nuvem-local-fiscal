@@ -16,7 +16,8 @@ import {
 import {
   consultNationalNfse,
   isNationalNfseConfig,
-  processNationalNfse
+  processNationalNfse,
+  transmitPreparedNationalDps
 } from "./nfse-national.js";
 
 export type NfseProviderResult = {
@@ -94,6 +95,21 @@ export async function transmitConfiguredNfseTest(
     return transmitGuairaIpmTest(store, documentId);
   }
   throw new Error("Transmissao manual de teste disponivel somente para Guaira/IPM.");
+}
+
+export async function transmitConfiguredNationalNfseHomologation(
+  store: InMemoryStore,
+  documentId: string
+): Promise<NfseProviderResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) {
+    throw new Error("Documento NFS-e nao encontrado para transmissao.");
+  }
+  const provider = configuredNfseProvider(store, document);
+  if (provider !== "nfse-nacional") {
+    throw new Error("Esta rota manual e exclusiva para DPS do Sistema Nacional NFS-e.");
+  }
+  return transmitPreparedNationalDps(store, documentId);
 }
 
 export async function cancelConfiguredNfse(

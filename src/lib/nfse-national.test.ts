@@ -18,6 +18,7 @@ import {
   normalizeNationalNfseDraft,
   resolveNationalSefinEndpoint,
   resolveNationalNfseConfig,
+  transmitPreparedNationalDps,
   validateNationalNfseDraft
 } from "./nfse-national.js";
 import {
@@ -288,6 +289,38 @@ test("reserva numeros DPS nacionais sequenciais no store", (t) => {
     number: "42",
     series: "1"
   });
+});
+
+test("transmissao manual nacional recusa qualquer ambiente que nao seja homologacao", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-manual-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
+  store.upsertIssuerEnvironment(issuer.cnpj, "producao", {
+    razaoSocial: issuer.razaoSocial,
+    nomeFantasia: issuer.nomeFantasia,
+    uf: issuer.uf,
+    crt: issuer.crt
+  });
+  store.upsertServiceConfig(issuer.cnpj, "producao", "NFSE", {
+    active: true,
+    settings: serviceConfig.settings
+  });
+  const created = store.createDocument({
+    tipoDocumento: "NFSe",
+    issuerCnpj: issuer.cnpj,
+    ambiente: "producao",
+    payloadOriginal: {},
+    payloadNormalizado: {}
+  });
+  created.status = "processamento";
+  created.providerName = "nfse-nacional";
+  created.providerReference = "DPS4108809000000000000000000001000000000000001";
+  created.xmlSigned = "<DPS />";
+
+  await assert.rejects(
+    () => transmitPreparedNationalDps(store, created.id),
+    /somente em homologacao/i
+  );
 });
 
 test("declara cancelamento nacional como operacao ainda nao implementada", async (t) => {

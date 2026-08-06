@@ -632,6 +632,121 @@ export async function processNationalNfse(
   }
 }
 
+/**
+ * Transmite uma DPS que ja foi gerada, assinada e validada localmente.
+ * Esta operacao e deliberadamente separada do processamento normal: ela e
+ * usada apenas pelo comando manual de homologacao e nunca habilita envio
+ * automatico por configuracao.
+ */
+export async function transmitPreparedNationalDps(
+  store: InMemoryStore,
+  documentId: string
+): Promise<NationalNfseProcessingResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) throw new Error("Documento NFS-e nao encontrado para transmissao.");
+  if (document.ambiente !== "homologacao") {
+    throw new Error("A transmissao manual da DPS Nacional e permitida somente em homologacao.");
+  }
+  if (document.status !== "processamento" || document.providerName !== "nfse-nacional") {
+    throw new Error("Somente uma DPS Nacional pendente e assinada pode ser transmitida.");
+  }
+  if (!document.xmlSigned || !document.providerReference?.startsWith("DPS")) {
+    throw new Error("DPS Nacional assinada ou seu identificador nao esta disponivel para transmissao.");
+  }
+  if (document.motivoStatus === "NFSE_NACIONAL_DPS_TRANSMITTED") {
+    throw new Error("Esta DPS Nacional ja foi transmitida; consulte o processamento antes de nova tentativa.");
+  }
+
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(
+    document.issuerCnpj,
+    document.ambiente,
+    "NFSE"
+  );
+  const certificate = store.findActiveCertificate(document.issuerCnpj);
+  if (!issuer || !serviceConfig?.active || !isNationalNfseConfig(issuer, serviceConfig)) {
+    throw new Error("Configuracao do Sistema Nacional NFS-e nao encontrada para este emitente.");
+  }
+  if (!certificate?.encryptedBundle) {
+    throw new Error("Certificado A1 ativo nao encontrado para transmitir a DPS Nacional.");
+  }
+
+  try {
+    const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
+    const transmission = await transmitNationalDps({
+      endpoint: resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint),
+      signedDpsXml: document.xmlSigned,
+      privateKeyPem: opened.privateKeyPem,
+      certificatePem: opened.certificatePem,
+      certificateChainPem: opened.certificateChainPem
+    });
+    const errors = transmission.errors
+      .map((item) => `${item.code}: ${item.description}${item.detail ? ` (${item.detail})` : ""}`)
+      .join(" | ");
+    if (!transmission.accepted) {
+      const reason = errors || `SEFIN Nacional retornou HTTP ${transmission.statusCode}.`;
+      const saved = store.saveMunicipalProcessingResult(document.id, {
+        providerName: "nfse-nacional",
+        responseBody: transmission.rawBody,
+        status: "erro",
+        reason,
+        reasonCode: "NFSE_NACIONAL_DPS_REJECTED"
+      });
+      store.addDocumentEvent(document.id, {
+        eventType: "nfse_nacional_dps_transmission_rejected",
+        level: "error",
+        message: reason,
+        payload: { provider: "nfse-nacional", environment: "homologacao", statusCode: transmission.statusCode }
+      });
+      await store.waitForPersistence();
+      return { document: saved ?? document, transmitted: false, error: reason };
+    }
+
+    const processed = Boolean(transmission.nfseXml);
+    const reason = processed
+      ? "NFS-e Nacional gerada pela SEFIN em homologacao."
+      : "DPS Nacional transmitida para a SEFIN em homologacao; aguardando consulta de processamento.";
+    const saved = store.saveMunicipalProcessingResult(document.id, {
+      providerName: "nfse-nacional",
+      responseBody: transmission.rawBody,
+      providerDocumentNumber: transmission.accessKey,
+      processedXml: transmission.nfseXml,
+      status: processed ? "autorizado" : "processamento",
+      reason,
+      reasonCode: processed ? "NFSE_NACIONAL_AUTHORIZED" : "NFSE_NACIONAL_DPS_TRANSMITTED"
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_dps_transmitted",
+      message: reason,
+      payload: {
+        provider: "nfse-nacional",
+        environment: "homologacao",
+        dpsId: document.providerReference,
+        accessKey: transmission.accessKey,
+        immediateNfse: processed
+      }
+    });
+    await store.waitForPersistence();
+    return { document: saved ?? document, transmitted: true, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const saved = store.saveMunicipalProcessingResult(document.id, {
+      providerName: "nfse-nacional",
+      status: "processamento",
+      reason: "Falha de transporte ao transmitir DPS Nacional; consulte a SEFIN antes de tentar novamente.",
+      reasonCode: "NFSE_NACIONAL_TRANSPORT_UNCONFIRMED"
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_dps_transmission_unconfirmed",
+      level: "error",
+      message,
+      payload: { provider: "nfse-nacional", environment: "homologacao" }
+    });
+    await store.waitForPersistence();
+    return { document: saved ?? document, transmitted: false, error: message };
+  }
+}
+
 export async function consultNationalNfse(
   store: InMemoryStore,
   documentId: string
