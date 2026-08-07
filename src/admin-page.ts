@@ -774,6 +774,16 @@ const page = String.raw`<!doctype html>
         rpsSeries: '1',
         rpsIssuer: '1',
         autoTransmit: true
+      },
+      'nfse-nacional': {
+        municipalityCode: '',
+        municipalityName: '',
+        nbsCode: '',
+        dpsSerie: '1',
+        dpsNumber: '1',
+        serviceCode: '140101',
+        issRate: '2.01',
+        autoTransmit: false
       }
     };
 
@@ -1418,12 +1428,13 @@ const page = String.raw`<!doctype html>
       const storedProvider = settings.nfseProvider || '';
       const guairaMunicipality = settings.nfseMunicipalityCode === '4108809';
       const providerKey = company.cnpj + ':' + state.environment;
-      const provider = state.nfseProviderOverrides[providerKey] || (guairaMunicipality
+      const provider = state.nfseProviderOverrides[providerKey] || storedProvider || (guairaMunicipality
         ? 'guaira-ipm'
-        : storedProvider || '');
+        : '');
       const isToledo = provider === 'toledo-equiplano';
       const isIpm = provider === 'guaira-ipm';
-      const isBlank = !isToledo && !isIpm;
+      const isNational = provider === 'nfse-nacional';
+      const isBlank = !isToledo && !isIpm && !isNational;
       const storedIpmConfig = storedProvider === 'guaira-ipm';
       const ipmServiceCode = storedIpmConfig ? settings.nfseDefaultServiceCode : '140101';
       const ipmIssRate = storedIpmConfig ? settings.nfseDefaultAliquotaIss : 2.01;
@@ -1451,6 +1462,7 @@ const page = String.raw`<!doctype html>
               '<label>Provedor<select name="provider" onchange="setNfseProvider(this.value)">' +
                 '<option value=""' + (isBlank ? ' selected' : '') + '>— Selecione um provedor —</option>' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
+                '<option value="nfse-nacional"' + (isNational ? ' selected' : '') + '>NFS-e Nacional / SEFIN</option>' +
                 '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
               '</select></label>' +
               '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
@@ -1479,7 +1491,13 @@ const page = String.raw`<!doctype html>
             '</div><label>Endpoint<input type="url" name="endpoint" value="' +
               escapeHtml(settings.nfseEndpoint || (isToledo ? 'https://www.esnfs.com.br:9443//homologacaows/services/Enfs' : '')) + '" required /></label>' +
             '<label>SOAP Action<input name="soapAction" value="' +
-              escapeHtml(settings.nfseSoapAction || 'http://services.enfsws.es/esRecepcionarLoteRps') + '" /></label>' :
+              escapeHtml(settings.nfseSoapAction || 'http://services.enfsws.es/esRecepcionarLoteRps') + '" /></label>' : isNational ?
+            '<div class="section-head"><div><h3>SEFIN Nacional</h3><p>Transmissão para a API oficial da NFS-e Nacional. O endpoint é fixo por ambiente.</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>NBS padrão<input name="nationalNbs" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalNbsCode || '') + '" required /></label>' +
+              '<label>Série DPS<input name="nationalDpsSerie" value="' + escapeHtml(settings.nfseNationalDpsSerie || '1') + '" required /></label>' +
+            '</div><label>Próximo número DPS<input type="number" min="1" name="nationalDpsNumber" value="' + escapeHtml(String(settings.nfseNationalNextDpsNumber || 1)) + '" required /></label>' +
+            '<div class="empty">A transmissão em produção é uma operação fiscal real. Em homologação, a transmissão permanece manual e controlada.</div>' :
             '<div class="section-head"><div><h3>IPM / Atende.Net</h3><p>Parâmetros municipais de Guaíra. Os valores sugeridos vieram de exportações locais e ainda devem ser confirmados no portal.</p></div></div>' +
             '<label>Endpoint IPM<input type="url" name="endpoint" value="' +
               escapeHtml(storedIpmConfig && settings.nfseEndpoint
@@ -1686,15 +1704,16 @@ const page = String.raw`<!doctype html>
       const storedProvider = settings.nfseProvider || '';
       const guairaMunicipality = settings.nfseMunicipalityCode === '4108809';
       const providerKey = company.cnpj + ':' + state.environment;
-      const provider = state.nfseProviderOverrides[providerKey] || (guairaMunicipality
+      const provider = state.nfseProviderOverrides[providerKey] || storedProvider || (guairaMunicipality
         ? 'guaira-ipm'
-        : storedProvider || '');
+        : '');
       const providerPreset = getNfseProviderPreset(provider);
       const forcePreset = Boolean(state.nfseProviderOverrides[providerKey]) &&
         state.nfseProviderOverrides[providerKey] !== storedProvider;
       const isToledo = provider === 'toledo-equiplano';
       const isIpm = provider === 'guaira-ipm';
-      const isBlank = !isToledo && !isIpm;
+      const isNational = provider === 'nfse-nacional';
+      const isBlank = !isToledo && !isIpm && !isNational;
       const municipalityCode = pickNfsePresetValue(
         settings.nfseMunicipalityCode,
         providerPreset.municipalityCode,
@@ -1794,6 +1813,7 @@ const page = String.raw`<!doctype html>
                 '<option value=""' + (isBlank ? ' selected' : '') + '>— Selecione um provedor —</option>' +
                 '<option value="toledo-equiplano"' + (isToledo ? ' selected' : '') + '>Toledo / Equiplano</option>' +
                 '<option value="guaira-ipm"' + (isIpm ? ' selected' : '') + '>Guaíra / IPM Atende.Net</option>' +
+                '<option value="nfse-nacional"' + (isNational ? ' selected' : '') + '>NFS-e Nacional / SEFIN</option>' +
               '</select></label>' +
               '<label>Código IBGE do município<input name="municipalityCode" inputmode="numeric" value="' +
                 escapeHtml(municipalityCode || '') + '" /></label>' +
@@ -1817,7 +1837,13 @@ const page = String.raw`<!doctype html>
               compactInfo('Formato', requestFormat === 'xml' ? 'XML direto' : 'SOAP 1.1') +
               compactInfo('Endpoint', endpoint || 'Não informado') +
               compactInfo('SOAP Action', soapAction || 'Não informado') +
-            '</div><div class="empty">Estes dados pertencem ao conector municipal. Nesta empresa, informe apenas credenciais, inscrição municipal, RPS/lote e serviço.</div>' :
+            '</div><div class="empty">Estes dados pertencem ao conector municipal. Nesta empresa, informe apenas credenciais, inscrição municipal, RPS/lote e serviço.</div>' : isNational ?
+            '<div class="section-head"><div><h3>SEFIN Nacional</h3><p>Configuração da DPS Nacional. O endpoint é fixo conforme o ambiente.</p></div></div>' +
+            '<div class="two-col">' +
+              '<label>NBS padrão<input name="nationalNbs" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalNbsCode || '') + '" required /></label>' +
+              '<label>Série DPS<input name="nationalDpsSerie" value="' + escapeHtml(settings.nfseNationalDpsSerie || '1') + '" required /></label>' +
+            '</div><label>Próximo número DPS<input type="number" min="1" name="nationalDpsNumber" value="' + escapeHtml(String(settings.nfseNationalNextDpsNumber || 1)) + '" required /></label>' +
+            '<div class="empty">Homologação usa transmissão manual. Produção só deve ser ativada após revisão do certificado e dos dados fiscais.</div>' :
             '<div class="section-head"><div><h3>Contrato municipal compartilhado</h3><p>Conector IPM / Atende.Net de Guaíra, aplicado a todas as empresas do município.</p></div></div>' +
             '<div class="compact-info-grid">' +
               compactInfo('Endpoint IPM', endpoint || 'Não informado') +
@@ -3033,13 +3059,18 @@ const page = String.raw`<!doctype html>
             exige_assinatura: String(form.get('requiresSignature')) === 'true',
             modo_teste: false
           },
+          nacional: {
+            codigo_nbs: form.get('nationalNbs'),
+            dps_serie: form.get('nationalDpsSerie'),
+            proximo_dps: Number(form.get('nationalDpsNumber') || 1)
+          },
           servico: {
             codigo: form.get('serviceCode'),
             item: form.get('serviceItem'),
             subitem: form.get('serviceSubItem'),
             aliquota_iss: Number(form.get('issRate'))
           },
-          transmissao_automatica: true
+          transmissao_automatica: environment === 'producao'
         })
       });
       setResponse(await response.json());

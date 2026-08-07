@@ -206,7 +206,7 @@ export function resolveNationalNfseConfig(
     environment: serviceConfig.ambiente,
     municipalityCode: digitsOnly(settings.nfseMunicipalityCode),
     municipalRegistration: firstText(settings.nfseInscricaoMunicipal),
-    dpsSeries: firstText(settings.nfseRpsSerie, "1"),
+    dpsSeries: firstText(settings.nfseNationalDpsSerie, settings.nfseRpsSerie, "1"),
     layoutVersion: firstText(
       settings.nfseNationalLayoutVersion,
       NFSE_NATIONAL_LAYOUT_VERSION

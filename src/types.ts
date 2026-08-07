@@ -75,6 +75,8 @@ export type ServiceConfig = {
     nfseRpsEmissor?: string;
     nfseNextRpsNumber?: number;
     nfseNextLotNumber?: number;
+    nfseNationalDpsSerie?: string;
+    nfseNationalNextDpsNumber?: number;
     nfseDefaultServiceCode?: string;
     nfseDefaultServiceItem?: string;
     nfseDefaultServiceSubItem?: string;

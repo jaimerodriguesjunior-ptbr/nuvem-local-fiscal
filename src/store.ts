@@ -439,16 +439,25 @@ export class InMemoryStore {
     const serviceConfig = this.findServiceConfigRecord(cnpj, ambiente, "NFSE");
     if (serviceConfig?.settings.nfseProvider !== "nfse-nacional") return null;
 
-    const next = Number(serviceConfig.settings.nfseNextRpsNumber ?? 1);
+    const next = Number(
+      serviceConfig.settings.nfseNationalNextDpsNumber ??
+      serviceConfig.settings.nfseNextRpsNumber ??
+      1
+    );
     if (!Number.isSafeInteger(next) || next < 1 || next > 999_999_999_999_999) {
       throw new Error("Proximo numero DPS nacional invalido na configuracao.");
     }
+    serviceConfig.settings.nfseNationalNextDpsNumber = next + 1;
     serviceConfig.settings.nfseNextRpsNumber = next + 1;
     serviceConfig.updatedAt = nowIso();
     this.saveState({ serviceConfigs: [serviceConfig] });
     return {
       number: String(next),
-      series: String(serviceConfig.settings.nfseRpsSerie ?? "1")
+      series: String(
+        serviceConfig.settings.nfseNationalDpsSerie ??
+        serviceConfig.settings.nfseRpsSerie ??
+        "1"
+      )
     };
   }
 

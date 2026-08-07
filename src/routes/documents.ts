@@ -757,6 +757,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       },
       nacional: {
         endpoint: serviceConfig.settings.nfseEndpoint ?? null,
+        serie_dps: serviceConfig.settings.nfseNationalDpsSerie ?? null,
+        numero_dps: serviceConfig.settings.nfseNationalNextDpsNumber ?? null,
         inscricao_municipal: serviceConfig.settings.nfseInscricaoMunicipal ?? null,
         versao_leiaute: serviceConfig.settings.nfseNationalLayoutVersion ?? null,
         codigo_tributacao_nacional: serviceConfig.settings.nfseNationalTaxCode ?? null,
@@ -933,6 +935,26 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       requestedNextLotNumber > 0
         ? Math.max(requestedNextLotNumber, usedToledoSequence.lot + 1)
         : undefined;
+    const requestedNationalDpsNumber = Number(
+      nacional.dps_numero ??
+      nacional.proximo_dps ??
+      nacional.proximo_numero_dps ??
+      body.proximo_dps ??
+      (isNationalProvider ? rps.numero ?? rps.proximo_numero : undefined)
+    );
+    const configuredNationalDpsNumber = Number(
+      reusableExistingSettings?.nfseNationalNextDpsNumber ??
+      (isNationalProvider ? reusableExistingSettings?.nfseNextRpsNumber : undefined) ??
+      1
+    );
+    const nextNationalDpsNumber = isNationalProvider
+      ? Math.max(
+          requestedNationalDpsNumber > 0 ? requestedNationalDpsNumber : 1,
+          Number.isSafeInteger(configuredNationalDpsNumber) && configuredNationalDpsNumber > 0
+            ? configuredNationalDpsNumber
+            : 1
+        )
+      : undefined;
 
     const nfseSettings = {
       // Empty string intentionally clears a stale IPM login when the
@@ -996,8 +1018,24 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         reusableExistingSettings?.nfseRpsEmissor,
         ruleProfile?.defaults.rpsIssuer
       ) || undefined,
-      nfseNextRpsNumber: nextRpsNumber,
+      // Mantemos o campo legado como espelho enquanto clientes antigos ainda
+      // consultam nfseNextRpsNumber; a sequência efetiva Nacional fica no
+      // campo dedicado nfseNationalNextDpsNumber.
+      nfseNextRpsNumber: isNationalProvider ? nextNationalDpsNumber : nextRpsNumber,
       nfseNextLotNumber: nextLotNumber,
+      nfseNationalDpsSerie: isNationalProvider
+        ? firstNonEmptyText(
+            nacional.dps_serie,
+            nacional.serie_dps,
+            reusableExistingSettings?.nfseNationalDpsSerie,
+            rps.serie,
+            body.serie_rps,
+            "1"
+          )
+        : reusableExistingSettings?.nfseNationalDpsSerie,
+      nfseNationalNextDpsNumber: isNationalProvider
+        ? nextNationalDpsNumber
+        : reusableExistingSettings?.nfseNationalNextDpsNumber,
       nfseDefaultServiceCode: firstNonEmptyText(
         servico.codigo,
         servico.codigo_servico,
@@ -1078,9 +1116,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       nfseNationalNbsCode: firstNonEmptyText(
         nacional.codigo_nbs,
         nacional.cNBS,
-        servico.codigo_nbs,
-        servico.cNBS,
-        reusableExistingSettings?.nfseNationalNbsCode
+      servico.codigo_nbs,
+      servico.cNBS,
+      nacional.codigo_nbs,
+      nacional.nbs,
+      reusableExistingSettings?.nfseNationalNbsCode
       ).replace(/\D/g, "") || undefined,
       nfseNationalSimpleOption: (firstNonEmptyText(
         nacional.opcao_simples_nacional,
@@ -1113,7 +1153,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         isNationalProvider ? "1" : ""
       ) || undefined) as "1" | "2" | "3" | undefined,
       // Dry-run municipal foi descontinuado. Homologacao continua controlada por nfseTestMode.
-      autoTransmit: isNationalProvider ? false : true
+      autoTransmit: isNationalProvider
+        ? environment === "producao" && config.fiscalProductionEnabled
+        : true
     };
     const configValidation = validateNfseConfigDraft({
       cnpj,
