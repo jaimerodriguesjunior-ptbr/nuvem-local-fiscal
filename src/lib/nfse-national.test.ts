@@ -152,6 +152,29 @@ test("normalizes the existing client payload and generates a national DPS", () =
   assert.doesNotThrow(() => parseXml(xml, { nonet: true }));
 });
 
+test("omite aliquota para ME/EPP do Simples sem retencao do ISSQN", () => {
+  const config = resolveNationalNfseConfig(issuer, serviceConfig);
+  const draft = normalizeNationalNfseDraft(
+    document({
+      infDPS: {
+        toma: { CPF: "08701600958", xNome: "Cliente de Teste" },
+        serv: {
+          locPrest: { cLocPrestacao: "4108809" },
+          cServ: { cTribNac: "140101", xDescServ: "Servico de teste" }
+        },
+        valores: {
+          vServPrest: { vServ: 200 },
+          trib: { tribMun: { tribISSQN: "1", tpRetISSQN: "1", pAliq: 2.01 } }
+        }
+      }
+    }),
+    config
+  );
+
+  assert.equal(draft.issRate, 0);
+  assert.doesNotMatch(buildNationalDpsXml(config, draft), /<pAliq>/);
+});
+
 test("accepts the shared payloads from Autoeletrica and Apoio-Contabil", () => {
   const config = resolveNationalNfseConfig(issuer, serviceConfig);
   const clientPayloads = [
@@ -268,6 +291,7 @@ test("valida formatos nacionais antes de assinar a DPS", () => {
   const draft = normalizeNationalNfseDraft(
     document({
       infDPS: {
+        prest: { regTrib: { opSimpNac: "1" } },
         toma: { fone: "123", email: "email invalido" },
         serv: {
           locPrest: { cLocPrestacao: "4108809" },

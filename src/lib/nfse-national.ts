@@ -252,6 +252,27 @@ export function normalizeNationalNfseDraft(
   const customerDocument = digitsOnly(
     firstText(toma.CNPJ, toma.CPF, toma.cnpj, toma.cpf, toma.cpf_cnpj)
   );
+  const simpleOption = (firstText(regTrib.opSimpNac, config.simpleOption) || "3") as NationalNfseConfig["simpleOption"];
+  const simpleTaxRegime = firstText(
+    regTrib.regApTribSN,
+    config.simpleTaxRegime
+  ) as NationalNfseConfig["simpleTaxRegime"];
+  const issTaxation = (firstText(
+    municipalTaxes.tribISSQN,
+    config.issTaxation
+  ) || "1") as NationalNfseConfig["issTaxation"];
+  const issRetention = (firstText(
+    municipalTaxes.tpRetISSQN,
+    config.issRetention
+  ) || "1") as NationalNfseConfig["issRetention"];
+  // RTC: para ME/EPP do Simples que apura ISS pelo Simples e nao tem
+  // retencao, a SEFIN rejeita pAliq (E0625). O payload municipal legado
+  // costuma enviar essa aliquota, portanto ela deve ser descartada aqui.
+  const omitsIssRateForSimpleNational =
+    simpleOption === "3" &&
+    simpleTaxRegime === "1" &&
+    issTaxation === "1" &&
+    issRetention === "1";
 
   return {
     id: makeDpsId({ municipalityCode, issuerCnpj, series, number }),
@@ -264,11 +285,8 @@ export function normalizeNationalNfseDraft(
     municipalityCode,
     issuerCnpj,
     municipalRegistration: firstText(prest.IM, config.municipalRegistration),
-    simpleOption: (firstText(regTrib.opSimpNac, config.simpleOption) || "3") as NationalNfseConfig["simpleOption"],
-    simpleTaxRegime: firstText(
-      regTrib.regApTribSN,
-      config.simpleTaxRegime
-    ) as NationalNfseConfig["simpleTaxRegime"],
+    simpleOption,
+    simpleTaxRegime,
     specialTaxRegime: (firstText(
       regTrib.regEspTrib,
       config.specialTaxRegime
@@ -329,15 +347,9 @@ export function normalizeNationalNfseDraft(
     serviceValue: numberFrom(
       serviceValues.vServ ?? values.valor_servico ?? service.valor
     ),
-    issTaxation: (firstText(
-      municipalTaxes.tribISSQN,
-      config.issTaxation
-    ) || "1") as NationalNfseConfig["issTaxation"],
-    issRetention: (firstText(
-      municipalTaxes.tpRetISSQN,
-      config.issRetention
-    ) || "1") as NationalNfseConfig["issRetention"],
-    issRate: numberFrom(municipalTaxes.pAliq)
+    issTaxation,
+    issRetention,
+    issRate: omitsIssRateForSimpleNational ? 0 : numberFrom(municipalTaxes.pAliq)
   };
 }
 
