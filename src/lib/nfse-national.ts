@@ -121,6 +121,14 @@ function numberFrom(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function validDigits(value: unknown, length: number, fallback = "") {
+  const candidate = digitsOnly(value);
+  if (candidate.length === length) return candidate;
+
+  const configured = digitsOnly(fallback);
+  return configured.length === length ? configured : "";
+}
+
 function escapeXml(value: unknown) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -286,19 +294,20 @@ export function normalizeNationalNfseDraft(
         municipalityCode
       )
     ),
-    nationalTaxCode: digitsOnly(
-      firstText(
-        serviceCode.cTribNac,
-        serviceCode.codigo_tributacao_nacional,
-        config.nationalTaxCode
-      )
+    // Os clientes mantêm os códigos do conector municipal no payload comum
+    // (por exemplo, cTribNac=14.01 e cTribMun=14.01.01.000). A DPS Nacional
+    // exige, respectivamente, 6 e 3 dígitos. Quando o recebido não pertence
+    // ao leiaute Nacional, a configuração da empresa é a fonte de verdade;
+    // código municipal inválido simplesmente não é levado para a DPS.
+    nationalTaxCode: validDigits(
+      firstText(serviceCode.cTribNac, serviceCode.codigo_tributacao_nacional),
+      6,
+      config.nationalTaxCode
     ),
-    municipalTaxCode: digitsOnly(
-      firstText(
-        serviceCode.cTribMun,
-        serviceCode.codigo_tributacao_municipal,
-        config.municipalTaxCode
-      )
+    municipalTaxCode: validDigits(
+      firstText(serviceCode.cTribMun, serviceCode.codigo_tributacao_municipal),
+      3,
+      config.municipalTaxCode
     ),
     description: firstText(
       serviceCode.xDescServ,

@@ -48,15 +48,21 @@ A produção da Kabroski permanece Toledo/Equiplano, com sequência municipal
 
 ### Guaíra — NHT
 
-A DPS Nacional chegou à SEFIN em produção restrita, mas foi rejeitada por:
+O fluxo completo também foi autorizado pela SEFIN Nacional em produção
+restrita:
 
-`E0025: A data de competência informada na DPS deve ser igual ou posterior à
-data de autorização de uso do emissor registrada no CNC.`
+- DPS série 1, número 288;
+- NFS-e Nacional autorizada, com XML e DANFSe disponíveis;
+- a configuração Nacional usou `cTribNac` `140101` e NBS folha
+  `1.2001.31.10` (`120013110`).
 
-Isso não indica falha do adaptador. O portal municipal informa que Guaíra
-passará à emissão exclusiva Nacional em 01/09/2026, mas não exibe a data da
-NHT registrada no CNC. A NHT foi restaurada na produção municipal Guaíra/IPM;
-nenhuma nova tentativa Nacional deve ser feita até esclarecer a data efetiva.
+O primeiro teste havia retornado `E0025`, pois a data de competência precisava
+ser posterior à autorização de uso da NHT no CNC. Após a confirmação da
+Prefeitura de Guaíra, o erro deixou de ocorrer. O teste seguinte revelou que
+`1.2001.31.00` era código-pai; com o código folha a autorização foi concluída.
+
+A produção da NHT permanece Guaíra/IPM, preservada como contingência. A
+homologação Nacional é independente e continua sem transmissão automática.
 
 ## Auditoria dos clientes
 
@@ -76,22 +82,27 @@ O contrato desejado é um payload comum, com blocos opcionais `municipal` e
 `nacional`. O cliente não deve precisar conhecer o XML Nacional; a Nuvem Local
 deve escolher o bloco pela configuração de roteamento da empresa.
 
-## Plano para 07/08/2026
+## Próximo bloco
 
-1. Criar testes de contrato com payloads reais da Autoeletrica e do
-   Apoio-Contábil, sem transmissão externa.
-2. Tornar a normalização Nacional tolerante aos códigos municipais legados:
-   usar o código Nacional configurado quando o valor recebido não tiver o
-   formato Nacional válido.
-3. Definir configuração Nacional por empresa para `cTribNac`, NBS, Simples,
+Concluídos em 07/08/2026:
+
+- testes de contrato, sem transmissão externa, para os formatos reais da
+  Autoeletrica e do Apoio-Contábil;
+- normalização tolerante dos códigos municipais legados: `cTribNac` inválido
+  usa o valor Nacional configurado e `cTribMun` fora do formato Nacional é
+  omitido.
+
+Próximos passos:
+
+1. Definir configuração Nacional por empresa para `cTribNac`, NBS, Simples,
    tributação e regra de IM.
-4. Corrigir a sincronização dos dois clientes para não exigir login/senha
+2. Corrigir a sincronização dos dois clientes para não exigir login/senha
    municipal quando o provedor for Nacional ou Equiplano.
-5. Validar uma empresa de cada cliente em Toledo, em homologação Nacional.
-6. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
-7. Preservar o conector municipal como contingência, com configuração,
+3. Validar uma empresa de cada cliente em Toledo, em homologação Nacional.
+4. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
+5. Preservar o conector municipal como contingência, com configuração,
    certificado, credenciais, sequência e endpoint previamente validados.
-8. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
+6. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
    depois de uma transmissão externa incerta; uma troca de provedor gera novo
    documento e deixa evento de auditoria.
 

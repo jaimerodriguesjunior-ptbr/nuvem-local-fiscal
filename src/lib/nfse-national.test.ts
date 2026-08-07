@@ -152,6 +152,91 @@ test("normalizes the existing client payload and generates a national DPS", () =
   assert.doesNotThrow(() => parseXml(xml, { nonet: true }));
 });
 
+test("accepts the shared payloads from Autoeletrica and Apoio-Contabil", () => {
+  const config = resolveNationalNfseConfig(issuer, serviceConfig);
+  const clientPayloads = [
+    {
+      source: "Autoeletrica",
+      payload: {
+        infDPS: {
+          dhEmi: "2026-08-07T10:15:30-03:00",
+          dCompet: "2026-08-07",
+          prest: { CNPJ: issuer.cnpj },
+          toma: {
+            CPF: "08701600958",
+            xNome: "Cliente Autoeletrica",
+            email: "cliente@example.com",
+            fone: "44999998888",
+            end: {
+              xLgr: "Rua Teste",
+              nro: "123",
+              xBairro: "Centro",
+              endNac: { cMun: "4127700", CEP: "85900000" }
+            }
+          },
+          serv: {
+            locPrest: { cLocPrestacao: "4127700" },
+            cServ: {
+              cTribNac: "14.01",
+              cTribMun: "14.01.01.000",
+              CNAE: "4520007",
+              cSitTrib: "0",
+              xDescServ: "Servico de manutencao (R$ 200.00)"
+            }
+          },
+          valores: {
+            vServPrest: { vServ: 200 },
+            trib: { tribMun: { tribISSQN: 1, tpRetISSQN: 1, pAliq: 2.01 } }
+          }
+        }
+      }
+    },
+    {
+      source: "Apoio-Contabil",
+      payload: {
+        infDPS: {
+          dhEmi: "2026-08-07T10:15:30-03:00",
+          dCompet: "2026-08-07",
+          prest: { CNPJ: issuer.cnpj },
+          toma: {
+            CNPJ: "12345678000195",
+            xNome: "Cliente Apoio Contabil",
+            fone: "44999998888",
+            end: {
+              xLgr: "Rua Cliente",
+              nro: "55",
+              xBairro: "Centro",
+              endNac: { cMun: "4127700", CEP: "85900000" }
+            }
+          },
+          serv: {
+            locPrest: { cLocPrestacao: "4127700" },
+            cServ: {
+              cTribNac: "14.01",
+              cTribMun: "14.01.01.000",
+              CNAE: "4520007",
+              cSitTrib: "0",
+              xDescServ: "Servico contabil (R$ 150.00)"
+            }
+          },
+          valores: {
+            vServPrest: { vServ: 150 },
+            trib: { tribMun: { tribISSQN: 1, tpRetISSQN: 1, pAliq: 2 } }
+          }
+        }
+      }
+    }
+  ];
+
+  for (const { source, payload } of clientPayloads) {
+    const draft = normalizeNationalNfseDraft(document(payload), config);
+    assert.equal(draft.nationalTaxCode, "140101", source);
+    assert.equal(draft.municipalTaxCode, "", source);
+    assert.equal(draft.nbsCode, "123456789", source);
+    assert.doesNotThrow(() => validateNationalNfseDraft(draft), source);
+  }
+});
+
 test("keeps NBS optional and rejects an invalid NBS when informed", () => {
   const config = {
     ...resolveNationalNfseConfig(issuer, serviceConfig),
