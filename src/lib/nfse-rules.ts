@@ -132,7 +132,6 @@ export const NFSE_RULE_PROFILES: Record<NfseProviderId, NfseRuleProfile> = {
       rpsSeries: "1"
     },
     requiredSettings: [
-      "nfseInscricaoMunicipal",
       "nfseRpsSerie",
       "nfseNationalTaxCode",
       "nfseNationalSimpleOption",
