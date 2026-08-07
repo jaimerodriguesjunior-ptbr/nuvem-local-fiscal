@@ -425,6 +425,9 @@ export function buildNationalDpsXml(
   const nbsCode = optionalTag("cNBS", draft.nbsCode);
   const internalServiceCode = optionalTag("cIntContrib", draft.internalServiceCode);
   const issRate = draft.issRate > 0 ? `<pAliq>${draft.issRate.toFixed(2)}</pAliq>` : "";
+  const totalTaxes = draft.simpleOption === "3"
+    ? ""
+    : "<totTrib><indTotTrib>0</indTotTrib></totTrib>";
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -441,7 +444,7 @@ export function buildNationalDpsXml(
     `<prest><CNPJ>${draft.issuerCnpj}</CNPJ>${municipalRegistration}<regTrib><opSimpNac>${draft.simpleOption}</opSimpNac>${simpleTaxRegime}<regEspTrib>${draft.specialTaxRegime}</regEspTrib></regTrib></prest>`,
     buildCustomerXml(draft),
     `<serv><locPrest><cLocPrestacao>${draft.serviceMunicipalityCode}</cLocPrestacao></locPrest><cServ><cTribNac>${draft.nationalTaxCode}</cTribNac>${municipalTaxCode}<xDescServ>${escapeXml(draft.description)}</xDescServ>${nbsCode}${internalServiceCode}</cServ></serv>`,
-    `<valores><vServPrest><vServ>${draft.serviceValue.toFixed(2)}</vServ></vServPrest><trib><tribMun><tribISSQN>${draft.issTaxation}</tribISSQN><tpRetISSQN>${draft.issRetention}</tpRetISSQN>${issRate}</tribMun><totTrib><indTotTrib>0</indTotTrib></totTrib></trib></valores>`,
+    `<valores><vServPrest><vServ>${draft.serviceValue.toFixed(2)}</vServ></vServPrest><trib><tribMun><tribISSQN>${draft.issTaxation}</tribISSQN><tpRetISSQN>${draft.issRetention}</tpRetISSQN>${issRate}</tribMun>${totalTaxes}</trib></valores>`,
     "</infDPS>",
     "</DPS>"
   ].join("");
