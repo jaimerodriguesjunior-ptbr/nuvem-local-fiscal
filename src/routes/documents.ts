@@ -844,12 +844,23 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     const previousProvider = resolveNfseProvider({
       serviceConfig: existingServiceConfig
     });
+    const storedMunicipalFallback = existingServiceConfig?.settings.nfseMunicipalFallback;
+    const fallbackSettings =
+      storedMunicipalFallback?.settings &&
+      typeof storedMunicipalFallback.settings === "object"
+        ? storedMunicipalFallback.settings
+        : undefined;
     const reusableExistingSettings =
       !effectiveProvider || !previousProvider || previousProvider === effectiveProvider
         ? existingServiceConfig?.settings
         : undefined;
     const ruleProfile = getNfseRuleProfile(effectiveProvider);
-    const effectiveLogin = login || String(reusableExistingSettings?.nfseLogin ?? "");
+    const effectiveLogin =
+      login ||
+      String(reusableExistingSettings?.nfseLogin ?? "") ||
+      (effectiveProvider !== "nfse-nacional"
+        ? String(fallbackSettings?.nfseLogin ?? "")
+        : "");
     const hasMunicipalPassword = Boolean(
       password || (reusableExistingSettings && existingServiceConfig?.secretsEncrypted)
     );
@@ -883,6 +894,37 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
     const isNationalProvider = effectiveProvider === "nfse-nacional";
+    const municipalFallback =
+      isNationalProvider && previousProvider && previousProvider !== "nfse-nacional"
+        ? {
+            provider: previousProvider,
+            settings: {
+              nfseLogin: existingServiceConfig?.settings.nfseLogin,
+              nfseMunicipalityCode: existingServiceConfig?.settings.nfseMunicipalityCode,
+              nfseMunicipalityName: existingServiceConfig?.settings.nfseMunicipalityName,
+              nfseEndpoint: existingServiceConfig?.settings.nfseEndpoint,
+              nfseSoapAction: existingServiceConfig?.settings.nfseSoapAction,
+              nfseRequestFormat: existingServiceConfig?.settings.nfseRequestFormat,
+              nfseInscricaoMunicipal: existingServiceConfig?.settings.nfseInscricaoMunicipal,
+              nfseIdEntidade: existingServiceConfig?.settings.nfseIdEntidade,
+              nfseRpsSerie: existingServiceConfig?.settings.nfseRpsSerie,
+              nfseRpsEmissor: existingServiceConfig?.settings.nfseRpsEmissor,
+              nfseNextRpsNumber: existingServiceConfig?.settings.nfseNextRpsNumber,
+              nfseNextLotNumber: existingServiceConfig?.settings.nfseNextLotNumber,
+              nfseDefaultServiceCode: existingServiceConfig?.settings.nfseDefaultServiceCode,
+              nfseDefaultServiceItem: existingServiceConfig?.settings.nfseDefaultServiceItem,
+              nfseDefaultServiceSubItem: existingServiceConfig?.settings.nfseDefaultServiceSubItem,
+              nfseDefaultAliquotaIss: existingServiceConfig?.settings.nfseDefaultAliquotaIss,
+              nfseTomCode: existingServiceConfig?.settings.nfseTomCode,
+              nfseEconomicRegistration: existingServiceConfig?.settings.nfseEconomicRegistration,
+              nfseDefaultActivityCode: existingServiceConfig?.settings.nfseDefaultActivityCode,
+              nfseDefaultTaxSituation: existingServiceConfig?.settings.nfseDefaultTaxSituation,
+              nfseRequiresSignature: existingServiceConfig?.settings.nfseRequiresSignature,
+              nfseTestMode: existingServiceConfig?.settings.nfseTestMode,
+              autoTransmit: existingServiceConfig?.settings.autoTransmit
+            }
+          }
+        : storedMunicipalFallback;
     const configuredNfseEndpoint = firstNonEmptyText(
       nacional.endpoint,
       ipm.endpoint,
@@ -1036,6 +1078,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       nfseNationalNextDpsNumber: isNationalProvider
         ? nextNationalDpsNumber
         : reusableExistingSettings?.nfseNationalNextDpsNumber,
+      nfseMunicipalFallback: municipalFallback,
       nfseDefaultServiceCode: firstNonEmptyText(
         servico.codigo,
         servico.codigo_servico,
@@ -1186,7 +1229,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         ? encryptSecretPayload({ senha: password }, config.certificateEncryptionKey)
         : undefined,
       preserveSecrets:
-        requiresMunicipalPassword && !password && Boolean(reusableExistingSettings)
+        !password && Boolean(existingServiceConfig?.secretsEncrypted)
     });
 
     if (environment === "homologacao" && serviceConfig) {

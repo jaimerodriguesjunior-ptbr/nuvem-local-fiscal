@@ -1843,7 +1843,8 @@ const page = String.raw`<!doctype html>
               '<label>NBS padrão<input name="nationalNbs" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalNbsCode || '') + '" required /></label>' +
               '<label>Série DPS<input name="nationalDpsSerie" value="' + escapeHtml(settings.nfseNationalDpsSerie || '1') + '" required /></label>' +
             '</div><label>Próximo número DPS<input type="number" min="1" name="nationalDpsNumber" value="' + escapeHtml(String(settings.nfseNationalNextDpsNumber || 1)) + '" required /></label>' +
-            '<div class="empty">Homologação usa transmissão manual. Produção só deve ser ativada após revisão do certificado e dos dados fiscais.</div>' :
+            '<div class="empty">Homologação usa transmissão manual. Produção só deve ser ativada após revisão do certificado e dos dados fiscais.</div>' +
+            (settings.nfseMunicipalFallback ? '<div class="empty">Fallback municipal armazenado: ' + escapeHtml(settings.nfseMunicipalFallback.provider || 'provedor municipal') + '.</div>' : '') :
             '<div class="section-head"><div><h3>Contrato municipal compartilhado</h3><p>Conector IPM / Atende.Net de Guaíra, aplicado a todas as empresas do município.</p></div></div>' +
             '<div class="compact-info-grid">' +
               compactInfo('Endpoint IPM', endpoint || 'Não informado') +

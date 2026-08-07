@@ -97,6 +97,10 @@ export type ServiceConfig = {
     nfseNationalSpecialTaxRegime?: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "9";
     nfseNationalIssTaxation?: "1" | "2" | "3" | "4";
     nfseNationalIssRetention?: "1" | "2" | "3";
+    nfseMunicipalFallback?: {
+      provider?: string;
+      settings?: Record<string, unknown>;
+    };
     distribuicaoAutomatica?: boolean;
     distribuicaoIntervaloHoras?: number;
     cienciaAutomatica?: boolean;
