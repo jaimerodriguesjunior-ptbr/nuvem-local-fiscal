@@ -19,7 +19,7 @@ contrato HTTP existente de `POST /nfse/dps`. A Nuvem Local:
   municipal;
 - mantém numeração Nacional própria por empresa/ambiente.
 
-Typecheck e testes automatizados passam: 146 testes, 0 falhas.
+Typecheck e testes automatizados passam: 147 testes, 0 falhas.
 
 ## Evidências de homologação
 
@@ -82,6 +82,59 @@ O contrato desejado é um payload comum, com blocos opcionais `municipal` e
 `nacional`. O cliente não deve precisar conhecer o XML Nacional; a Nuvem Local
 deve escolher o bloco pela configuração de roteamento da empresa.
 
+As sincronizações foram ajustadas para preservar uma configuração Nacional já
+existente na Nuvem Local. Autoeletrica não a substitui por credenciais IPM e
+Apoio-Contábil não exige login/senha municipal para Toledo/Equiplano.
+
+## Decisões de cadastro e interface
+
+### Três níveis de configuração
+
+O próximo desenho do `/admin` separará as responsabilidades abaixo. A tela de
+**Cidades** e o catálogo de serviços ainda precisam ser implementados; a
+configuração atual por empresa continua válida durante essa evolução.
+
+1. **Cidades**: perfil fiscal geral do município, identificado pelo código
+   IBGE. Armazena adesão à NFS-e Nacional, provedor municipal de contingência,
+   endpoint/regra municipal, regra conhecida para IM e observações de CNC.
+   A data de autorização no CNC não é da cidade: pertence a cada empresa.
+2. **Empresas**: certificado, IM, Simples, séries e numerações, provedor por
+   ambiente, situação de autorização no CNC e política de transmissão. É onde
+   se escolhe o padrão `auto`, `nacional` ou `municipal`.
+3. **Serviços**: relação entre o serviço usado no programa cliente e o
+   `cTribNac`, o NBS e, quando aplicável, o código municipal. NBS classifica o
+   serviço da nota, não a empresa nem a cidade.
+
+### NBS e experiência de emissão
+
+Uma oficina pode ter um NBS padrão de reparação, mas também pode prestar
+guincho, lavagem ou outro serviço com classificação distinta. Da mesma forma,
+transportadoras podem emitir serviços enquadrados em códigos diferentes.
+
+A emissão regular não deve pedir que o lojista escolha NBS a cada nota. O
+fluxo aprovado é:
+
+`serviço/item do cliente → mapeamento aprovado na Nuvem Local → cTribNac + NBS na DPS`
+
+O `/admin` permitirá cadastrar e revisar esse mapeamento por empresa/serviço.
+Os programas clientes podem futuramente expor campos opcionais de NBS e código
+Nacional para ajudar no cadastro, mas não serão a fonte de verdade e não
+sobrescreverão uma configuração Nacional aprovada. Quando não houver
+mapeamento seguro, a emissão deverá gerar pendência clara em vez de inferir um
+NBS silenciosamente.
+
+### Inclusão de nova empresa ou cidade
+
+Guaíra e Toledo já têm o adaptador Nacional validado. Uma nova empresa nesses
+municípios ainda requer configuração por empresa e uma emissão autorizada em
+homologação: certificado, serviço/NBS, Simples, IM e autorização no CNC.
+
+Para uma cidade ainda não validada, primeiro é necessário confirmar adesão à
+plataforma Nacional, autorização da empresa no CNC, regras de IM/códigos e
+contingência municipal. Se usar o mesmo fluxo SEFIN sem exceções, será apenas
+cadastro; particularidades municipais exigirão validação antes da primeira
+emissão.
+
 ## Próximo bloco
 
 Concluídos em 07/08/2026:
@@ -91,18 +144,20 @@ Concluídos em 07/08/2026:
 - normalização tolerante dos códigos municipais legados: `cTribNac` inválido
   usa o valor Nacional configurado e `cTribMun` fora do formato Nacional é
   omitido.
+- configuração Nacional de homologação preparada para Evavan (`160101`) e
+  Pick (`160201`), ambas com NBS `104011210` e sem IM na DPS;
+- sincronização dos dois clientes preserva a configuração Nacional existente.
 
 Próximos passos:
 
-1. Definir configuração Nacional por empresa para `cTribNac`, NBS, Simples,
-   tributação e regra de IM.
-2. Corrigir a sincronização dos dois clientes para não exigir login/senha
-   municipal quando o provedor for Nacional ou Equiplano.
-3. Validar uma empresa de cada cliente em Toledo, em homologação Nacional.
-4. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
-5. Preservar o conector municipal como contingência, com configuração,
+1. Validar Evavan e Pick em homologação Nacional, com os payloads reais de
+   cada cliente.
+2. Implementar no `/admin` os cadastros de Cidades e de mapeamento de serviços
+   (`cTribNac`/NBS), mantendo a configuração por empresa.
+3. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
+4. Preservar o conector municipal como contingência, com configuração,
    certificado, credenciais, sequência e endpoint previamente validados.
-6. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
+5. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
    depois de uma transmissão externa incerta; uma troca de provedor gera novo
    documento e deixa evento de auditoria.
 
