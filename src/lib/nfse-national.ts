@@ -341,7 +341,7 @@ export function validateNationalNfseDraft(draft: NationalNfseDraft) {
     errors.push("codigo IBGE do municipio emissor");
   }
   if (!/^[0-9A-Z]{14}$/.test(draft.issuerCnpj)) errors.push("CNPJ do prestador");
-  if (!draft.municipalRegistration || draft.municipalRegistration.length > 15) {
+  if (draft.municipalRegistration.length > 15) {
     errors.push("inscricao municipal do prestador");
   }
   if (!/^(?:[0-9]{1,4}|[0-8][0-9]{4})$/.test(draft.series)) {
@@ -421,6 +421,7 @@ export function buildNationalDpsXml(
       ? `<regApTribSN>${draft.simpleTaxRegime}</regApTribSN>`
       : "";
   const municipalTaxCode = optionalTag("cTribMun", draft.municipalTaxCode);
+  const municipalRegistration = optionalTag("IM", draft.municipalRegistration);
   const nbsCode = optionalTag("cNBS", draft.nbsCode);
   const internalServiceCode = optionalTag("cIntContrib", draft.internalServiceCode);
   const issRate = draft.issRate > 0 ? `<pAliq>${draft.issRate.toFixed(2)}</pAliq>` : "";
@@ -437,7 +438,7 @@ export function buildNationalDpsXml(
     `<dCompet>${draft.competenceDate}</dCompet>`,
     "<tpEmit>1</tpEmit>",
     `<cLocEmi>${draft.municipalityCode}</cLocEmi>`,
-    `<prest><CNPJ>${draft.issuerCnpj}</CNPJ><IM>${escapeXml(draft.municipalRegistration)}</IM><regTrib><opSimpNac>${draft.simpleOption}</opSimpNac>${simpleTaxRegime}<regEspTrib>${draft.specialTaxRegime}</regEspTrib></regTrib></prest>`,
+    `<prest><CNPJ>${draft.issuerCnpj}</CNPJ>${municipalRegistration}<regTrib><opSimpNac>${draft.simpleOption}</opSimpNac>${simpleTaxRegime}<regEspTrib>${draft.specialTaxRegime}</regEspTrib></regTrib></prest>`,
     buildCustomerXml(draft),
     `<serv><locPrest><cLocPrestacao>${draft.serviceMunicipalityCode}</cLocPrestacao></locPrest><cServ><cTribNac>${draft.nationalTaxCode}</cTribNac>${municipalTaxCode}<xDescServ>${escapeXml(draft.description)}</xDescServ>${nbsCode}${internalServiceCode}</cServ></serv>`,
     `<valores><vServPrest><vServ>${draft.serviceValue.toFixed(2)}</vServ></vServPrest><trib><tribMun><tribISSQN>${draft.issTaxation}</tribISSQN><tpRetISSQN>${draft.issRetention}</tpRetISSQN>${issRate}</tribMun><totTrib><indTotTrib>0</indTotTrib></totTrib></trib></valores>`,
