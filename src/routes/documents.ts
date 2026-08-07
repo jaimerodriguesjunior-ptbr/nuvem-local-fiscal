@@ -974,7 +974,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       nfseInscricaoMunicipal:
         isNationalProvider &&
         Object.prototype.hasOwnProperty.call(nacional, "inscricao_municipal")
-          ? String(nacional.inscricao_municipal ?? "").trim() || undefined
+          ? String(nacional.inscricao_municipal ?? "").trim()
           : firstNonEmptyText(
               nacional.inscricao_municipal,
               equiplano.inscricao_municipal,
