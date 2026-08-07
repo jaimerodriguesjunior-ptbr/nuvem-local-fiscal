@@ -971,13 +971,17 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           : ruleProfile?.defaults.requestFormat === "soap"
             ? "soap" as const
             : undefined,
-      nfseInscricaoMunicipal: firstNonEmptyText(
-        nacional.inscricao_municipal,
-        equiplano.inscricao_municipal,
-        body.inscricao_municipal,
-        prefeitura.inscricao_municipal,
-        reusableExistingSettings?.nfseInscricaoMunicipal
-      ) || undefined,
+      nfseInscricaoMunicipal:
+        isNationalProvider &&
+        Object.prototype.hasOwnProperty.call(nacional, "inscricao_municipal")
+          ? String(nacional.inscricao_municipal ?? "").trim() || undefined
+          : firstNonEmptyText(
+              nacional.inscricao_municipal,
+              equiplano.inscricao_municipal,
+              body.inscricao_municipal,
+              prefeitura.inscricao_municipal,
+              reusableExistingSettings?.nfseInscricaoMunicipal
+            ) || undefined,
       nfseIdEntidade: effectiveIdEntidade || undefined,
       nfseRpsSerie: firstNonEmptyText(
         rps.serie,
