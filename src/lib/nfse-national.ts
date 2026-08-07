@@ -426,7 +426,7 @@ export function buildNationalDpsXml(
   const internalServiceCode = optionalTag("cIntContrib", draft.internalServiceCode);
   const issRate = draft.issRate > 0 ? `<pAliq>${draft.issRate.toFixed(2)}</pAliq>` : "";
   const totalTaxes = draft.simpleOption === "3"
-    ? ""
+    ? "<totTrib><pTotTribSN>0.00</pTotTribSN></totTrib>"
     : "<totTrib><indTotTrib>0</indTotTrib></totTrib>";
 
   return [
