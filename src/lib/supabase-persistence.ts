@@ -691,6 +691,22 @@ export class SupabasePersistence {
     companyIds: Map<string, string>,
     environmentIds: Map<string, string>
   ) {
+    const cnpjs = [...new Set(documents.map((document) => document.issuerCnpj))];
+    const certificateIdsByCnpj = new Map<string, string>();
+    if (cnpjs.length) {
+      const { data, error } = await this.client
+        .from("fiscal_certificates")
+        .select("id, cnpj")
+        .in("cnpj", cnpjs)
+        .eq("active", true);
+      if (error) {
+        throw new Error(`Falha ao consultar certificados fiscais dos documentos: ${error.message}`);
+      }
+      for (const row of data ?? []) {
+        certificateIdsByCnpj.set(row.cnpj as string, row.id as string);
+      }
+    }
+
     const rows = documents.flatMap((document) => {
       const companyId = companyIds.get(document.issuerCnpj);
       const environmentId = companyId
@@ -705,10 +721,10 @@ export class SupabasePersistence {
           provider_like_id: document.providerLikeId,
           company_id: companyId,
           company_environment_id: environmentId,
-          certificate_id:
-            document.certificateId && !document.certificateId.startsWith("cert_")
-              ? document.certificateId
-              : null,
+          // O upload pode reutilizar um certificado existente no banco e
+          // deixar no documento um UUID temporario criado em memoria. A FK
+          // deve sempre apontar para o certificado persistido do CNPJ.
+          certificate_id: certificateIdsByCnpj.get(document.issuerCnpj) ?? null,
           document_type: document.tipoDocumento,
           environment: document.ambiente,
           status: document.status,
