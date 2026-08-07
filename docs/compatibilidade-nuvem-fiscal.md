@@ -48,7 +48,8 @@ Em regra:
 - paridade bit a bit com todas as respostas da Nuvem Fiscal
 - cobertura generica de `NFS-e` para qualquer prefeitura
 - aderencia completa ja concluida as regras novas de julho de 2026
-- operacao de producao liberada neste servico
+- emissão Nacional para qualquer município sem homologação específica
+- contingência municipal sem configuração e teste prévios por empresa
 
 ## Regra de projeto
 

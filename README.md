@@ -5,23 +5,23 @@ atuais, preservando o contrato externo sempre que isso for seguro.
 
 ## Estado atual
 
-Em `2026-07-03`, o estado real deste repo e:
+Em `2026-08-07`, o estado real deste repo e:
 
 - `NFC-e` em homologacao funcionando ponta a ponta
 - `NF-e` em homologacao funcionando ponta a ponta
-- `NFS-e` Toledo/Equiplano funcionando ponta a ponta em homologacao
+- `NFS-e` Toledo/Equiplano funcionando ponta a ponta em homologacao e producao controlada
 - `NFS-e` Guaira/IPM com emissao homologada, XML/PDF locais e cancelamento
   municipal implementado, ainda com pendencias especificas de consulta
   municipal/cancelamento em notas de teste
 - persistencia principal em `Supabase`
 - certificados A1 e configuracoes por empresa/ambiente persistidos
 - VPS homologada com HTTPS, `systemd`, Nginx e admin protegido
-- producao fiscal controlada pode ser ligada por
-  `FISCAL_PRODUCTION_ENABLED=true`; na VPS atual o `/ready` retorna
-  `fiscalProductionBlocked=false` para piloto controlado do MVP
+- `NFS-e Nacional` Toledo/Kabroski autorizada ponta a ponta em producao restrita;
+  Guaíra/NHT permanece pendente de data de autorização no CNC
 
-O documento principal do projeto e [`NUVEMLOCALFISCAL.md`](NUVEMLOCALFISCAL.md).
-Ele deve ser tratado como a fonte mais completa do estado operacional.
+O estado atual da frente Nacional está em
+[`docs/NFSE_NACIONAL_IMPLEMENTACAO.md`](docs/NFSE_NACIONAL_IMPLEMENTACAO.md).
+Arquitetura geral e operação da VPS permanecem nos documentos em `docs/`.
 
 ## Objetivo pratico
 

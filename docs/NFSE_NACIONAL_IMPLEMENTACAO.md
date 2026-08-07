@@ -1,91 +1,110 @@
-# NFS-e Nacional - implementacao inicial
+# NFS-e Nacional — estado e plano operacional
 
-## Estado em 06/08/2026
+Este é o documento atual da frente NFS-e Nacional. Registros históricos e
+planos anteriores foram consolidados aqui para evitar decisões baseadas em
+documentação defasada.
 
-O provedor `nfse-nacional` esta integrado ao roteador interno da Nuvem Local
-Fiscal. Nesta primeira fatia ele:
+## Estado em 07/08/2026
 
-- preserva o contrato existente de `POST /nfse/dps`;
-- aceita configuracao por empresa, municipio e ambiente;
-- normaliza o payload atual dos clientes;
-- gera uma DPS no leiaute nacional `1.01`;
-- persiste XML, identificador da DPS, provedor e evento de auditoria;
-- nao assina e nao transmite para a SEFIN Nacional;
-- mantem `autoTransmit=false` nos dois ambientes.
+O adaptador `nfse-nacional` está integrado à Nuvem Local Fiscal e mantém o
+contrato HTTP existente de `POST /nfse/dps`. A Nuvem Local:
 
-O XML gerado foi validado durante o desenvolvimento contra o pacote oficial de
-Producao Restrita `NFSe-ESQUEMAS_XSD-PRODREST-v1.01-20260727`.
+- roteia por empresa, município e ambiente;
+- gera e assina DPS no leiaute 1.01;
+- valida o XML localmente contra os schemas de produção restrita;
+- transmite manualmente para a SEFIN Nacional em homologação;
+- persiste status, eventos, XML e DANFSe;
+- mantém a transmissão Nacional automática desativada;
+- impede que uma configuração Nacional de homologação altere a produção
+  municipal;
+- mantém numeração Nacional própria por empresa/ambiente.
 
-Fonte oficial:
+Typecheck e testes automatizados passam: 146 testes, 0 falhas.
 
-https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita/documentacao-tecnica-rtc-producao-restrita
+## Evidências de homologação
 
-Os XSDs ainda nao foram adicionados ao repositorio. Antes de habilitar
-assinatura ou transmissao, o pacote oficial deve ser incorporado em
-`schemas/nfse/`, com manifesto contendo URL, data, versao e SHA-256.
+### Toledo — Kabroski Automotiva
 
-## Configuracao
+O fluxo completo foi autorizado pela SEFIN Nacional em produção restrita:
 
-Exemplo de configuracao de homologacao:
+- DPS série 1, número 7;
+- geração e assinatura local;
+- transmissão para a SEFIN;
+- autorização Nacional;
+- XML e DANFSe disponíveis na Nuvem Local.
 
-```json
-{
-  "ambiente": "homologacao",
-  "provedor": "nfse-nacional",
-  "municipio": {
-    "codigo_ibge": "4108809",
-    "nome": "Guaira"
-  },
-  "rps": {
-    "serie": "1"
-  },
-  "nacional": {
-    "inscricao_municipal": "324743",
-    "versao_leiaute": "1.01",
-    "codigo_tributacao_nacional": "140101",
-    "opcao_simples_nacional": "3",
-    "regime_apuracao_simples": "1",
-    "regime_especial_tributacao": "0",
-    "tributacao_issqn": "1",
-    "retencao_issqn": "1"
-  }
-}
-```
+Durante o teste foram confirmadas as regras de Toledo:
 
-`codigo_tributacao_municipal` e `codigo_nbs` sao opcionais no XSD. Quando
-informados, devem possuir respectivamente 3 e 9 digitos. O
-`codigo_tributacao_nacional` e obrigatorio e deve possuir 6 digitos.
-Os codigos do exemplo sao apenas estruturais e precisam ser conferidos nos
-anexos oficiais e na parametrizacao do municipio antes da homologacao.
+- a IM não deve ser informada na DPS quando não há informação complementar no
+  CNC do município;
+- `1.2001.31.00` é categoria-pai; para veículos rodoviários motorizados foi
+  usado o código folha `1.2001.31.10` (`120013110`);
+- para ME/EPP, o grupo `totTrib` deve informar `pTotTribSN`, sem
+  `indTotTrib`.
 
-O endpoint e escolhido por ambiente:
+A produção da Kabroski permanece Toledo/Equiplano, com sequência municipal
+  preservada. A homologação Nacional está separada e sem transmissão
+  automática.
 
-- homologacao: `https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional`;
-- producao: `https://sefin.nfse.gov.br/SefinNacional`.
+### Guaíra — NHT
 
-## Compatibilidade do payload cliente
+A DPS Nacional chegou à SEFIN em produção restrita, mas foi rejeitada por:
 
-Os clientes podem continuar enviando o formato atual. O NBS pode ser informado
-opcionalmente em `infDPS.serv.cServ.cNBS`, `codigo_nbs` ou `nbs`. Se estiver
-ausente, a Nuvem Local usa o valor configurado para a empresa e servico. Se
-tambem nao houver valor configurado, a tag nao e gerada.
+`E0025: A data de competência informada na DPS deve ser igual ou posterior à
+data de autorização de uso do emissor registrada no CNC.`
 
-Ordem de resolucao dos principais campos:
+Isso não indica falha do adaptador. O portal municipal informa que Guaíra
+passará à emissão exclusiva Nacional em 01/09/2026, mas não exibe a data da
+NHT registrada no CNC. A NHT foi restaurada na produção municipal Guaíra/IPM;
+nenhuma nova tentativa Nacional deve ser feita até esclarecer a data efetiva.
 
-| DPS nacional | Payload cliente | Configuracao |
-| --- | --- | --- |
-| `cTribNac` | `infDPS.serv.cServ.cTribNac` | `nacional.codigo_tributacao_nacional` |
-| `cTribMun` | `infDPS.serv.cServ.cTribMun` | `nacional.codigo_tributacao_municipal` |
-| `cNBS` | `infDPS.serv.cServ.cNBS` ou `codigo_nbs` | `nacional.codigo_nbs` |
-| `cLocPrestacao` | `infDPS.serv.locPrest.cLocPrestacao` | municipio emissor |
-| `vServ` | `infDPS.valores.vServPrest.vServ` | sem valor padrao |
+## Auditoria dos clientes
 
-## Proximos incrementos
+Autoeletrica e Apoio-Contábil já enviam o contrato-base `POST /nfse/dps` com
+`infDPS`, tomador, serviço, município e valores. Ambos ainda carregam detalhes
+do contrato municipal:
 
-1. Incorporar e validar os XSDs oficiais em runtime.
-2. Assinar `infDPS` com o certificado A1 do emitente.
-3. Implementar o envelope compactado/base64 exigido pela API.
-4. Transmitir somente em Producao Restrita.
-5. Interpretar autorizacao, rejeicao e retorno inconclusivo.
-6. Consultar NFS-e e obter XML/DANFSe oficial.
-7. Implementar eventos de cancelamento e substituicao.
+- `cTribNac` pode chegar formatado como `14.01`, em vez de seis dígitos;
+- `cTribMun` pode chegar no formato municipal longo;
+- NBS não é enviado pelo cliente;
+- regime tributário e regras de IM vêm da configuração da empresa;
+- o Apoio-Contábil condiciona a sincronização NFS-e à existência de login e
+  senha, o que não serve para Equiplano e Nacional;
+- a Autoeletrica ainda monta configuração municipal IPM durante a sincronização.
+
+O contrato desejado é um payload comum, com blocos opcionais `municipal` e
+`nacional`. O cliente não deve precisar conhecer o XML Nacional; a Nuvem Local
+deve escolher o bloco pela configuração de roteamento da empresa.
+
+## Plano para 07/08/2026
+
+1. Criar testes de contrato com payloads reais da Autoeletrica e do
+   Apoio-Contábil, sem transmissão externa.
+2. Tornar a normalização Nacional tolerante aos códigos municipais legados:
+   usar o código Nacional configurado quando o valor recebido não tiver o
+   formato Nacional válido.
+3. Definir configuração Nacional por empresa para `cTribNac`, NBS, Simples,
+   tributação e regra de IM.
+4. Corrigir a sincronização dos dois clientes para não exigir login/senha
+   municipal quando o provedor for Nacional ou Equiplano.
+5. Validar uma empresa de cada cliente em Toledo, em homologação Nacional.
+6. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
+7. Preservar o conector municipal como contingência, com configuração,
+   certificado, credenciais, sequência e endpoint previamente validados.
+8. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
+   depois de uma transmissão externa incerta; uma troca de provedor gera novo
+   documento e deixa evento de auditoria.
+
+## Critério para considerar Toledo pronto
+
+As três empresas do Apoio-Contábil e as empresas Toledo da Autoeletrica devem
+ter configuração Nacional individual, teste autorizado em produção restrita e
+consulta local de XML/DANFSe. Só então a emissão Nacional deve ser liberada
+como padrão. O municipal permanece desativado como padrão, mas pronto para
+ativação manual controlada.
+
+## Referências oficiais
+
+- [Documentação técnica da produção restrita](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/producao-restrita/documentacao-tecnica-rtc-producao-restrita)
+- [Transição de Toledo para a NFS-e Nacional](https://www.toledo.pr.gov.br/secretarias/secretaria_fazenda_captacao_recursos/transicao-para-nfs-e-nacional)
+- [Aviso de Guaíra sobre emissão Nacional](https://guaira.pr.gov.br/noticias/noticia/6935)

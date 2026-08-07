@@ -1,5 +1,10 @@
 # NUVEMLOCALFISCAL
 
+> Documento de arquitetura e histórico do v0. Para o estado operacional atual
+> da NFS-e Nacional, consulte [`docs/NFSE_NACIONAL_IMPLEMENTACAO.md`](docs/NFSE_NACIONAL_IMPLEMENTACAO.md).
+> Para deploy, consulte [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md). Trechos com
+> datas anteriores não substituem esses documentos atuais.
+
 ## Summary
 Este documento define o projeto `nuvemlocalfiscal`: uma API propria que imita a Nuvem Fiscal o suficiente para que meus sistemas atuais precisem trocar apenas `URL` e `CLIENT_ID/CLIENT_SECRET` no `.env.local` e depois no Vercel.
 

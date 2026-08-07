@@ -1,6 +1,6 @@
 # Roadmap atual
 
-## Estado consolidado ate 04/08/2026
+## Estado consolidado ate 07/08/2026
 
 - [x] autenticacao compativel via `POST /oauth/token`
 - [x] persistencia principal em `Supabase`
@@ -17,6 +17,8 @@
 - [x] `NFS-e` Toledo/Equiplano com emissao, consulta, XML, PDF e cancelamento
 - [x] `NFS-e` Guaira/IPM com emissao homologada, XML/PDF local, consulta e
   cancelamento municipal implementados
+- [x] adaptador Nacional com DPS 1.01, assinatura, transmissão e autorização
+  em produção restrita para Toledo/Kabroski
 - [x] VPS homologada com HTTPS, Nginx, `systemd` e admin protegido
 - [x] producao controlada habilitavel por `FISCAL_PRODUCTION_ENABLED`, com
   verificacao por `/ready`
@@ -25,24 +27,25 @@
 
 - [ ] fechar retries agendados e processamento distribuido
 - [ ] endurecer conciliacao operacional de eventos e falhas intermitentes
+- [ ] esclarecer a data de autorização da NHT no CNC de Guaíra
 - [ ] concluir consulta/cancelamento Guaira em cenarios municipais de teste que
   a IPM efetivamente reconheca como consultaveis/cancelaveis
-- [ ] revisar documentacao operacional sempre que novos marcos forem fechados
 
 ## Frentes em evolucao
 
 Itens que ainda exigem trabalho, mas nao bloqueiam o MVP atualmente aberto:
 
 - [ ] adequacao completa as reformas fiscais exigidas a partir de `01/07/2026`
-- [ ] adaptador para a NFS-e Nacional, com parametros municipais, homologacao e
-  ativacao gradual por empresa
-- [ ] migracao controlada dos sistemas clientes publicados para a Nuvem Local
+- [ ] testes de contrato com Autoeletrica e Apoio-Contábil
+- [ ] ativação Nacional por empresa em Toledo
+- [ ] roteamento explícito Nacional/municipal e contingência auditada
 
 ## Direcao para o proximo ciclo
 
 Quando voltar a mexer no projeto, a ordem recomendada e:
 
-1. fechar retries agendados, processamento distribuido e conciliacao de falhas
-2. obter evidencia municipal de consulta e cancelamento para Guaira/IPM
-3. revisar as regras RTC em vigor antes de abrir novos fluxos fiscais
-4. iniciar a transicao para a NFS-e Nacional de forma isolada e reversivel
+1. criar os testes de contrato dos dois clientes
+2. validar as três empresas do Apoio-Contábil em Toledo
+3. implementar e testar a contingência municipal
+4. obter evidência municipal de consulta e cancelamento para Guaíra/IPM
+5. fechar retries agendados, processamento distribuído e conciliação de falhas
