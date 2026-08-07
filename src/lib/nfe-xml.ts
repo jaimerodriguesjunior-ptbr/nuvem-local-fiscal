@@ -81,6 +81,16 @@ function escapeXml(value: unknown) {
     .replaceAll("'", "&apos;");
 }
 
+function normalizeAdditionalInformation(name: string, value: unknown) {
+  if (name !== "infCpl" && name !== "infAdFisco") {
+    return value;
+  }
+  // O leiaute da NF-e aceita apenas caracteres imprimiveis nesses campos.
+  // Textos de textarea chegam frequentemente com quebras de linha, que o XSD
+  // rejeita; preservamos o conteudo convertendo-as em espacos simples.
+  return String(value).replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim();
+}
+
 function onlyDigits(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
 }
@@ -283,7 +293,7 @@ function serializeElement(name: string, value: unknown): string {
   if (TWO_DECIMAL_FISCAL_FIELDS.has(name)) {
     return `<${name}>${fiscalValueText(value)}</${name}>`;
   }
-  return `<${name}>${escapeXml(value)}</${name}>`;
+  return `<${name}>${escapeXml(normalizeAdditionalInformation(name, value))}</${name}>`;
 }
 
 const ideOrder = [

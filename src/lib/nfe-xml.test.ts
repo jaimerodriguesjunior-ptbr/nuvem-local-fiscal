@@ -116,6 +116,9 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
         transp: {
           modFrete: 9
         },
+        infAdic: {
+          infCpl: "NFs de origem Scherer:\nNF 1.494.482: 4 x R$ 75,26"
+        },
         pag: {
           detPag: []
         }
@@ -158,6 +161,11 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
     /<xProd>NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xProd>/
   );
   assert.doesNotMatch(result.unsignedXml, /Cliente Real|Produto Real/);
+  assert.match(
+    result.unsignedXml,
+    /<infCpl>NFs de origem Scherer: NF 1\.494\.482: 4 x R\$ 75,26<\/infCpl>/
+  );
+  assert.doesNotMatch(result.unsignedXml, /<infCpl>[\s\S]*\n/);
   assert.equal(result.signatureValid, true);
 });
 
