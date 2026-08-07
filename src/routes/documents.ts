@@ -1159,11 +1159,15 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         });
       }
 
-      const productionConfig = app.store.findServiceConfigRecord(cnpj, "producao", "NFSE");
-      const source = serviceConfig.settings;
-      app.store.upsertServiceConfig(cnpj, "producao", "NFSE", {
-        active: productionConfig?.active ?? serviceConfig.active,
-        settings: {
+      // A homologacao Nacional pode coexistir com a emissao municipal em producao
+      // durante a transicao. Nunca copie o provedor/configuracao Nacional para
+      // producao: isso trocaria silenciosamente o fluxo que esta em uso.
+      if (!isNationalProvider) {
+        const productionConfig = app.store.findServiceConfigRecord(cnpj, "producao", "NFSE");
+        const source = serviceConfig.settings;
+        app.store.upsertServiceConfig(cnpj, "producao", "NFSE", {
+          active: productionConfig?.active ?? serviceConfig.active,
+          settings: {
           ...(productionConfig?.settings ?? {}),
           nfseLogin: source.nfseLogin,
           nfseProvider: source.nfseProvider,
@@ -1198,22 +1202,23 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           autoTransmit: isNationalProvider
             ? false
             : productionConfig?.settings.autoTransmit ?? true
-        },
-        secretsEncrypted: requiresMunicipalPassword
-          ? serviceConfig.secretsEncrypted ?? undefined
-          : null,
-        preserveSecrets:
-          requiresMunicipalPassword &&
-          !serviceConfig.secretsEncrypted &&
-          Boolean(productionConfig)
-      });
+          },
+          secretsEncrypted: requiresMunicipalPassword
+            ? serviceConfig.secretsEncrypted ?? undefined
+            : null,
+          preserveSecrets:
+            requiresMunicipalPassword &&
+            !serviceConfig.secretsEncrypted &&
+            Boolean(productionConfig)
+        });
+      }
     }
     await app.store.waitForPersistence();
 
     return {
       message: "Configuracao NFS-e salva.",
       ambiente: environment,
-      producao_sincronizada: environment === "homologacao",
+      producao_sincronizada: environment === "homologacao" && !isNationalProvider,
       prefeitura: {
         login: requiresMunicipalLogin ? effectiveLogin : null,
         senha_configurada: requiresMunicipalPassword

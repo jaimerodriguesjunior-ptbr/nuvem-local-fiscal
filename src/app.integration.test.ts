@@ -742,6 +742,13 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.equal(toledoConfigAfterLowSequence.json().rps.numero, 1);
     assert.equal(toledoConfigAfterLowSequence.json().rps.lote, 1);
 
+    const productionNfseConfigBeforeNational = app.store.findServiceConfigRecord(
+      cnpj,
+      "producao",
+      "NFSE"
+    );
+    assert.ok(productionNfseConfigBeforeNational);
+
     const saveNationalNfseConfig = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,
@@ -790,10 +797,17 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       "NFSE"
     );
     assert.ok(nationalProductionConfig);
-    assert.equal(nationalProductionConfig.settings.autoTransmit, false);
+    assert.equal(
+      nationalProductionConfig.settings.nfseProvider,
+      productionNfseConfigBeforeNational.settings.nfseProvider
+    );
+    assert.equal(
+      nationalProductionConfig.settings.autoTransmit,
+      productionNfseConfigBeforeNational.settings.autoTransmit
+    );
     assert.equal(
       nationalProductionConfig.settings.nfseEndpoint,
-      "https://sefin.nfse.gov.br/SefinNacional"
+      productionNfseConfigBeforeNational.settings.nfseEndpoint
     );
 
     const setNationalDpsSequence = await app.inject({
