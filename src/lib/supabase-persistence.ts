@@ -640,12 +640,14 @@ export class SupabasePersistence {
       }
     }
 
+    const persistedCertificates: Array<{ certificate: Certificate; persistedId: string }> = [];
     const rows = certificates.flatMap((certificate) => {
       const companyId = companyIds.get(certificate.cnpj);
       if (!companyId) {
         return [];
       }
       const persistedId = existingIds.get(certificate.cnpj) ?? certificate.id;
+      persistedCertificates.push({ certificate, persistedId });
       return [
         {
           ...(persistedId ? { id: persistedId } : {}),
@@ -673,6 +675,14 @@ export class SupabasePersistence {
       .upsert(rows, { onConflict: "id" });
     if (error) {
       throw new Error(`Falha ao salvar certificados fiscais: ${error.message}`);
+    }
+
+    // Quando um certificado e reenviado, reutilizamos o registro ativo do banco
+    // para evitar duplicidade por CNPJ. O documento assinado logo em seguida
+    // precisa apontar para esse ID persistido, e nao para o UUID temporario
+    // criado na memoria durante o upload.
+    for (const { certificate, persistedId } of persistedCertificates) {
+      certificate.id = persistedId;
     }
   }
 
