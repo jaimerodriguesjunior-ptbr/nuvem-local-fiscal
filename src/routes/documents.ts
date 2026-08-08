@@ -2122,6 +2122,8 @@ async function handleGetDocument(
   const query = (request.query as Record<string, unknown> | undefined) ?? {};
   const refreshMunicipal =
     query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
+  const refreshNational =
+    query.consultar_nacional === "1" || query.consultar_nacional === "true";
   const shouldAutoConsult =
     storedDocument.tipoDocumento === "NFSe" &&
     configuredNfseProvider(app.store, storedDocument) === "toledo-equiplano" &&
@@ -2129,14 +2131,15 @@ async function handleGetDocument(
     storedDocument.motivoStatus !== "NFSE_IPM_DRY_RUN";
   if (
     storedDocument.tipoDocumento === "NFSe" &&
-    (shouldAutoConsult || refreshMunicipal)
+    (shouldAutoConsult || refreshMunicipal || refreshNational)
   ) {
     const consultation = await consultConfiguredNfse(app.store, storedDocument.id);
     storedDocument = consultation.document;
-    if (refreshMunicipal && consultation.error) {
+    if ((refreshMunicipal || refreshNational) && consultation.error) {
       return reply.code(422).send({
         ...mapDocumentResponse(storedDocument, requestBaseUrl(request)),
-        consulta_municipal: false,
+        consulta_municipal: refreshMunicipal,
+        consulta_nacional: refreshNational,
         message: consultation.error
       });
     }
