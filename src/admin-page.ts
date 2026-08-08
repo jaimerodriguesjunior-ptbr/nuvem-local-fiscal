@@ -1495,6 +1495,7 @@ const page = String.raw`<!doctype html>
             '<div class="section-head"><div><h3>SEFIN Nacional</h3><p>Transmissão para a API oficial da NFS-e Nacional. O endpoint é fixo por ambiente.</p></div></div>' +
             '<div class="two-col">' +
               '<label>NBS padrão<input name="nationalNbs" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalNbsCode || '') + '" required /></label>' +
+              '<label>Código de tributação nacional (cTribNac)<input name="nationalTaxCode" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalTaxCode || '140101') + '" required /></label>' +
               '<label>Série DPS<input name="nationalDpsSerie" value="' + escapeHtml(settings.nfseNationalDpsSerie || '1') + '" required /></label>' +
             '</div><label>Próximo número DPS<input type="number" min="1" name="nationalDpsNumber" value="' + escapeHtml(String(settings.nfseNationalNextDpsNumber || 1)) + '" required /></label>' +
             '<div class="empty">A transmissão em produção é uma operação fiscal real. Em homologação, a transmissão permanece manual e controlada.</div>' :
@@ -1841,6 +1842,7 @@ const page = String.raw`<!doctype html>
             '<div class="section-head"><div><h3>SEFIN Nacional</h3><p>Configuração da DPS Nacional. O endpoint é fixo conforme o ambiente.</p></div></div>' +
             '<div class="two-col">' +
               '<label>NBS padrão<input name="nationalNbs" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalNbsCode || '') + '" required /></label>' +
+              '<label>Código de tributação nacional (cTribNac)<input name="nationalTaxCode" inputmode="numeric" value="' + escapeHtml(settings.nfseNationalTaxCode || '140101') + '" required /></label>' +
               '<label>Série DPS<input name="nationalDpsSerie" value="' + escapeHtml(settings.nfseNationalDpsSerie || '1') + '" required /></label>' +
             '</div><label>Próximo número DPS<input type="number" min="1" name="nationalDpsNumber" value="' + escapeHtml(String(settings.nfseNationalNextDpsNumber || 1)) + '" required /></label>' +
             '<div class="empty">Homologação usa transmissão manual. Produção só deve ser ativada após revisão do certificado e dos dados fiscais.</div>' +
@@ -3062,6 +3064,7 @@ const page = String.raw`<!doctype html>
           },
           nacional: {
             codigo_nbs: form.get('nationalNbs'),
+            codigo_tributacao_nacional: form.get('nationalTaxCode'),
             dps_serie: form.get('nationalDpsSerie'),
             proximo_dps: Number(form.get('nationalDpsNumber') || 1)
           },
