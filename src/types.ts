@@ -21,9 +21,13 @@ export type ApiClient = {
   id: string;
   name: string;
   clientId: string;
-  clientSecret: string;
+  clientSecretHash: string;
   allowedScopes: string[];
   allowedEnvironments: Environment[];
+  allowedCnpjs: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Issuer = {
@@ -289,5 +293,7 @@ export type AccessTokenRecord = {
   clientId: string;
   scopes: string[];
   environments: Environment[];
+  allowedCnpjs: string[];
+  clientVersion?: string;
   expiresAt: number;
 };

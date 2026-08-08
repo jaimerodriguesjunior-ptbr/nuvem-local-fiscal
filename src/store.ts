@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -61,14 +61,31 @@ function escapeXml(value: unknown) {
     .replaceAll("'", "&apos;");
 }
 
+function hashClientSecret(secret: string, salt = randomBytes(16).toString("hex")) {
+  const digest = scryptSync(secret, salt, 32).toString("hex");
+  return `scrypt$${salt}$${digest}`;
+}
+
+function verifyClientSecret(secret: string, storedHash: string) {
+  const [algorithm, salt, expectedHex] = storedHash.split("$");
+  if (algorithm !== "scrypt" || !salt || !expectedHex) return false;
+  const actual = scryptSync(secret, salt, 32);
+  const expected = Buffer.from(expectedHex, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
 const seedClients = (defaultClientId: string, defaultClientSecret: string): ApiClient[] => [
   {
     id: "client_default",
     name: "Cliente local v0",
     clientId: defaultClientId,
-    clientSecret: defaultClientSecret,
+    clientSecretHash: hashClientSecret(defaultClientSecret),
     allowedScopes: ["empresa", "nfe", "nfce", "nfse", "distribuicao-nfe"],
-    allowedEnvironments: ["homologacao", "producao"]
+    allowedEnvironments: ["homologacao", "producao"],
+    allowedCnpjs: ["*"],
+    active: true,
+    createdAt: nowIso(),
+    updatedAt: nowIso()
   }
 ];
 
@@ -155,13 +172,16 @@ export class InMemoryStore {
     }
 
     const state = await this.persistence.loadState();
+    const shouldPersistSeedClient = state.apiClients.length === 0;
     if (
+      state.apiClients.length ||
       state.issuers.length ||
       state.certificates.length ||
       state.serviceConfigs.length ||
       state.documents.length ||
       state.returnCfopRules.length
     ) {
+      if (state.apiClients.length) this.apiClients = state.apiClients;
       this.issuers = state.issuers;
       this.certificates = state.certificates;
       this.serviceConfigs = state.serviceConfigs;
@@ -172,6 +192,11 @@ export class InMemoryStore {
       this.distributionDocuments = state.distributionDocuments;
       this.distributionManifestations = state.distributionManifestations;
       this.returnCfopRules = state.returnCfopRules;
+      if (shouldPersistSeedClient) {
+        await this.persistence.saveChanges(this.currentState(), {
+          apiClients: this.apiClients
+        });
+      }
       this.writeLocalState();
       return;
     }
@@ -179,15 +204,29 @@ export class InMemoryStore {
     await this.persistence.saveState(this.currentState());
   }
 
-  createAccessToken(clientId: string, scopes: string[], environments: Environment[]) {
+  createAccessToken(
+    clientId: string,
+    scopes: string[],
+    environments: Environment[],
+    allowedCnpjs: string[],
+    clientVersion?: string
+  ) {
     const expiresAt = Date.now() + 60 * 60 * 1000;
     const payload = Buffer.from(
-      JSON.stringify({ clientId, scopes, environments, expiresAt }),
+      JSON.stringify({ clientId, scopes, environments, allowedCnpjs, clientVersion, expiresAt }),
       "utf8"
     ).toString("base64url");
     const signature = this.signTokenPayload(payload);
     const token = `nlf_${payload}.${signature}`;
-    const record: AccessTokenRecord = { token, clientId, scopes, environments, expiresAt };
+    const record: AccessTokenRecord = {
+      token,
+      clientId,
+      scopes,
+      environments,
+      allowedCnpjs,
+      clientVersion,
+      expiresAt
+    };
     this.accessTokens.push(record);
     return record;
   }
@@ -195,7 +234,7 @@ export class InMemoryStore {
   findToken(token: string) {
     const cached =
       this.accessTokens.find((item) => item.token === token && item.expiresAt > Date.now()) ?? null;
-    if (cached) {
+    if (cached && this.isTokenClientCurrent(cached)) {
       return cached;
     }
 
@@ -223,20 +262,31 @@ export class InMemoryStore {
         clientId: string;
         scopes: string[];
         environments: Environment[];
+        allowedCnpjs: string[];
+        clientVersion?: string;
         expiresAt: number;
       };
 
-      if (!parsed.clientId || !Array.isArray(parsed.scopes) || parsed.expiresAt <= Date.now()) {
+      if (
+        !parsed.clientId ||
+        !Array.isArray(parsed.scopes) ||
+        !Array.isArray(parsed.environments) ||
+        !Array.isArray(parsed.allowedCnpjs) ||
+        parsed.expiresAt <= Date.now()
+      ) {
         return null;
       }
 
-      return {
+      const record = {
         token,
         clientId: parsed.clientId,
         scopes: parsed.scopes,
         environments: parsed.environments,
+        allowedCnpjs: parsed.allowedCnpjs,
+        clientVersion: parsed.clientVersion,
         expiresAt: parsed.expiresAt
       };
+      return this.isTokenClientCurrent(record) ? record : null;
     } catch {
       return null;
     }
@@ -248,8 +298,67 @@ export class InMemoryStore {
 
   findClient(clientId: string, clientSecret: string) {
     return this.apiClients.find(
-      (item) => item.clientId === clientId && item.clientSecret === clientSecret
+      (item) =>
+        item.active &&
+        item.clientId === clientId &&
+        verifyClientSecret(clientSecret, item.clientSecretHash)
     ) ?? null;
+  }
+
+  private isTokenClientCurrent(token: AccessTokenRecord) {
+    if (token.clientId === "admin-panel") return true;
+    const client = this.apiClients.find((item) => item.clientId === token.clientId);
+    return Boolean(client?.active && token.clientVersion === client.updatedAt);
+  }
+
+  upsertApiClient(input: {
+    id?: string;
+    name: string;
+    clientId: string;
+    clientSecret?: string;
+    allowedScopes: string[];
+    allowedEnvironments: Environment[];
+    allowedCnpjs: string[];
+    active: boolean;
+  }) {
+    const duplicate = this.apiClients.find(
+      (item) => item.clientId === input.clientId && item.id !== input.id
+    );
+    if (duplicate) throw new Error("client_id ja cadastrado em outra integracao.");
+
+    const existing = input.id
+      ? this.apiClients.find((item) => item.id === input.id)
+      : undefined;
+    if (!existing && !input.clientSecret) {
+      throw new Error("Informe ou gere um client_secret para a nova integracao.");
+    }
+    const timestamp = nowIso();
+    const record: ApiClient = {
+      id: existing?.id ?? `client_${randomUUID().slice(0, 12)}`,
+      name: input.name,
+      clientId: input.clientId,
+      clientSecretHash: input.clientSecret
+        ? hashClientSecret(input.clientSecret)
+        : existing!.clientSecretHash,
+      allowedScopes: [...new Set(input.allowedScopes)],
+      allowedEnvironments: [...new Set(input.allowedEnvironments)],
+      allowedCnpjs: [...new Set(input.allowedCnpjs)],
+      active: input.active,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp
+    };
+    if (existing) Object.assign(existing, record);
+    else this.apiClients.push(record);
+    this.accessTokens = this.accessTokens.filter((token) => token.clientId !== record.clientId);
+    this.saveState({ apiClients: [record] });
+    return record;
+  }
+
+  generateClientCredentials() {
+    return {
+      clientId: `nlf_${randomBytes(9).toString("base64url")}`,
+      clientSecret: randomBytes(32).toString("base64url")
+    };
   }
 
   findIssuerByCnpj(cnpj: string, ambiente?: Environment) {
@@ -1152,7 +1261,10 @@ export class InMemoryStore {
 
   getSnapshot() {
     return {
-      apiClients: this.apiClients,
+      apiClients: this.apiClients.map(({ clientSecretHash: _clientSecretHash, ...client }) => ({
+        ...client,
+        hasSecret: true
+      })),
       issuers: this.issuers,
       certificates: this.certificates.map(({ encryptedBundle: _encryptedBundle, ...certificate }) => certificate),
       serviceConfigs: this.serviceConfigs.map((serviceConfig) => ({
@@ -1207,6 +1319,7 @@ export class InMemoryStore {
 
     try {
       const state = JSON.parse(readFileSync(this.stateFile, "utf8")) as {
+        apiClients?: ApiClient[];
         issuers?: Issuer[];
         certificates?: Certificate[];
         serviceConfigs?: ServiceConfig[];
@@ -1218,6 +1331,7 @@ export class InMemoryStore {
         distributionManifestations?: DistributionManifestationRecord[];
         returnCfopRules?: ReturnCfopRule[];
       };
+      this.apiClients = state.apiClients ?? this.apiClients;
       this.issuers = state.issuers ?? this.issuers;
       this.certificates = state.certificates ?? [];
       this.serviceConfigs = state.serviceConfigs ?? [];
@@ -1244,6 +1358,7 @@ export class InMemoryStore {
       this.stateFile,
       JSON.stringify(
         {
+          apiClients: this.apiClients,
           issuers: this.issuers,
           certificates: this.certificates,
           serviceConfigs: this.serviceConfigs,
@@ -1264,6 +1379,7 @@ export class InMemoryStore {
 
   private currentState(): StoreSnapshotState {
     return {
+      apiClients: this.apiClients,
       issuers: this.issuers,
       certificates: this.certificates,
       serviceConfigs: this.serviceConfigs,

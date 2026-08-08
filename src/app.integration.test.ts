@@ -42,7 +42,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       url: "/oauth/token",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       payload:
-        "grant_type=client_credentials&client_id=local-client&client_secret=local-secret&scope=nfe%20nfce%20nfse%20distribuicao-nfe"
+        "grant_type=client_credentials&client_id=local-client&client_secret=local-secret&scope=empresa%20nfe%20nfce%20nfse%20distribuicao-nfe"
     });
     assert.equal(tokenResponse.statusCode, 200);
     const token = tokenResponse.json().access_token as string;
@@ -1692,7 +1692,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
 
     const adminPage = await app.inject({
       method: "GET",
-      url: "/admin"
+      url: "/admin",
+      headers: { authorization: basic }
     });
     assert.equal(adminPage.statusCode, 200);
     assert.match(adminPage.body, /Operação fiscal, sem ruído\./);
@@ -1706,6 +1707,104 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(adminPage.body, /Configuração municipal/);
     assert.match(adminPage.body, /nfseServiceForm/);
     assert.match(adminPage.body, /Toledo \/ Equiplano/);
+    assert.match(adminPage.body, /Integrações/);
+    assert.doesNotMatch(adminPage.body, /local-secret/);
+
+    const integrationSecret = "segredo-interno-com-mais-de-32-caracteres";
+    const createIntegration = await app.inject({
+      method: "POST",
+      url: "/admin/api/integrations",
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        name: "Cliente restrito de teste",
+        clientId: "scoped-client",
+        clientSecret: integrationSecret,
+        allowedScopes: ["empresa", "nfse"],
+        allowedEnvironments: ["homologacao"],
+        allowedCnpjs: [cnpj],
+        active: true
+      }
+    });
+    assert.equal(createIntegration.statusCode, 201, createIntegration.body);
+    assert.equal(createIntegration.json().credentials.client_secret, integrationSecret);
+    assert.doesNotMatch(JSON.stringify(app.store.getSnapshot()), /clientSecretHash|segredo-interno/);
+
+    const scopedTokenResponse = await app.inject({
+      method: "POST",
+      url: "/oauth/token",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload:
+        `grant_type=client_credentials&client_id=scoped-client&client_secret=${encodeURIComponent(integrationSecret)}&scope=empresa%20nfse`
+    });
+    assert.equal(scopedTokenResponse.statusCode, 200, scopedTokenResponse.body);
+    const scopedBearer = {
+      authorization: `Bearer ${scopedTokenResponse.json().access_token}`
+    };
+    const allowedCompany = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}?ambiente=homologacao`,
+      headers: scopedBearer
+    });
+    assert.equal(allowedCompany.statusCode, 200, allowedCompany.body);
+    const blockedCompany = await app.inject({
+      method: "GET",
+      url: "/empresas/98765432000110?ambiente=homologacao",
+      headers: scopedBearer
+    });
+    assert.equal(blockedCompany.statusCode, 403, blockedCompany.body);
+    assert.equal(blockedCompany.json().error, "company_not_allowed");
+
+    const otherCompanyDocument = app.store.createDocument({
+      tipoDocumento: "NFSe",
+      issuerCnpj: "98765432000110",
+      ambiente: "homologacao",
+      payloadOriginal: {},
+      payloadNormalizado: {}
+    });
+    const blockedDocument = await app.inject({
+      method: "GET",
+      url: `/nfse/${otherCompanyDocument.id}`,
+      headers: scopedBearer
+    });
+    assert.equal(blockedDocument.statusCode, 403, blockedDocument.body);
+    assert.equal(blockedDocument.json().error, "company_not_allowed");
+
+    const invalidScopeToken = await app.inject({
+      method: "POST",
+      url: "/oauth/token",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload:
+        `grant_type=client_credentials&client_id=scoped-client&client_secret=${encodeURIComponent(integrationSecret)}&scope=nfe`
+    });
+    assert.equal(invalidScopeToken.statusCode, 400, invalidScopeToken.body);
+    assert.equal(invalidScopeToken.json().error, "invalid_scope");
+
+    const updateIntegration = await app.inject({
+      method: "PUT",
+      url: `/admin/api/integrations/${createIntegration.json().integration.id}`,
+      headers: {
+        authorization: basic,
+        "content-type": "application/json"
+      },
+      payload: {
+        name: "Cliente restrito atualizado",
+        clientId: "scoped-client",
+        allowedScopes: ["empresa", "nfse"],
+        allowedEnvironments: ["homologacao"],
+        allowedCnpjs: ["98765432000110"],
+        active: true
+      }
+    });
+    assert.equal(updateIntegration.statusCode, 200, updateIntegration.body);
+    const revokedTokenRequest = await app.inject({
+      method: "GET",
+      url: `/empresas/${cnpj}?ambiente=homologacao`,
+      headers: scopedBearer
+    });
+    assert.equal(revokedTokenRequest.statusCode, 401, revokedTokenRequest.body);
 
     const signed = await app.inject({
       method: "POST",

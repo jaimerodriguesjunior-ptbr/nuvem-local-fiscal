@@ -30,11 +30,25 @@ export async function registerOAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    const scope = requestedScope || client.allowedScopes.join(" ");
+    const requestedScopes = (requestedScope || client.allowedScopes.join(" "))
+      .split(/\s+/)
+      .filter(Boolean);
+    const invalidScope = requestedScopes.find(
+      (item) => !client.allowedScopes.includes(item)
+    );
+    if (invalidScope) {
+      return reply.code(400).send({
+        error: "invalid_scope",
+        error_description: `Escopo nao autorizado para esta integracao: ${invalidScope}.`
+      });
+    }
+    const scope = requestedScopes.join(" ");
     const token = app.store.createAccessToken(
       client.clientId,
-      scope.split(/\s+/).filter(Boolean),
-      client.allowedEnvironments
+      requestedScopes,
+      client.allowedEnvironments,
+      client.allowedCnpjs,
+      client.updatedAt
     );
 
     return {

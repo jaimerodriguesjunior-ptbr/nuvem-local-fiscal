@@ -1,12 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  ApiClient,
   Certificate,
   DocumentEventRecord,
   DocumentRecord,
   DistributionDocumentRecord,
   DistributionManifestationRecord,
   DistributionRecord,
+  Environment,
   InutilizationRecord,
   Issuer,
   MessageItem,
@@ -15,6 +17,7 @@ import type {
 } from "../types.js";
 
 export type StoreSnapshotState = {
+  apiClients: ApiClient[];
   issuers: Issuer[];
   certificates: Certificate[];
   serviceConfigs: ServiceConfig[];
@@ -36,6 +39,19 @@ type FiscalCompanyRow = {
   nome_fantasia: string;
   active: boolean;
   metadata: Record<string, unknown> | null;
+};
+
+type FiscalApiClientRow = {
+  id: string;
+  name: string;
+  client_id: string;
+  client_secret_hash: string;
+  allowed_scopes: string[];
+  allowed_environments: Environment[];
+  allowed_cnpjs: string[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 type FiscalEnvironmentRow = {
@@ -207,6 +223,7 @@ export class SupabasePersistence {
 
   async loadState(): Promise<StoreSnapshotState> {
     const [
+      apiClientsResult,
       companiesResult,
       environmentsResult,
       certificatesResult,
@@ -215,6 +232,7 @@ export class SupabasePersistence {
       documentEventsResult,
       returnCfopRulesResult
     ] = await Promise.all([
+      this.client.from("fiscal_api_clients").select("*").order("created_at"),
       this.client.from("fiscal_companies").select("*").order("created_at"),
       this.client.from("fiscal_company_environments").select("*").order("created_at"),
       this.client.from("fiscal_certificates").select("*").order("uploaded_at"),
@@ -231,6 +249,7 @@ export class SupabasePersistence {
     ]);
 
     const error =
+      apiClientsResult.error ??
       companiesResult.error ??
       environmentsResult.error ??
       certificatesResult.error ??
@@ -254,6 +273,20 @@ export class SupabasePersistence {
     if (distributionError) throw new Error(`Falha ao carregar distribuicao NF-e do Supabase: ${distributionError.message}`);
 
     const companies = (companiesResult.data ?? []) as FiscalCompanyRow[];
+    const apiClients = ((apiClientsResult.data ?? []) as FiscalApiClientRow[]).map(
+      (client): ApiClient => ({
+        id: client.id,
+        name: client.name,
+        clientId: client.client_id,
+        clientSecretHash: client.client_secret_hash,
+        allowedScopes: client.allowed_scopes ?? [],
+        allowedEnvironments: client.allowed_environments ?? [],
+        allowedCnpjs: client.allowed_cnpjs ?? [],
+        active: client.active,
+        createdAt: client.created_at,
+        updatedAt: client.updated_at
+      })
+    );
     const companiesById = new Map(companies.map((company) => [company.id, company]));
     const companyCnpjById = new Map(companies.map((company) => [company.id, company.cnpj]));
     const environments = (environmentsResult.data ?? []) as FiscalEnvironmentRow[];
@@ -451,6 +484,7 @@ export class SupabasePersistence {
     }));
 
     return {
+      apiClients,
       issuers,
       certificates,
       serviceConfigs,
@@ -461,6 +495,7 @@ export class SupabasePersistence {
   }
 
   async saveState(state: StoreSnapshotState) {
+    await this.upsertApiClients(state.apiClients);
     const companyIds = await this.upsertCompanies(state.issuers);
     const environmentIds = await this.upsertEnvironments(state.issuers, companyIds);
     await this.upsertCertificates(state.certificates, companyIds);
@@ -477,6 +512,10 @@ export class SupabasePersistence {
     // São conjuntos pequenos; mantê-los sincronizados evita consultas adicionais.
     const companyIds = await this.upsertCompanies(state.issuers);
     const environmentIds = await this.upsertEnvironments(state.issuers, companyIds);
+
+    if (changes.apiClients) {
+      await this.upsertApiClients(changes.apiClients);
+    }
 
     if (changes.certificates) {
       await this.upsertCertificates(changes.certificates, companyIds);
@@ -689,6 +728,28 @@ export class SupabasePersistence {
     // criado na memoria durante o upload.
     for (const { certificate, persistedId } of persistedCertificates) {
       certificate.id = persistedId;
+    }
+  }
+
+  private async upsertApiClients(clients: ApiClient[]) {
+    if (!clients.length) return;
+    const rows = clients.map((client) => ({
+      id: client.id,
+      name: client.name,
+      client_id: client.clientId,
+      client_secret_hash: client.clientSecretHash,
+      allowed_scopes: client.allowedScopes,
+      allowed_environments: client.allowedEnvironments,
+      allowed_cnpjs: client.allowedCnpjs,
+      active: client.active,
+      created_at: client.createdAt,
+      updated_at: client.updatedAt
+    }));
+    const { error } = await this.client
+      .from("fiscal_api_clients")
+      .upsert(rows, { onConflict: "id" });
+    if (error) {
+      throw new Error(`Falha ao salvar integracoes fiscais: ${error.message}`);
     }
   }
 

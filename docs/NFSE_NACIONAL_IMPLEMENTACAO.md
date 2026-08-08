@@ -209,6 +209,39 @@ contingência municipal. Se usar o mesmo fluxo SEFIN sem exceções, será apena
 cadastro; particularidades municipais exigirão validação antes da primeira
 emissão.
 
+## Integrações dos programas clientes
+
+O `/admin` possui a aba **Integrações** para criar e editar credenciais
+internas dos programas clientes. Cada integração define explicitamente:
+
+- os CNPJs que pode operar;
+- os escopos (`empresa`, `nfe`, `nfce`, `nfse` e `distribuicao-nfe`);
+- os ambientes de homologação e/ou produção;
+- se a credencial está ativa.
+
+O segredo é armazenado somente como hash e exibido uma única vez na criação
+ou rotação. Qualquer edição revoga os tokens anteriores da integração. A API
+confere escopo, ambiente e CNPJ tanto na criação quanto na consulta,
+transmissão, download e cancelamento dos documentos.
+
+O cliente legado criado pelas variáveis `API_CLIENT_DEFAULT_ID` e
+`API_CLIENT_DEFAULT_SECRET` continua temporariamente com acesso global para
+permitir uma migração sem indisponibilidade. Antes de considerarmos o
+isolamento ativo em produção, devem ser criadas duas integrações:
+
+1. **Autoeletrica**: NHT e Kabroski, com os escopos efetivamente usados pelo
+   programa.
+2. **Apoio Contábil**: Evavan e CS Pick, com os escopos efetivamente usados
+   pelo programa.
+
+Depois, as credenciais geradas devem substituir as variáveis de integração de
+cada deploy cliente. Somente após validar os dois programas o cliente legado
+deve ser restringido ou desativado.
+
+A persistência depende da migration
+`supabase/migrations/20260808_002_fiscal_api_clients.sql` no banco da Nuvem
+Local Fiscal. Ela deve ser aplicada antes do deploy do código correspondente.
+
 ## Próximo bloco
 
 Concluídos em 07/08/2026:

@@ -1,7 +1,5 @@
 type AdminPageConfig = {
   adminToken: string;
-  apiClientId: string;
-  apiClientSecret: string;
 };
 
 const page = String.raw`<!doctype html>
@@ -361,6 +359,12 @@ const page = String.raw`<!doctype html>
       box-shadow: var(--shadow);
     }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0 20px; }
+    .check { display: flex; align-items: center; gap: 9px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); }
+    .check input { width: auto; margin: 0; }
+    .notice.warning { margin: 12px 0 20px; padding: 14px 16px; border: 1px solid #e4ba65; border-radius: 14px; background: #fff4d8; color: #6e4a08; }
+    .notice.warning p { margin: 5px 0 0; }
+    .integration-form + .integration-form { margin-top: 16px; }
     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
     .info {
       min-height: 82px;
@@ -719,6 +723,7 @@ const page = String.raw`<!doctype html>
     <nav class="nav" aria-label="Navegação principal">
       <button type="button" data-nav="home" onclick="navigate('home')">Home</button>
       <button type="button" data-nav="companies" onclick="navigate('companies')">Empresas</button>
+      <button type="button" data-nav="integrations" onclick="navigate('integrations')">Integrações</button>
       <button type="button" data-nav="documents" onclick="navigate('documents')">Documentos</button>
       <button type="button" data-nav="returns" onclick="navigate('returns')">Devoluções</button>
       <button type="button" data-nav="logs" onclick="navigate('logs')">Logs e debug</button>
@@ -1172,6 +1177,75 @@ const page = String.raw`<!doctype html>
       (companies.length
         ? '<div class="company-list">' + companies.map(compactCompanyCardFixed).join('') + '</div>'
         : '<div class="empty">Nenhuma empresa cadastrada. Use "Nova empresa" para iniciar.</div>');
+    }
+
+    function integrationChoices(name, values, selected) {
+      return '<div class="check-grid">' + values.map(function(item) {
+        const checked = selected.includes(item.value) ? ' checked' : '';
+        return '<label class="check"><input type="checkbox" name="' + name + '" value="' +
+          escapeHtml(item.value) + '"' + checked + '> <span>' + escapeHtml(item.label) + '</span></label>';
+      }).join('') + '</div>';
+    }
+
+    function integrationCompanyChoices(selected) {
+      return integrationChoices('allowedCnpjs', groupedCompanies().map(function(company) {
+        return {
+          value: company.cnpj,
+          label: company.nomeFantasia + ' — ' + formatCnpj(company.cnpj)
+        };
+      }), selected);
+    }
+
+    function integrationForm(client) {
+      const isNew = !client;
+      const scopes = client ? client.allowedScopes : ['empresa', 'nfe', 'nfce', 'nfse'];
+      const environments = client ? client.allowedEnvironments : ['homologacao'];
+      const cnpjs = client ? client.allowedCnpjs : [];
+      const legacyWarning = cnpjs.includes('*')
+        ? '<div class="notice warning"><strong>Acesso legado sem isolamento.</strong><p>Selecione os CNPJs permitidos e salve para restringir esta credencial.</p></div>'
+        : '';
+      return '<form class="integration-form surface" data-integration-id="' + escapeHtml(client ? client.id : '') + '">' +
+        '<div class="section-head"><div><h2>' + escapeHtml(isNew ? 'Nova integração' : client.name) + '</h2>' +
+        '<p>' + escapeHtml(isNew ? 'Credencial interna para um programa cliente.' : 'Atualizada em ' + client.updatedAt) + '</p></div>' +
+        (!isNew ? badge(client.active ? 'Ativa' : 'Inativa', client.active ? 'ok' : 'warn') : '') + '</div>' +
+        legacyWarning +
+        '<div class="two-col">' +
+          '<label>Nome<input name="name" required value="' + escapeHtml(client ? client.name : '') + '" placeholder="Ex.: Autoelétrica"></label>' +
+          '<label>Client ID<input name="clientId" ' + (isNew ? '' : 'readonly ') + 'value="' + escapeHtml(client ? client.clientId : '') + '" placeholder="Deixe vazio para gerar"></label>' +
+        '</div>' +
+        '<div class="section-head"><div><h3>Empresas permitidas</h3><p>O token só poderá operar estes CNPJs.</p></div></div>' +
+        integrationCompanyChoices(cnpjs) +
+        '<div class="section-head"><div><h3>Escopos</h3></div></div>' +
+        integrationChoices('allowedScopes', [
+          { value: 'empresa', label: 'Cadastro/configuração de empresa' },
+          { value: 'nfe', label: 'NF-e' },
+          { value: 'nfce', label: 'NFC-e' },
+          { value: 'nfse', label: 'NFS-e' },
+          { value: 'distribuicao-nfe', label: 'Distribuição NF-e' }
+        ], scopes) +
+        '<div class="section-head"><div><h3>Ambientes</h3></div></div>' +
+        integrationChoices('allowedEnvironments', [
+          { value: 'homologacao', label: 'Homologação' },
+          { value: 'producao', label: 'Produção' }
+        ], environments) +
+        '<div class="check-grid">' +
+          '<label class="check"><input type="checkbox" name="active"' + (isNew || client.active ? ' checked' : '') + '> <span>Integração ativa</span></label>' +
+          (!isNew ? '<label class="check"><input type="checkbox" name="rotateSecret"> <span>Gerar novo segredo ao salvar</span></label>' : '') +
+        '</div>' +
+        '<div><button type="submit" class="btn">' + escapeHtml(isNew ? 'Criar integração' : 'Salvar integração') + '</button></div>' +
+      '</form>';
+    }
+
+    function renderIntegrations() {
+      const clients = state.snapshot.apiClients || [];
+      return pageHead(
+        'Segurança',
+        'Integrações',
+        'Credenciais internas dos programas clientes e os CNPJs que cada uma pode operar.'
+      ) + integrationForm(null) +
+      '<div class="section-head"><div><h2>Integrações cadastradas</h2><p>Alterações revogam os tokens já emitidos.</p></div></div>' +
+      (clients.length ? clients.map(integrationForm).join('') : '<div class="empty">Nenhuma integração cadastrada.</div>') +
+      responseConsole();
     }
 
     function renderIssuerAudit() {
@@ -2737,6 +2811,9 @@ const page = String.raw`<!doctype html>
       if (inutilizationForm) inutilizationForm.addEventListener('submit', createInutilization);
       const returnCfopRuleForm = document.getElementById('returnCfopRuleForm');
       if (returnCfopRuleForm) returnCfopRuleForm.addEventListener('submit', saveReturnCfopRule);
+      document.querySelectorAll('.integration-form').forEach(function(form) {
+        form.addEventListener('submit', saveIntegration);
+      });
     }
 
     function updateNav() {
@@ -2753,6 +2830,7 @@ const page = String.raw`<!doctype html>
       let html = '';
       if (state.page === 'home') html = renderHome();
       if (state.page === 'companies') html = renderCompanies();
+      if (state.page === 'integrations') html = renderIntegrations();
       if (state.page === 'issuer-audit') html = renderIssuerAudit();
       if (state.page === 'new-company') html = renderNewCompany();
       if (state.page === 'company') html = renderCompany();
@@ -2778,18 +2856,42 @@ const page = String.raw`<!doctype html>
     }
 
     async function getAccessToken() {
-      const body = new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: runtimeConfig.apiClientId,
-        client_secret: runtimeConfig.apiClientSecret,
-        scope: 'empresa nfe nfce nfse'
-      });
-      const response = await fetch('/oauth/token', {
+      const response = await fetch('/admin/api/access-token', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: body
+        headers: { Authorization: 'Basic ' + runtimeConfig.adminToken }
       });
       return response.json();
+    }
+
+    async function saveIntegration(event) {
+      event.preventDefault();
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
+      const integrationId = formElement.getAttribute('data-integration-id');
+      const payload = {
+        name: form.get('name'),
+        clientId: form.get('clientId'),
+        allowedCnpjs: form.getAll('allowedCnpjs'),
+        allowedScopes: form.getAll('allowedScopes'),
+        allowedEnvironments: form.getAll('allowedEnvironments'),
+        active: form.get('active') === 'on',
+        rotateSecret: form.get('rotateSecret') === 'on'
+      };
+      setResponse('Salvando integração e revogando tokens anteriores...');
+      const response = await fetch(
+        integrationId ? '/admin/api/integrations/' + integrationId : '/admin/api/integrations',
+        {
+          method: integrationId ? 'PUT' : 'POST',
+          headers: {
+            'content-type': 'application/json',
+            Authorization: 'Basic ' + runtimeConfig.adminToken
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      const json = await response.json();
+      if (response.ok) await refreshSnapshot();
+      setResponse(json);
     }
 
     async function uploadCertificate(event) {

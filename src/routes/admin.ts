@@ -23,6 +23,7 @@ import {
 import { isUncertainAuthorizationFailure } from "../lib/retry-rules.js";
 import { querySefazStatus } from "../lib/sefaz-status.js";
 import { validateNfeXml } from "../lib/xsd-validator.js";
+import type { ApiClient } from "../types.js";
 
 const legacyAdminHtml = `<!doctype html>
 <html lang="pt-BR">
@@ -660,9 +661,7 @@ const legacyAdminHtml = `<!doctype html>
 const adminHtml = createAdminHtml({
   adminToken: Buffer.from(
     `${config.adminUsername}:${config.adminPassword}`
-  ).toString("base64"),
-  apiClientId: config.defaultClientId,
-  apiClientSecret: config.defaultClientSecret
+  ).toString("base64")
 });
 
 void legacyAdminHtml;
@@ -717,10 +716,148 @@ function fiscalCheck(name: string, ok: boolean, message: string, details?: Recor
   };
 }
 
+const integrationScopes = ["empresa", "nfe", "nfce", "nfse", "distribuicao-nfe"];
+
+function integrationSnapshot(client: ApiClient) {
+  const { clientSecretHash: _clientSecretHash, ...safe } = client;
+  return { ...safe, hasSecret: true };
+}
+
+function parseIntegrationDraft(
+  body: Record<string, unknown>,
+  knownCnpjs: Set<string>,
+  allowWildcard = false
+) {
+  const name = String(body.name ?? "").trim();
+  const clientId = String(body.clientId ?? body.client_id ?? "").trim();
+  const scopes = Array.isArray(body.allowedScopes)
+    ? body.allowedScopes.map(String)
+    : [];
+  const environments = Array.isArray(body.allowedEnvironments)
+    ? body.allowedEnvironments.map(String)
+    : [];
+  const cnpjs = Array.isArray(body.allowedCnpjs)
+    ? body.allowedCnpjs.map((value) => String(value).replace(/\D/g, "")).filter(Boolean)
+    : [];
+  if (!name || !/^[A-Za-z0-9._-]{6,120}$/.test(clientId)) {
+    throw new Error("Informe nome e client_id com 6 a 120 caracteres seguros.");
+  }
+  if (!scopes.length || scopes.some((scope) => !integrationScopes.includes(scope))) {
+    throw new Error("Selecione ao menos um escopo fiscal valido.");
+  }
+  if (
+    !environments.length ||
+    environments.some((environment) => !["homologacao", "producao"].includes(environment))
+  ) {
+    throw new Error("Selecione ao menos um ambiente valido.");
+  }
+  if (!cnpjs.length || cnpjs.some((cnpj) => cnpj.length !== 14 || !knownCnpjs.has(cnpj))) {
+    if (!(allowWildcard && body.allowedCnpjs instanceof Array && body.allowedCnpjs.includes("*"))) {
+      throw new Error("Selecione ao menos uma empresa cadastrada para a integracao.");
+    }
+  }
+  return {
+    name,
+    clientId,
+    allowedScopes: scopes,
+    allowedEnvironments: environments as Array<"homologacao" | "producao">,
+    allowedCnpjs: allowWildcard && (body.allowedCnpjs as unknown[])?.includes("*") ? ["*"] : cnpjs,
+    active: body.active !== false
+  };
+}
+
 export async function registerAdminRoutes(app: FastifyInstance) {
-  app.get("/admin", async (_request, reply) => {
+  app.get("/admin", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      reply.header("www-authenticate", 'Basic realm="Nuvem Local Fiscal"');
+      return reply.code(401).send(unauthorized());
+    }
     reply.header("content-type", "text/html; charset=utf-8");
     return adminHtml;
+  });
+
+  app.post("/admin/api/access-token", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const token = app.store.createAccessToken(
+      "admin-panel",
+      ["empresa", "nfe", "nfce", "nfse", "distribuicao-nfe"],
+      ["homologacao", "producao"],
+      ["*"]
+    );
+    return {
+      access_token: token.token,
+      token_type: "bearer",
+      expires_in: 3600,
+      scope: token.scopes.join(" ")
+    };
+  });
+
+  app.post("/admin/api/integrations", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    const generated = app.store.generateClientCredentials();
+    try {
+      const knownCnpjs = new Set(app.store.issuers.map((issuer) => issuer.cnpj));
+      const draft = parseIntegrationDraft(
+        { ...body, clientId: body.clientId || generated.clientId },
+        knownCnpjs
+      );
+      const clientSecret = String(body.clientSecret ?? generated.clientSecret);
+      if (clientSecret.length < 32) {
+        return reply.code(400).send({ message: "O client_secret deve ter pelo menos 32 caracteres." });
+      }
+      const client = app.store.upsertApiClient({ ...draft, clientSecret });
+      await app.store.waitForPersistence();
+      return reply.code(201).send({
+        message: "Integracao criada. Guarde o segredo agora; ele nao sera exibido novamente.",
+        integration: integrationSnapshot(client),
+        credentials: { client_id: client.clientId, client_secret: clientSecret }
+      });
+    } catch (error) {
+      return reply.code(400).send({ message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put("/admin/api/integrations/:id", async (request, reply) => {
+    if (!isValidBasic(request.headers.authorization)) {
+      return reply.code(401).send(unauthorized());
+    }
+    const params = request.params as { id: string };
+    const existing = app.store.apiClients.find((client) => client.id === params.id);
+    if (!existing) return reply.code(404).send({ message: "Integracao nao encontrada." });
+    const body = (request.body as Record<string, unknown> | undefined) ?? {};
+    try {
+      const knownCnpjs = new Set(app.store.issuers.map((issuer) => issuer.cnpj));
+      const draft = parseIntegrationDraft(
+        { ...body, clientId: body.clientId || existing.clientId },
+        knownCnpjs,
+        existing.allowedCnpjs.includes("*")
+      );
+      const rotated = body.rotateSecret === true
+        ? app.store.generateClientCredentials().clientSecret
+        : undefined;
+      const client = app.store.upsertApiClient({
+        id: existing.id,
+        ...draft,
+        clientSecret: rotated
+      });
+      await app.store.waitForPersistence();
+      return {
+        message: rotated
+          ? "Integracao salva e segredo rotacionado. Atualize o programa cliente antes de usar."
+          : "Integracao salva. Tokens anteriores desta integracao foram revogados.",
+        integration: integrationSnapshot(client),
+        credentials: rotated
+          ? { client_id: client.clientId, client_secret: rotated }
+          : null
+      };
+    } catch (error) {
+      return reply.code(400).send({ message: error instanceof Error ? error.message : String(error) });
+    }
   });
 
   app.get("/admin/api/snapshot", async (request, reply) => {

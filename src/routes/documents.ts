@@ -49,6 +49,7 @@ type AuthenticatedRequest = FastifyRequest & {
     clientId: string;
     scopes: string[];
     environments: Environment[];
+    allowedCnpjs: string[];
   };
 };
 
@@ -235,6 +236,7 @@ async function handleCreateDistribution(app: FastifyInstance, request: FastifyRe
   const modo = String(body.tipo_consulta ?? body.modo ?? "dist-nsu") as DistributionRecord["modo"];
   const nsu = body.nsu ?? body.ult_nsu ?? body.dist_nsu ?? null;
   const chave = body.chave ?? body.chave_acesso ?? null;
+  if (!ensureTokenRecordAccess(request, reply, cnpj, ambiente)) return;
   if (!cnpj || !app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada para distribuicao." });
   if (!["dist-nsu", "cons-nsu", "cons-chave"].includes(modo)) return reply.code(400).send({ message: "tipo_consulta deve ser dist-nsu, cons-nsu ou cons-chave." });
   const record = app.store.createDistribution({ cnpj, ambiente, modo, nsu: nsu ? String(nsu) : null, chave: chave ? String(chave).replace(/\D/g, "") : null });
@@ -285,6 +287,7 @@ async function handleCreateManifestation(app: FastifyInstance, request: FastifyR
   const body = (request.body as Record<string, unknown> | undefined) ?? {};
   const cnpj = String(body.cpf_cnpj ?? body.cnpj ?? "").replace(/\D/g, ""); const ambiente = parseEnvironment(body.ambiente);
   const chave = String(body.chave ?? body.chave_acesso ?? "").replace(/\D/g, ""); const tipoEvento = String(body.tipo_evento ?? body.tipoEvento ?? "");
+  if (!ensureTokenRecordAccess(request, reply, cnpj, ambiente)) return;
   if (!cnpj || !app.store.findIssuerByCnpj(cnpj, ambiente)) return reply.code(404).send({ message: "Empresa nao encontrada para manifestacao." });
   const record = app.store.createDistributionManifestation({ cnpj, ambiente, chave, tipoEvento, justificativa: body.justificativa ? String(body.justificativa) : null });
   const issuer = app.store.findIssuerByCnpj(cnpj, ambiente); const certificate = app.store.findActiveCertificate(cnpj);
@@ -323,8 +326,59 @@ async function ensureBearer(request: FastifyRequest, reply: FastifyReply) {
     token: tokenRecord.token,
     clientId: tokenRecord.clientId,
     scopes: tokenRecord.scopes,
-    environments: tokenRecord.environments
+    environments: tokenRecord.environments,
+    allowedCnpjs: tokenRecord.allowedCnpjs
   };
+}
+
+function tokenAllowsCnpj(request: FastifyRequest, cnpj: string) {
+  const identifier = normalizeFiscalIdentifier(cnpj);
+  const normalized = identifier.kind === "numeric_cnpj" ? identifier.value : "";
+  const token = (request as AuthenticatedRequest).tokenRecord;
+  return Boolean(
+    normalized &&
+    token &&
+    (token.allowedCnpjs.includes("*") || token.allowedCnpjs.includes(normalized))
+  );
+}
+
+function ensureTokenCnpjAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  cnpj: string
+) {
+  if (tokenAllowsCnpj(request, cnpj)) return true;
+  reply.code(403).send({
+    error: "company_not_allowed",
+    message: "Esta integracao nao possui acesso ao CNPJ informado."
+  });
+  return false;
+}
+
+function ensureTokenEnvironmentAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  environment: Environment
+) {
+  const token = (request as AuthenticatedRequest).tokenRecord;
+  if (token?.environments.includes(environment)) return true;
+  reply.code(403).send({
+    error: "environment_not_allowed",
+    message: "Esta integracao nao possui acesso ao ambiente informado."
+  });
+  return false;
+}
+
+function ensureTokenRecordAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  cnpj: string,
+  environment: Environment
+) {
+  return (
+    ensureTokenCnpjAccess(request, reply, cnpj) &&
+    ensureTokenEnvironmentAccess(request, reply, environment)
+  );
 }
 
 function normalizePayload(tipoDocumento: DocumentType, body: Record<string, unknown>) {
@@ -466,6 +520,17 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           message: `Token sem escopo ${requiredScope} para esta rota fiscal.`
         });
       }
+      const routeCnpj = String(
+        (request.params as { cnpj?: string } | undefined)?.cnpj ?? ""
+      ).replace(/\D/g, "");
+      if (routeCnpj && !ensureTokenCnpjAccess(request, reply, routeCnpj)) return;
+      const bodyEnvironment = (request.body as Record<string, unknown> | undefined)?.ambiente;
+      const queryEnvironment = (request.query as Record<string, unknown> | undefined)?.ambiente;
+      const requestedEnvironment = bodyEnvironment ?? queryEnvironment;
+      if (
+        (requestedEnvironment === "homologacao" || requestedEnvironment === "producao") &&
+        !ensureTokenEnvironmentAccess(request, reply, requestedEnvironment)
+      ) return;
     }
   });
 
@@ -486,15 +551,20 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   });
   app.get("/distribuicao/nfe/:id", async (request, reply) => {
     const record = app.store.findDistribution((request.params as { id: string }).id);
-    return record ? mapDistributionResponse(record, app.store.listDistributionDocuments(record.cnpj, record.ambiente).filter((item) => item.distributionId === record.id)) : reply.code(404).send({ message: "Distribuicao nao encontrada." });
+    if (!record) return reply.code(404).send({ message: "Distribuicao nao encontrada." });
+    if (!ensureTokenRecordAccess(request, reply, record.cnpj, record.ambiente)) return;
+    return mapDistributionResponse(record, app.store.listDistributionDocuments(record.cnpj, record.ambiente).filter((item) => item.distributionId === record.id));
   });
   app.get("/distribuicao/nfe/documentos/:id", async (request, reply) => {
     const record = app.store.findDistributionDocument((request.params as { id: string }).id);
-    return record ? mapDistributionDocumentResponse(record) : reply.code(404).send({ message: "Documento distribuido nao encontrado." });
+    if (!record) return reply.code(404).send({ message: "Documento distribuido nao encontrado." });
+    if (!ensureTokenRecordAccess(request, reply, record.cnpj, record.ambiente)) return;
+    return mapDistributionDocumentResponse(record);
   });
   app.get("/distribuicao/nfe/documentos/:id/xml", async (request, reply) => {
     const record = app.store.findDistributionDocument((request.params as { id: string }).id);
     if (!record) return reply.code(404).send({ message: "Documento distribuido nao encontrado." });
+    if (!ensureTokenRecordAccess(request, reply, record.cnpj, record.ambiente)) return;
     reply.header("content-type", "application/xml; charset=utf-8");
     reply.header("content-disposition", `attachment; filename="${record.nsu}-${record.schema}.xml"`);
     return record.xml;
@@ -504,7 +574,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   });
   app.get("/distribuicao/nfe/manifestacoes/:id", async (request, reply) => {
     const record = app.store.findDistributionManifestation((request.params as { id: string }).id);
-    return record ? mapManifestationResponse(record) : reply.code(404).send({ message: "Manifestacao nao encontrada." });
+    if (!record) return reply.code(404).send({ message: "Manifestacao nao encontrada." });
+    if (!ensureTokenRecordAccess(request, reply, record.cnpj, record.ambiente)) return;
+    return mapManifestationResponse(record);
   });
 
   app.post("/nfce/inutilizacoes", async (request, reply) => {
@@ -1429,6 +1501,10 @@ async function handleUpsertCompany(
   if (cnpj.length !== 14) {
     return reply.code(400).send({ message: "Informe cpf_cnpj/CNPJ valido." });
   }
+  if (!ensureTokenCnpjAccess(request, reply, cnpj)) return;
+  for (const environment of environments) {
+    if (!ensureTokenEnvironmentAccess(request, reply, environment)) return;
+  }
 
   const issuers = environments.map((environment) =>
     app.store.upsertIssuerEnvironment(cnpj, environment, {
@@ -1574,6 +1650,7 @@ async function handleCreateInutilization(
         "Informe CNPJ, ano, serie, numero_inicial, numero_final e justificativa com pelo menos 15 caracteres."
     });
   }
+  if (!ensureTokenRecordAccess(request, reply, issuerCnpj, ambiente)) return;
   if (ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Inutilizacao em producao permanece bloqueada nesta etapa."
@@ -1677,6 +1754,7 @@ async function handleGetInutilization(
   if (!record) {
     return reply.code(404).send({ message: "Inutilizacao nao encontrada." });
   }
+  if (!ensureTokenRecordAccess(request, reply, record.issuerCnpj, record.ambiente)) return;
 
   return mapInutilizationResponse(record);
 }
@@ -1693,6 +1771,7 @@ async function handleInutilizationXmlDownload(
   if (!record) {
     return reply.code(404).send({ message: "Inutilizacao nao encontrada." });
   }
+  if (!ensureTokenRecordAccess(request, reply, record.issuerCnpj, record.ambiente)) return;
 
   const xml = artifact === "signed" ? record.xmlAssinado : record.xmlResposta;
   if (!xml) {
@@ -1754,6 +1833,7 @@ async function handleCreateDocument(
       message: "Informe emitente.cnpj, emit.CNPJ ou emitenteCnpj com 14 digitos."
     });
   }
+  if (!ensureTokenRecordAccess(request, reply, issuerCnpj, ambiente)) return;
 
   const emitente = payloadNormalizado.emitente as Record<string, unknown> | null;
   const issuer = app.store.findIssuerByCnpj(issuerCnpj, ambiente);
@@ -2053,6 +2133,7 @@ async function handleCreateNfseDps(
       message: "Informe infDPS.prest.CNPJ ou emitenteCnpj para a NFS-e."
     });
   }
+  if (!ensureTokenRecordAccess(request, reply, issuerCnpj, ambiente)) return;
   if (ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Emissao NFS-e em producao permanece bloqueada nesta etapa.",
@@ -2134,6 +2215,7 @@ async function handleGetDocument(
       message: "Documento nao encontrado."
     });
   }
+  if (!ensureDocumentTokenAccess(request, reply, storedDocument)) return;
   const query = (request.query as Record<string, unknown> | undefined) ?? {};
   const refreshMunicipal =
     query.consultar_prefeitura === "1" || query.consultar_prefeitura === "true";
@@ -2176,6 +2258,7 @@ async function handleCancelDocument(
       message: "Documento nao encontrado para cancelamento."
     });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (document.status === "cancelado") {
     return mapDocumentResponse(document, requestBaseUrl(request));
   }
@@ -2395,6 +2478,7 @@ async function handleTransmitNfseTest(
   if (!document) {
     return reply.code(404).send({ message: "NFS-e nao encontrada." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (document.status !== "processamento" || document.motivoStatus !== "NFSE_IPM_DRY_RUN") {
     return reply.code(409).send({
       message: "Somente um dry-run IPM pendente pode ser transmitido por esta rota.",
@@ -2423,6 +2507,10 @@ async function handleTransmitNfseTest(
 }
 
 function fiscalScopeForPath(path: string) {
+  if (/^\/empresas\/[^/]+\/distnfe/.test(path)) return "distribuicao-nfe";
+  if (/^\/empresas\/[^/]+\/nfce/.test(path)) return "nfce";
+  if (/^\/empresas\/[^/]+\/nfse/.test(path)) return "nfse";
+  if (path.startsWith("/empresas")) return "empresa";
   if (path.startsWith("/nfce")) return "nfce";
   if (path.startsWith("/nfse")) return "nfse";
   if (path.startsWith("/distribuicao")) return "distribuicao-nfe";
@@ -2435,6 +2523,7 @@ function ensureDocumentTokenAccess(
   reply: FastifyReply,
   document: DocumentRecord
 ) {
+  if (isSignedArtifactRequest(request)) return true;
   const token = (request as AuthenticatedRequest).tokenRecord;
   const scope = fiscalScopeForPath(`/${document.tipoDocumento.toLowerCase()}`);
   if (!token || !scope || !token.scopes.includes(scope)) {
@@ -2445,7 +2534,7 @@ function ensureDocumentTokenAccess(
     reply.code(403).send({ message: "Token sem permissao para o ambiente deste documento fiscal." });
     return false;
   }
-  return true;
+  return ensureTokenCnpjAccess(request, reply, document.issuerCnpj);
 }
 
 async function handleTransmitNationalNfseHomologation(
@@ -2467,6 +2556,7 @@ async function handleTransmitNationalNfseHomologation(
   if (!document) {
     return reply.code(404).send({ message: "NFS-e nao encontrada." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (document.ambiente !== "homologacao" || document.providerName !== "nfse-nacional") {
     return reply.code(409).send({
       message: "Esta rota aceita somente DPS Nacional pendente em homologacao.",
@@ -2507,6 +2597,7 @@ async function handleXmlDownload(
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (tipoDocumento === "NFSe" && (document.xml || document.xmlSigned || document.xmlGenerated)) {
     reply.header("content-type", "application/xml; charset=utf-8");
     const authorized =
@@ -2534,6 +2625,7 @@ async function handleCancellationXmlDownload(
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (!document.cancellationProcessedXml) {
     return reply.code(409).send({
       message: "XML de cancelamento ainda nao disponivel para este documento."
@@ -2555,6 +2647,7 @@ async function handlePdfDownload(
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) return;
   if (document.status !== "autorizado" && document.status !== "cancelado") {
     return reply.code(409).send({ message: "PDF ainda nao disponivel para este status." });
   }
