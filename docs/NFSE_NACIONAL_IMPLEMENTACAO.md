@@ -21,6 +21,53 @@ contrato HTTP existente de `POST /nfse/dps`. A Nuvem Local:
 
 Typecheck e testes automatizados passam: 147 testes, 0 falhas.
 
+## Fechamento operacional â€” NHT em produÃ§Ã£o (07/08/2026, BRT)
+
+A NHT (CNPJ `35.181.069/0001-43`, GuaÃ­ra/PR) foi validada tambÃ©m em
+**produÃ§Ã£o**, com autorizaÃ§Ã£o expressa da empresa para uma emissÃ£o real de
+teste. A configuraÃ§Ã£o de produÃ§Ã£o agora estÃ¡ em `NFS-e Nacional / SEFIN`,
+com sÃ©rie DPS `1`, prÃ³ximo nÃºmero `3`, `cTribNac` `140101` e NBS padrÃ£o
+`120013100`.
+
+Resultado definitivo:
+
+- DPS `1/1` foi rejeitada corretamente por `E0202` (tomador igual ao
+  prestador); nÃ£o gerou NFS-e;
+- DPS `1/2` foi recebida pela SEFIN e gerou a NFS-e de produÃ§Ã£o;
+- uma nova tentativa retornou `E0014`, pois a mesma DPS jÃ¡ havia originado
+  uma NFS-e; a consulta Ã  SEFIN recuperou o documento autorizado;
+- chave da NFS-e recuperada:
+  `41088091235181069000143000000000000226020000000002`;
+- XML autorizado e rota de PDF/DANFSe estÃ£o armazenados na Nuvem Local.
+
+O `E0014` nÃ£o Ã© motivo para reenviar ou trocar a numeraÃ§Ã£o: Ã© sinal de que
+deve ser feita consulta da DPS/NFS-e existente. A Nuvem Local agora oferece
+**Consultar SEFIN** no histÃ³rico da nota. A Autoeletrica foi corrigida para,
+ao receber `E0014` com o identificador da Nuvem Local, consultar a SEFIN e
+atualizar a prÃ³pria nota como autorizada, sem criar uma segunda emissÃ£o. Se a
+consulta estiver temporariamente indisponÃ­vel, ela guarda o identificador e
+deixa a nota em processamento para uma consulta posterior.
+
+### DecisÃ£o de operaÃ§Ã£o da NHT
+
+NÃ£o esperar 01/09 para a primeira utilizaÃ§Ã£o do fluxo Nacional: a NHT deve
+emitir as prÃ³ximas NFS-e comuns pela SEFIN Nacional, em produÃ§Ã£o, para que a
+operaÃ§Ã£o seja exercitada antes do corte municipal.
+
+AtÃ© 31/08/2026, a contingÃªncia Ã© **manual e controlada**: no Admin da Nuvem
+Local, trocar o provedor da NHT de `NFS-e Nacional / SEFIN` para
+`GuaÃ­ra / IPM Atende.Net` somente se houver impedimento real na emissÃ£o
+Nacional. NÃ£o se deve alternar por tentativa, nem reenviar uma DPS cujo
+resultado seja incerto. Em 01/09/2026, GuaÃ­ra informou que o emissor
+municipal nÃ£o aceitarÃ¡ novas emissÃµes, permanecendo apenas para consulta;
+portanto ele deixa de ser contingÃªncia a partir dessa data.
+
+PendÃªncia conhecida para antes de tratar o fluxo como totalmente maduro:
+cancelamento Nacional (evento `101101`) ainda nÃ£o foi implementado. Em caso
+de necessidade de cancelamento, nÃ£o simular uma nova emissÃ£o: registrar a
+ocorrÃªncia e usar o portal Nacional enquanto esse evento nÃ£o estiver no
+conector.
+
 ## Evidências de homologação
 
 ### Toledo — Kabroski Automotiva
@@ -61,8 +108,10 @@ ser posterior à autorização de uso da NHT no CNC. Após a confirmação da
 Prefeitura de Guaíra, o erro deixou de ocorrer. O teste seguinte revelou que
 `1.2001.31.00` era código-pai; com o código folha a autorização foi concluída.
 
-A produção da NHT permanece Guaíra/IPM, preservada como contingência. A
-homologação Nacional é independente e continua sem transmissão automática.
+A seção acima registra a situação anterior ao teste real. O estado atual da
+produção é o descrito em **Fechamento operacional — NHT em produção**:
+NFS-e Nacional ativa, com IPM disponível somente como contingência manual até
+31/08/2026.
 
 ## Auditoria dos clientes
 
@@ -147,17 +196,25 @@ Concluídos em 07/08/2026:
 - configuração Nacional de homologação preparada para Evavan (`160101`) e
   Pick (`160201`), ambas com NBS `104011210` e sem IM na DPS;
 - sincronização dos dois clientes preserva a configuração Nacional existente.
+- primeira NFS-e Nacional real de produção da NHT autorizada e recuperada por
+  consulta à SEFIN;
+- botão **Consultar SEFIN** no Admin da Nuvem Local e recuperação automática
+  de `E0014` na Autoeletrica.
 
 Próximos passos:
 
-1. Validar Evavan e Pick em homologação Nacional, com os payloads reais de
-   cada cliente.
-2. Implementar no `/admin` os cadastros de Cidades e de mapeamento de serviços
+1. Conferir XML e DANFSe da NFS-e de produção da NHT na tela da Autoeletrica e
+   acompanhar as primeiras emissões normais antes de 01/09.
+2. Validar Evavan e Pick em homologação Nacional, com os payloads reais de
+   cada cliente, quando ainda não houver evidência registrada de autorização.
+3. Implementar no `/admin` os cadastros de Cidades e de mapeamento de serviços
    (`cTribNac`/NBS), mantendo a configuração por empresa.
-3. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
-4. Preservar o conector municipal como contingência, com configuração,
+4. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
+5. Preservar o conector municipal como contingência, com configuração,
    certificado, credenciais, sequência e endpoint previamente validados.
-5. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
+6. Implementar cancelamento Nacional (evento `101101`) antes de depender do
+   fluxo para todos os casos de produção.
+7. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
    depois de uma transmissão externa incerta; uma troca de provedor gera novo
    documento e deixa evento de auditoria.
 
