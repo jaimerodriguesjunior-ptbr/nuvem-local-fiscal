@@ -223,7 +223,7 @@ Próximos passos:
 5. Preservar o conector municipal como contingência, com configuração,
    certificado, credenciais, sequência e endpoint previamente validados.
 6. Executar um cancelamento Nacional real controlado, com autorizacao do
-   fluxo para todos os casos de produção.
+   emitente, e conferir o evento no portal/SEFIN.
 7. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
    depois de uma transmissão externa incerta; uma troca de provedor gera novo
    documento e deixa evento de auditoria.
