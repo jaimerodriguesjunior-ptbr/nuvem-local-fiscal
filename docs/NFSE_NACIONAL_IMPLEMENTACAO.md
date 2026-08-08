@@ -63,10 +63,9 @@ municipal nÃ£o aceitarÃ¡ novas emissÃµes, permanecendo apenas para consult
 portanto ele deixa de ser contingÃªncia a partir dessa data.
 
 PendÃªncia conhecida para antes de tratar o fluxo como totalmente maduro:
-cancelamento Nacional (evento `101101`) ainda nÃ£o foi implementado. Em caso
-de necessidade de cancelamento, nÃ£o simular uma nova emissÃ£o: registrar a
-ocorrÃªncia e usar o portal Nacional enquanto esse evento nÃ£o estiver no
-conector.
+O cancelamento Nacional jÃ¡ estÃ¡ implementado no conector. Continua pendente
+apenas um cancelamento fiscal real controlado em produÃ§Ã£o, com autorizaÃ§Ã£o
+expressa do emitente.
 
 ## Evidências de homologação
 
@@ -112,6 +111,17 @@ A seção acima registra a situação anterior ao teste real. O estado atual da
 produção é o descrito em **Fechamento operacional — NHT em produção**:
 NFS-e Nacional ativa, com IPM disponível somente como contingência manual até
 31/08/2026.
+
+## Cancelamento Nacional (evento 101101)
+
+O cancelamento Nacional foi implementado na Nuvem Local e exposto pelos dois
+programas clientes. O fluxo monta e assina o evento `101101`, transmite pelo
+endpoint de eventos da SEFIN, interpreta a resposta assÃ­ncrona e sÃ³ marca a
+nota como cancelada quando a SEFIN confirma o evento. Os cÃ³digos aceitos na
+interface sÃ£o `1` (erro na emissÃ£o), `2` (serviÃ§o nÃ£o prestado) e `9` (outros).
+
+Ainda falta somente um cancelamento fiscal real controlado em produÃ§Ã£o, com
+autorizaÃ§Ã£o expressa do emitente e conferÃªncia do evento no portal/SEFIN.
 
 ## Auditoria dos clientes
 
@@ -212,7 +222,7 @@ Próximos passos:
 4. Implementar o roteamento explícito `auto`, `nacional` ou `municipal`.
 5. Preservar o conector municipal como contingência, com configuração,
    certificado, credenciais, sequência e endpoint previamente validados.
-6. Implementar cancelamento Nacional (evento `101101`) antes de depender do
+6. Executar um cancelamento Nacional real controlado, com autorizacao do
    fluxo para todos os casos de produção.
 7. Documentar um procedimento de contingência: nunca reutilizar uma DPS/RPS
    depois de uma transmissão externa incerta; uma troca de provedor gera novo

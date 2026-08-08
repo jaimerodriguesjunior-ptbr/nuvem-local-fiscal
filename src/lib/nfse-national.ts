@@ -14,6 +14,7 @@ import { openEncryptedCertificate } from "./certificates.js";
 import {
   consultNationalDps as consultNationalDpsAtSefin,
   consultNationalNfse as consultNationalNfseAtSefin,
+  transmitNationalCancellation,
   transmitNationalDps
 } from "./nfse-national-sefin.js";
 import { validateNationalDpsXml } from "./nfse-national-xsd-validator.js";
@@ -95,6 +96,12 @@ export type SignedNationalDpsResult = {
   unsignedXml: string;
   signedXml: string;
   signatureValid: boolean;
+};
+
+export type NationalCancellationResult = {
+  document: DocumentRecord;
+  transmitted: boolean;
+  error: string | null;
 };
 
 function asRecord(value: unknown) {
@@ -508,6 +515,190 @@ export function signNationalDpsXml(input: {
     signedXml,
     signatureValid: verifier.checkSignature(signedXml)
   };
+}
+
+export function buildNationalCancellationEventXml(input: {
+  environmentType: "1" | "2";
+  eventAt: string;
+  applicationVersion: string;
+  issuerCnpj: string;
+  accessKey: string;
+  reasonCode: "1" | "2" | "9";
+  reason: string;
+  eventSequence?: string;
+}) {
+  const sequence = String(input.eventSequence ?? "001").padStart(3, "0");
+  const eventId = `PRE${input.accessKey}101101`;
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<pedRegEvento xmlns="${NFSE_NATIONAL_NAMESPACE}" versao="1.01">`,
+    `<infPedReg Id="${eventId}">`,
+    `<tpAmb>${input.environmentType}</tpAmb>`,
+    `<verAplic>${escapeXml(input.applicationVersion)}</verAplic>`,
+    `<dhEvento>${escapeXml(input.eventAt)}</dhEvento>`,
+    `<CNPJAutor>${input.issuerCnpj}</CNPJAutor>`,
+    `<chNFSe>${input.accessKey}</chNFSe>`,
+    `<nPedRegEvento>${sequence}</nPedRegEvento>`,
+    "<e101101>",
+    "<xDesc>Cancelamento de NFS-e</xDesc>",
+    `<cMotivo>${input.reasonCode}</cMotivo>`,
+    `<xMotivo>${escapeXml(input.reason)}</xMotivo>`,
+    "</e101101>",
+    "</infPedReg>",
+    "</pedRegEvento>"
+  ].join("");
+}
+
+export function signNationalCancellationEventXml(input: {
+  unsignedXml: string;
+  privateKeyPem: string;
+  certificatePem: string;
+}): SignedNationalDpsResult {
+  const signer = new SignedXml({
+    privateKey: input.privateKeyPem,
+    publicCert: input.certificatePem,
+    getKeyInfoContent: () =>
+      `<X509Data><X509Certificate>${certificateBody(input.certificatePem)}</X509Certificate></X509Data>`
+  });
+  signer.addReference({
+    xpath: "//*[local-name(.)='infPedReg']",
+    digestAlgorithm: SHA256,
+    transforms: [ENVELOPED, C14N]
+  });
+  signer.canonicalizationAlgorithm = C14N;
+  signer.signatureAlgorithm = RSA_SHA256;
+  signer.computeSignature(input.unsignedXml, {
+    location: { reference: "//*[local-name(.)='infPedReg']", action: "after" }
+  });
+  const signedXml = signer.getSignedXml();
+  const xml = new DOMParser().parseFromString(signedXml, "application/xml");
+  const signatureNode = xml.getElementsByTagNameNS(XMLDSIG, "Signature").item(0);
+  if (!signatureNode) throw new Error("A assinatura XML do evento Nacional nao foi inserida.");
+  const verifier = new SignedXml({
+    publicCert: input.certificatePem,
+    getCertFromKeyInfo: () => null
+  });
+  verifier.loadSignature(signatureNode);
+  return {
+    unsignedXml: input.unsignedXml,
+    signedXml,
+    signatureValid: verifier.checkSignature(signedXml)
+  };
+}
+
+function cancellationReasonCode(value: unknown): "1" | "2" | "9" {
+  const code = String(value ?? "9").trim();
+  if (code === "1" || code === "2" || code === "9") return code;
+  throw new Error("Codigo de motivo Nacional invalido. Use 1, 2 ou 9.");
+}
+
+export async function cancelNationalNfse(
+  store: InMemoryStore,
+  documentId: string,
+  reason: string,
+  reasonCode: unknown = "9"
+): Promise<NationalCancellationResult> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (!document) throw new Error("Documento NFS-e nao encontrado para cancelamento.");
+  if (document.status === "cancelado") return { document, transmitted: false, error: null };
+  if (document.status !== "autorizado") {
+    throw new Error("Somente uma NFS-e autorizada pode ser cancelada.");
+  }
+  const runtimePolicy = validateNfseRuntimePolicy({
+    provider: "nfse-nacional",
+    ambiente: document.ambiente,
+    operation: "cancelamento"
+  });
+  if (!runtimePolicy.allowed) {
+    throw new Error(runtimePolicy.reason ?? "Cancelamento Nacional bloqueado pelo motor de regras.");
+  }
+  const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
+  const serviceConfig = store.findServiceConfigRecord(document.issuerCnpj, document.ambiente, "NFSE");
+  const certificate = store.findActiveCertificate(document.issuerCnpj);
+  if (!issuer || !serviceConfig?.active || !isNationalNfseConfig(issuer, serviceConfig)) {
+    throw new Error("Configuracao NFS-e Nacional nao encontrada.");
+  }
+  if (!certificate?.encryptedBundle) {
+    throw new Error("Certificado A1 ativo nao encontrado para cancelar NFS-e Nacional.");
+  }
+  const accessKey = String(document.chave ?? "").trim();
+  if (!/^\d{50}$/.test(accessKey)) {
+    throw new Error("Chave de acesso da NFS-e Nacional invalida para cancelamento.");
+  }
+  const cleanReason = String(reason ?? "").trim();
+  if (cleanReason.length < 15 || cleanReason.length > 255) {
+    throw new Error("O motivo do cancelamento deve ter entre 15 e 255 caracteres.");
+  }
+  const code = cancellationReasonCode(reasonCode);
+  const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
+  const unsignedXml = buildNationalCancellationEventXml({
+    environmentType: document.ambiente === "producao" ? "1" : "2",
+    eventAt: localDateTime(new Date().toISOString()),
+    applicationVersion: "NuvemLocalFiscal_1.0.0",
+    issuerCnpj: document.issuerCnpj,
+    accessKey,
+    reasonCode: code,
+    reason: cleanReason
+  });
+  const signed = signNationalCancellationEventXml({
+    unsignedXml,
+    privateKeyPem: opened.privateKeyPem,
+    certificatePem: opened.certificatePem
+  });
+  if (!signed.signatureValid) throw new Error("A assinatura do evento Nacional nao foi validada.");
+
+  try {
+    const response = await transmitNationalCancellation({
+      endpoint: resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint),
+      accessKey,
+      signedEventXml: signed.signedXml,
+      privateKeyPem: opened.privateKeyPem,
+      certificatePem: opened.certificatePem,
+      certificateChainPem: opened.certificateChainPem
+    });
+    const message = response.errors.map((item) => `${item.code}: ${item.description}`).join(" | ") ||
+      response.eventReason ||
+      `SEFIN Nacional retornou HTTP ${response.statusCode} no cancelamento.`;
+    const saved = store.saveCancellationResult(document.id, {
+      justification: cleanReason,
+      requestXml: unsignedXml,
+      signedXml: signed.signedXml,
+      responseXml: response.rawBody,
+      processedXml: response.processedXml ?? response.rawBody,
+      statusCode: response.eventStatusCode || `HTTP_${response.statusCode}`,
+      reason: response.accepted ? "NFS-e Nacional cancelada." : message,
+      protocol: response.protocol ?? "",
+      cancelledAt: response.accepted ? new Date().toISOString() : null,
+      success: response.accepted,
+      status: response.accepted ? undefined : "autorizado"
+    });
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_cancellation_completed",
+      level: response.accepted ? "info" : "warn",
+      message: response.accepted ? "NFS-e Nacional cancelada." : message,
+      payload: {
+        provider: "nfse-nacional",
+        eventCode: "101101",
+        reasonCode: code,
+        accessKey,
+        httpStatus: response.statusCode,
+        statusCode: response.eventStatusCode,
+        success: response.accepted
+      }
+    });
+    await store.waitForPersistence();
+    return { document: saved ?? document, transmitted: true, error: response.accepted ? null : message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_cancellation_failed",
+      level: "error",
+      message,
+      payload: { provider: "nfse-nacional", eventCode: "101101", accessKey }
+    });
+    await store.waitForPersistence();
+    return { document, transmitted: false, error: message };
+  }
 }
 
 export async function processNationalNfse(

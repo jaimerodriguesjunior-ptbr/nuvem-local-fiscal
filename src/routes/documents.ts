@@ -2322,6 +2322,12 @@ async function handleCancelNfse(
   const reason = String(
     body.motivo ?? body.justificativa ?? body.justification ?? ""
   ).trim();
+  const reasonCode = String(body.codigo ?? body.codigo_motivo ?? "9").trim();
+  if (!["1", "2", "9"].includes(reasonCode)) {
+    return reply.code(400).send({
+      message: "Codigo de motivo invalido para cancelamento Nacional. Use 1, 2 ou 9."
+    });
+  }
   if (reason.length < 15 || reason.length > 255) {
     return reply.code(400).send({
       message: "O motivo do cancelamento deve ter entre 15 e 255 caracteres."
@@ -2330,7 +2336,7 @@ async function handleCancelNfse(
 
   let result;
   try {
-    result = await cancelConfiguredNfse(app.store, document.id, reason);
+    result = await cancelConfiguredNfse(app.store, document.id, reason, reasonCode);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return reply.code(422).send({

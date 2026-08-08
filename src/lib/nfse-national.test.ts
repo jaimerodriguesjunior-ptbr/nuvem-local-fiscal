@@ -13,6 +13,7 @@ import { InMemoryStore } from "../store.js";
 import { encryptCertificateBundle } from "./certificates.js";
 import {
   buildNationalDpsXml,
+  buildNationalCancellationEventXml,
   isNationalNfseConfig,
   NFSE_NATIONAL_NAMESPACE,
   normalizeNationalNfseDraft,
@@ -26,6 +27,7 @@ import {
   configuredNfseProvider,
   processConfiguredNfse
 } from "./nfse-provider.js";
+import { parseNationalSefinEventResponse } from "./nfse-national-sefin.js";
 
 function createTestPfx(password: string) {
   const keys = forge.pki.rsa.generateKeyPair(1024);
@@ -432,29 +434,26 @@ test("transmissao manual nacional recusa qualquer ambiente que nao seja homologa
   );
 });
 
-test("declara cancelamento nacional como operacao ainda nao implementada", async (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-cancel-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
-  store.upsertIssuerEnvironment(issuer.cnpj, "homologacao", {
-    razaoSocial: issuer.razaoSocial,
-    nomeFantasia: issuer.nomeFantasia,
-    uf: issuer.uf,
-    crt: issuer.crt
-  });
-  store.upsertServiceConfig(issuer.cnpj, "homologacao", "NFSE", {
-    active: true,
-    settings: serviceConfig.settings
-  });
-  const created = store.createDocument({
-    tipoDocumento: "NFSe",
+test("monta evento Nacional 101101 e interpreta retorno aceito", () => {
+  const accessKey = "41088091235181069000143000000000000226020000000002";
+  const xml = buildNationalCancellationEventXml({
+    environmentType: "2",
+    eventAt: "2026-08-08T09:00:00-03:00",
+    applicationVersion: "NuvemLocalFiscal_1.0.0",
     issuerCnpj: issuer.cnpj,
-    ambiente: "homologacao",
-    payloadOriginal: {},
-    payloadNormalizado: {}
+    accessKey,
+    reasonCode: "2",
+    reason: "Servico nao prestado pelo emitente."
   });
-  await assert.rejects(
-    () => cancelConfiguredNfse(store, created.id, "Teste"),
-    /Cancelamento da NFS-e Nacional ainda nao esta implementado/
+  assert.match(xml, /<e101101>/);
+  assert.match(xml, /<cMotivo>2<\/cMotivo>/);
+  assert.match(xml, new RegExp(`<chNFSe>${accessKey}<\\/chNFSe>`));
+  assert.match(xml, /Id="PRE41088091235181069000143000000000000226020000000002101101"/);
+
+  const parsed = parseNationalSefinEventResponse(
+    200,
+    JSON.stringify({ codigoStatus: "135", motivoStatus: "Evento registrado e vinculado" })
   );
+  assert.equal(parsed.accepted, true);
+  assert.equal(parsed.eventStatusCode, "135");
 });

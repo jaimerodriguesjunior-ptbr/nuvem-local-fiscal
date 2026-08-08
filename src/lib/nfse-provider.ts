@@ -14,6 +14,7 @@ import {
   processToledoNfse
 } from "./nfse-toledo-equiplano.js";
 import {
+  cancelNationalNfse,
   consultNationalNfse,
   isNationalNfseConfig,
   processNationalNfse,
@@ -115,7 +116,8 @@ export async function transmitConfiguredNationalNfseHomologation(
 export async function cancelConfiguredNfse(
   store: InMemoryStore,
   documentId: string,
-  reason: string
+  reason: string,
+  reasonCode: unknown = "9"
 ): Promise<NfseProviderResult> {
   const document = store.findDocument(documentId, "NFSe");
   if (!document) {
@@ -129,10 +131,7 @@ export async function cancelConfiguredNfse(
     return cancelGuairaIpmNfse(store, documentId, reason);
   }
   if (provider === "nfse-nacional") {
-    throw new Error(
-      "Cancelamento da NFS-e Nacional ainda nao esta implementado. " +
-      "O evento nacional 101101 deve ser integrado antes de habilitar esta operacao."
-    );
+    return cancelNationalNfse(store, documentId, reason, reasonCode);
   }
   throw new Error("Provedor NFS-e nao configurado para este emitente.");
 }
