@@ -17,7 +17,10 @@ import {
   transmitNationalCancellation,
   transmitNationalDps
 } from "./nfse-national-sefin.js";
-import { validateNationalDpsXml } from "./nfse-national-xsd-validator.js";
+import {
+  validateNationalCancellationEventXml,
+  validateNationalDpsXml
+} from "./nfse-national-xsd-validator.js";
 
 export const NFSE_NATIONAL_LAYOUT_VERSION = "1.01";
 export const NFSE_NATIONAL_SCHEMA_RELEASE = "20260727";
@@ -525,9 +528,7 @@ export function buildNationalCancellationEventXml(input: {
   accessKey: string;
   reasonCode: "1" | "2" | "9";
   reason: string;
-  eventSequence?: string;
 }) {
-  const sequence = String(input.eventSequence ?? "001").padStart(3, "0");
   const eventId = `PRE${input.accessKey}101101`;
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -538,7 +539,6 @@ export function buildNationalCancellationEventXml(input: {
     `<dhEvento>${escapeXml(input.eventAt)}</dhEvento>`,
     `<CNPJAutor>${input.issuerCnpj}</CNPJAutor>`,
     `<chNFSe>${input.accessKey}</chNFSe>`,
-    `<nPedRegEvento>${sequence}</nPedRegEvento>`,
     "<e101101>",
     "<xDesc>Cancelamento de NFS-e</xDesc>",
     `<cMotivo>${input.reasonCode}</cMotivo>`,
@@ -634,7 +634,7 @@ export async function cancelNationalNfse(
   const unsignedXml = buildNationalCancellationEventXml({
     environmentType: document.ambiente === "producao" ? "1" : "2",
     eventAt: localDateTime(new Date().toISOString()),
-    applicationVersion: "NuvemLocalFiscal_1.0.0",
+    applicationVersion: "NuvemLocalFiscal_1",
     issuerCnpj: document.issuerCnpj,
     accessKey,
     reasonCode: code,
@@ -646,6 +646,27 @@ export async function cancelNationalNfse(
     certificatePem: opened.certificatePem
   });
   if (!signed.signatureValid) throw new Error("A assinatura do evento Nacional nao foi validada.");
+  const xsd = validateNationalCancellationEventXml(signed.signedXml);
+  if (!xsd.valid) {
+    throw new Error(`Evento Nacional de cancelamento reprovado no XSD: ${xsd.errors.join(" | ")}`);
+  }
+
+  // Persiste o XML assinado antes de qualquer I/O externo. Assim, timeout ou
+  // reinicio nao permitem retransmitir cegamente o mesmo evento.
+  const prepared = store.prepareNationalCancellationAttempt({
+    id: document.id,
+    justification: cleanReason,
+    requestXml: unsignedXml,
+    signedXml: signed.signedXml
+  });
+  if (!prepared.document || !prepared.prepared) {
+    return {
+      document: prepared.document ?? document,
+      transmitted: false,
+      error: prepared.reason ?? "Nao foi possivel preparar o cancelamento Nacional."
+    };
+  }
+  await store.waitForPersistence();
 
   try {
     const response = await transmitNationalCancellation({
@@ -659,6 +680,10 @@ export async function cancelNationalNfse(
     const message = response.errors.map((item) => `${item.code}: ${item.description}`).join(" | ") ||
       response.eventReason ||
       `SEFIN Nacional retornou HTTP ${response.statusCode} no cancelamento.`;
+    const responseHasUnconfirmedSuccess =
+      response.statusCode >= 200 &&
+      response.statusCode < 300 &&
+      response.errors.some((item) => item.code.startsWith("SEFIN_EVENTO_STATUS_"));
     const saved = store.saveCancellationResult(document.id, {
       justification: cleanReason,
       requestXml: unsignedXml,
@@ -670,7 +695,12 @@ export async function cancelNationalNfse(
       protocol: response.protocol ?? "",
       cancelledAt: response.accepted ? new Date().toISOString() : null,
       success: response.accepted,
-      status: response.accepted ? undefined : "autorizado"
+      status: response.accepted ? undefined : "autorizado",
+      state: response.accepted
+        ? "confirmado"
+        : responseHasUnconfirmedSuccess
+          ? "pendente_confirmacao"
+          : "rejeitado"
     });
     store.addDocumentEvent(document.id, {
       eventType: "nfse_nacional_cancellation_completed",
@@ -690,6 +720,19 @@ export async function cancelNationalNfse(
     return { document: saved ?? document, transmitted: true, error: response.accepted ? null : message };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const saved = store.saveCancellationResult(document.id, {
+      justification: cleanReason,
+      requestXml: unsignedXml,
+      signedXml: signed.signedXml,
+      responseXml: "",
+      processedXml: "",
+      statusCode: "PENDING_CONFIRMATION",
+      reason: "Transmissao do cancelamento interrompida antes da confirmacao da SEFIN: " + message,
+      protocol: "",
+      success: false,
+      status: "autorizado",
+      state: "pendente_confirmacao"
+    });
     store.addDocumentEvent(document.id, {
       eventType: "nfse_nacional_cancellation_failed",
       level: "error",
@@ -697,7 +740,7 @@ export async function cancelNationalNfse(
       payload: { provider: "nfse-nacional", eventCode: "101101", accessKey }
     });
     await store.waitForPersistence();
-    return { document, transmitted: false, error: message };
+    return { document: saved ?? document, transmitted: true, error: message };
   }
 }
 

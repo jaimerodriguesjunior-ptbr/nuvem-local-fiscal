@@ -47,6 +47,8 @@ type AuthenticatedRequest = FastifyRequest & {
   tokenRecord: {
     token: string;
     clientId: string;
+    scopes: string[];
+    environments: Environment[];
   };
 };
 
@@ -122,6 +124,9 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
           motivo_status: document.cancellationReason,
           numero_protocolo: document.cancellationProtocol,
           justificativa: document.cancellationJustification,
+          estado: document.cancellationState ?? null,
+          tentativa_id: document.cancellationAttemptId ?? null,
+          solicitado_em: document.cancellationRequestedAt ?? null,
           cancelado_em: document.cancelledAt,
           xml_evento_disponivel: Boolean(document.cancellationProcessedXml),
           xml_evento_url: document.cancellationProcessedXml
@@ -316,7 +321,9 @@ async function ensureBearer(request: FastifyRequest, reply: FastifyReply) {
 
   (request as AuthenticatedRequest).tokenRecord = {
     token: tokenRecord.token,
-    clientId: tokenRecord.clientId
+    clientId: tokenRecord.clientId,
+    scopes: tokenRecord.scopes,
+    environments: tokenRecord.environments
   };
 }
 
@@ -450,7 +457,15 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       if (isSignedArtifactRequest(request)) {
         return;
       }
-      return ensureBearer(request, reply);
+      await ensureBearer(request, reply);
+      if (reply.sent) return;
+      const requiredScope = fiscalScopeForPath(request.url);
+      const token = (request as AuthenticatedRequest).tokenRecord;
+      if (requiredScope && !token.scopes.includes(requiredScope)) {
+        return reply.code(403).send({
+          message: `Token sem escopo ${requiredScope} para esta rota fiscal.`
+        });
+      }
     }
   });
 
@@ -2304,6 +2319,9 @@ async function handleCancelNfse(
   if (!document) {
     return reply.code(404).send({ message: "NFS-e nao encontrada." });
   }
+  if (!ensureDocumentTokenAccess(request, reply, document)) {
+    return;
+  }
   if (document.status === "cancelado") {
     return mapDocumentResponse(document, requestBaseUrl(request));
   }
@@ -2402,6 +2420,32 @@ async function handleTransmitNfseTest(
       provedor: "guaira-ipm"
     });
   }
+}
+
+function fiscalScopeForPath(path: string) {
+  if (path.startsWith("/nfce")) return "nfce";
+  if (path.startsWith("/nfse")) return "nfse";
+  if (path.startsWith("/distribuicao")) return "distribuicao-nfe";
+  if (path.startsWith("/nfe")) return "nfe";
+  return null;
+}
+
+function ensureDocumentTokenAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  document: DocumentRecord
+) {
+  const token = (request as AuthenticatedRequest).tokenRecord;
+  const scope = fiscalScopeForPath(`/${document.tipoDocumento.toLowerCase()}`);
+  if (!token || !scope || !token.scopes.includes(scope)) {
+    reply.code(403).send({ message: "Token sem escopo para acessar este documento fiscal." });
+    return false;
+  }
+  if (!token.environments.includes(document.ambiente)) {
+    reply.code(403).send({ message: "Token sem permissao para o ambiente deste documento fiscal." });
+    return false;
+  }
+  return true;
 }
 
 async function handleTransmitNationalNfseHomologation(

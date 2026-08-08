@@ -42,7 +42,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       url: "/oauth/token",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       payload:
-        "grant_type=client_credentials&client_id=local-client&client_secret=local-secret&scope=nfce"
+        "grant_type=client_credentials&client_id=local-client&client_secret=local-secret&scope=nfe%20nfce%20nfse%20distribuicao-nfe"
     });
     assert.equal(tokenResponse.statusCode, 200);
     const token = tokenResponse.json().access_token as string;

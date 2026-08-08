@@ -983,6 +983,7 @@ export class InMemoryStore {
       cancelledAt?: string | null;
       success?: boolean;
       status?: DocumentStatus;
+      state?: DocumentRecord["cancellationState"];
     }
   ) {
     const document = this.findDocument(id);
@@ -998,13 +999,22 @@ export class InMemoryStore {
     document.cancellationResponseXml = input.responseXml;
     document.cancellationProcessedXml = input.processedXml;
     document.cancellationProtocol = input.protocol || null;
-    const successful =
-      input.success === true || ["135", "136", "155"].includes(input.statusCode);
+    // Provedores novos devem declarar explicitamente se houve confirmacao.
+    // Mantemos a regra legada somente para chamadas antigas que ainda nao
+    // informam `success`; quando `false` e informado, jamais inferimos sucesso
+    // apenas pelo codigo retornado.
+    const successful = input.success === undefined
+      ? ["135", "136", "155"].includes(input.statusCode)
+      : input.success === true;
     if (successful) {
       document.cancelledAt = input.cancelledAt || nowIso();
       document.status = "cancelado";
+      document.cancellationState = "confirmado";
     } else if (input.status) {
       document.status = input.status;
+    }
+    if (!successful) {
+      document.cancellationState = input.state ?? "rejeitado";
     }
     document.mensagens = [
       {
@@ -1015,6 +1025,44 @@ export class InMemoryStore {
     document.updatedAt = nowIso();
     this.saveState({ documents: [document] });
     return document;
+  }
+
+  prepareNationalCancellationAttempt(input: {
+    id: string;
+    justification: string;
+    requestXml: string;
+    signedXml: string;
+  }) {
+    const document = this.findDocument(input.id, "NFSe");
+    if (!document) return { document: null, prepared: false, reason: "Documento NFS-e nao encontrado." };
+    if (document.status === "cancelado") {
+      return { document, prepared: false, reason: "A NFS-e ja esta cancelada." };
+    }
+    if (
+      document.cancellationState === "pendente_transmissao" ||
+      document.cancellationState === "pendente_confirmacao"
+    ) {
+      return {
+        document,
+        prepared: false,
+        reason: "Ja existe um cancelamento pendente de confirmacao na SEFIN. Consulte o evento antes de tentar novamente."
+      };
+    }
+
+    document.cancellationJustification = input.justification;
+    document.cancellationRequestXml = input.requestXml;
+    document.cancellationSignedXml = input.signedXml;
+    document.cancellationResponseXml = null;
+    document.cancellationProcessedXml = null;
+    document.cancellationProtocol = null;
+    document.cancellationStatusCode = "PENDING_TRANSMISSION";
+    document.cancellationReason = "Pedido de cancelamento preparado; aguardando transmissao para a SEFIN.";
+    document.cancellationState = "pendente_transmissao";
+    document.cancellationAttemptId = randomUUID();
+    document.cancellationRequestedAt = nowIso();
+    document.updatedAt = nowIso();
+    this.saveState({ documents: [document] });
+    return { document, prepared: true, reason: null };
   }
 
   createInutilization(input: {

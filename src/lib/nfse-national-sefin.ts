@@ -163,7 +163,20 @@ export function parseNationalSefinEventResponse(
   const protocol = String(
     payload.numeroProtocolo ?? payload.protocolo ?? payload.nProt ?? ""
   ).trim() || firstXmlTag(processedXml ?? "", ["nProt", "numeroProtocolo"]);
-  const acceptedStatus = !eventStatusCode || ["135", "136", "155"].includes(eventStatusCode);
+  // Um HTTP 2xx apenas confirma que o transporte respondeu. O cancelamento so
+  // pode ser refletido localmente quando a SEFIN devolve o cStat de registro
+  // confirmado do evento. Resposta vazia, JSON incompleto e XML sem cStat ficam
+  // pendentes para consulta, nunca como cancelamento homologado.
+  const acceptedStatus = eventStatusCode === "135";
+  if (statusCode >= 200 && statusCode < 300 && errors.length === 0 && !acceptedStatus) {
+    errors.push({
+      code: eventStatusCode ? "SEFIN_EVENTO_STATUS_NAO_CONFIRMADO" : "SEFIN_EVENTO_STATUS_AUSENTE",
+      description: eventStatusCode
+        ? `A SEFIN retornou o status de evento ${eventStatusCode}, que nao confirma o cancelamento.`
+        : "A SEFIN respondeu sem cStat do evento; o cancelamento precisa ser consultado antes de confirmar.",
+      detail: null
+    });
+  }
   return {
     accepted: statusCode >= 200 && statusCode < 300 && errors.length === 0 && acceptedStatus,
     statusCode,

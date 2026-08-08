@@ -123,6 +123,21 @@ interface sÃ£o `1` (erro na emissÃ£o), `2` (serviÃ§o nÃ£o prestado) e `9
 Ainda falta somente um cancelamento fiscal real controlado em produÃ§Ã£o, com
 autorizaÃ§Ã£o expressa do emitente e conferÃªncia do evento no portal/SEFIN.
 
+### ReforÃ§os apÃ³s auditoria (08/08/2026)
+
+- resposta HTTP 2xx sem `cStat` `135` deixou de ser tratada como cancelamento;
+- Autoeletrica e Apoio-ContÃ¡bil sÃ³ atualizam a nota local para cancelada quando
+  a Nuvem Local retorna `status=cancelado`;
+- o XML assinado Ã© persistido antes da transmissÃ£o. Timeout e erro de transporte
+  mantÃªm a tentativa em `pendente_confirmacao`, bloqueando reenvio cego;
+- o evento passa por validaÃ§Ã£o XSD local com o pacote oficial de eventos 1.01
+  publicado em 09/02/2026;
+- a Autoeletrica nÃ£o faz fallback para a API externa quando a URL da Nuvem
+  Local estiver ausente;
+- token agora tem escopo e ambiente verificados nas rotas fiscais e no
+  cancelamento. A separaÃ§Ã£o definitiva por empresa ainda exige credenciais
+  diferentes por programa/empresa e configuraÃ§Ã£o no servidor.
+
 ## Auditoria dos clientes
 
 Autoeletrica e Apoio-Contábil já enviam o contrato-base `POST /nfse/dps` com

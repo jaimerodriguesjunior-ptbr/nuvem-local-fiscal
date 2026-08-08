@@ -11,6 +11,12 @@ export type DocumentStatus =
   | "cancelado"
   | "erro";
 
+export type CancellationState =
+  | "pendente_transmissao"
+  | "pendente_confirmacao"
+  | "confirmado"
+  | "rejeitado";
+
 export type ApiClient = {
   id: string;
   name: string;
@@ -159,6 +165,9 @@ export type DocumentRecord = {
   cancellationSignedXml?: string | null;
   cancellationResponseXml?: string | null;
   cancellationProcessedXml?: string | null;
+  cancellationState?: CancellationState | null;
+  cancellationAttemptId?: string | null;
+  cancellationRequestedAt?: string | null;
   cancelledAt?: string | null;
   pdfUrl: string;
   createdAt: string;

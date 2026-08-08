@@ -6,6 +6,7 @@ import {
   consultNationalNfse,
   gunzipBase64,
   type NationalSefinTransport,
+  parseNationalSefinEventResponse,
   parseNationalSefinResponse,
   transmitNationalDps
 } from "./nfse-national-sefin.js";
@@ -57,6 +58,34 @@ test("interpreta o erro singular devolvido pelas consultas da SEFIN", () => {
     description: "Sigilo fiscal",
     detail: null
   }]);
+});
+
+test("evento de cancelamento so aceita cStat 135 explicito", () => {
+  const accepted = parseNationalSefinEventResponse(
+    200,
+    JSON.stringify({ codigoStatus: "135", motivoStatus: "Evento registrado" })
+  );
+  assert.equal(accepted.accepted, true);
+
+  const empty = parseNationalSefinEventResponse(200, "");
+  assert.equal(empty.accepted, false);
+  assert.equal(empty.errors[0]?.code, "SEFIN_EVENTO_STATUS_AUSENTE");
+
+  const unexpected = parseNationalSefinEventResponse(
+    200,
+    JSON.stringify({ codigoStatus: "136", motivoStatus: "Status sem confirmacao" })
+  );
+  assert.equal(unexpected.accepted, false);
+  assert.equal(unexpected.errors[0]?.code, "SEFIN_EVENTO_STATUS_NAO_CONFIRMADO");
+});
+
+test("evento de cancelamento interpreta erro singular da SEFIN", () => {
+  const rejected = parseNationalSefinEventResponse(
+    422,
+    JSON.stringify({ erro: { codigo: "E9999", descricao: "Evento rejeitado" } })
+  );
+  assert.equal(rejected.accepted, false);
+  assert.equal(rejected.errors[0]?.code, "E9999");
 });
 
 test("consulta DPS e NFS-e pelos endpoints nacionais", async () => {

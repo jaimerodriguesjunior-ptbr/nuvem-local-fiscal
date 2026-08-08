@@ -11,7 +11,7 @@
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "nfse:toledo:smoke": "tsx scripts/nfse-toledo-homologation-smoke.ts",
-    "nfse:nacional:test": "tsx --test src/lib/nfse-national.test.ts src/lib/nfse-rules.test.ts"
+    "nfse:nacional:test": "tsx --test src/lib/nfse-national.test.ts src/lib/nfse-national-sefin.test.ts src/lib/nfse-rules.test.ts"
   },
   "dependencies": {
     "@fastify/formbody": "^8.0.2",

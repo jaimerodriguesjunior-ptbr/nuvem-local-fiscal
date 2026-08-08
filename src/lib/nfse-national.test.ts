@@ -28,6 +28,7 @@ import {
   processConfiguredNfse
 } from "./nfse-provider.js";
 import { parseNationalSefinEventResponse } from "./nfse-national-sefin.js";
+import { validateNationalCancellationEventXml } from "./nfse-national-xsd-validator.js";
 
 function createTestPfx(password: string) {
   const keys = forge.pki.rsa.generateKeyPair(1024);
@@ -402,6 +403,53 @@ test("reserva numeros DPS nacionais sequenciais no store", (t) => {
   });
 });
 
+test("persiste tentativa de cancelamento e nao confirma status nao aceito", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-cancellation-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
+  const created = store.createDocument({
+    tipoDocumento: "NFSe",
+    issuerCnpj: issuer.cnpj,
+    ambiente: "homologacao",
+    payloadOriginal: {},
+    payloadNormalizado: {}
+  });
+  created.status = "autorizado";
+  const prepared = store.prepareNationalCancellationAttempt({
+    id: created.id,
+    justification: "Servico nao prestado pelo emitente.",
+    requestXml: "<pedRegEvento />",
+    signedXml: "<pedRegEvento><Signature /></pedRegEvento>"
+  });
+  assert.equal(prepared.prepared, true);
+  assert.equal(prepared.document?.cancellationState, "pendente_transmissao");
+  assert.ok(prepared.document?.cancellationAttemptId);
+
+  const duplicate = store.prepareNationalCancellationAttempt({
+    id: created.id,
+    justification: "Servico nao prestado pelo emitente.",
+    requestXml: "<pedRegEvento />",
+    signedXml: "<pedRegEvento><Signature /></pedRegEvento>"
+  });
+  assert.equal(duplicate.prepared, false);
+
+  const saved = store.saveCancellationResult(created.id, {
+    justification: "Servico nao prestado pelo emitente.",
+    requestXml: "<pedRegEvento />",
+    signedXml: "<pedRegEvento><Signature /></pedRegEvento>",
+    responseXml: "{}",
+    processedXml: "{}",
+    statusCode: "136",
+    reason: "Status nao confirmado.",
+    protocol: "",
+    success: false,
+    status: "autorizado",
+    state: "pendente_confirmacao"
+  });
+  assert.equal(saved?.status, "autorizado");
+  assert.equal(saved?.cancellationState, "pendente_confirmacao");
+});
+
 test("transmissao manual nacional recusa qualquer ambiente que nao seja homologacao", async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-manual-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -439,7 +487,7 @@ test("monta evento Nacional 101101 e interpreta retorno aceito", () => {
   const xml = buildNationalCancellationEventXml({
     environmentType: "2",
     eventAt: "2026-08-08T09:00:00-03:00",
-    applicationVersion: "NuvemLocalFiscal_1.0.0",
+    applicationVersion: "NuvemLocalFiscal_1",
     issuerCnpj: issuer.cnpj,
     accessKey,
     reasonCode: "2",
@@ -449,6 +497,7 @@ test("monta evento Nacional 101101 e interpreta retorno aceito", () => {
   assert.match(xml, /<cMotivo>2<\/cMotivo>/);
   assert.match(xml, new RegExp(`<chNFSe>${accessKey}<\\/chNFSe>`));
   assert.match(xml, /Id="PRE41088091235181069000143000000000000226020000000002101101"/);
+  assert.equal(validateNationalCancellationEventXml(xml).valid, true);
 
   const parsed = parseNationalSefinEventResponse(
     200,
@@ -456,4 +505,10 @@ test("monta evento Nacional 101101 e interpreta retorno aceito", () => {
   );
   assert.equal(parsed.accepted, true);
   assert.equal(parsed.eventStatusCode, "135");
+});
+
+test("nao confirma cancelamento Nacional com HTTP 2xx sem cStat", () => {
+  const parsed = parseNationalSefinEventResponse(200, JSON.stringify({}));
+  assert.equal(parsed.accepted, false);
+  assert.equal(parsed.errors[0]?.code, "SEFIN_EVENTO_STATUS_AUSENTE");
 });

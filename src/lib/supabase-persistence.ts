@@ -103,6 +103,9 @@ type FiscalDocumentRow = {
   cancellation_signed_xml: string | null;
   cancellation_response_xml: string | null;
   cancellation_processed_xml: string | null;
+  cancellation_state: "pendente_transmissao" | "pendente_confirmacao" | "confirmado" | "rejeitado" | null;
+  cancellation_attempt_id: string | null;
+  cancellation_requested_at: string | null;
   cancelled_at: string | null;
   pdf_url: string | null;
   created_at: string;
@@ -381,6 +384,9 @@ export class SupabasePersistence {
         cancellationSignedXml: document.cancellation_signed_xml,
         cancellationResponseXml: document.cancellation_response_xml,
         cancellationProcessedXml: document.cancellation_processed_xml,
+        cancellationState: document.cancellation_state,
+        cancellationAttemptId: document.cancellation_attempt_id,
+        cancellationRequestedAt: document.cancellation_requested_at,
         cancelledAt: document.cancelled_at,
         pdfUrl: document.pdf_url ?? "",
         createdAt: document.created_at,
@@ -760,6 +766,9 @@ export class SupabasePersistence {
           cancellation_signed_xml: document.cancellationSignedXml ?? null,
           cancellation_response_xml: document.cancellationResponseXml ?? null,
           cancellation_processed_xml: document.cancellationProcessedXml ?? null,
+          cancellation_state: document.cancellationState ?? null,
+          cancellation_attempt_id: document.cancellationAttemptId ?? null,
+          cancellation_requested_at: document.cancellationRequestedAt ?? null,
           cancelled_at: document.cancelledAt ?? null,
           pdf_url: document.pdfUrl,
           created_at: document.createdAt,
