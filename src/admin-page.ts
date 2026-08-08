@@ -1019,8 +1019,18 @@ const page = String.raw`<!doctype html>
         '</span></summary><div class="log-group-history">' +
         '<p class="log-group-empty">' + escapeHtml(historyLabel) + '</p>' +
         previous.map(function(event) { return renderLogEvent(event, doc); }).join('') +
-        '<div class="log-group-actions"><button type="button" class="btn ghost" onclick="inspectLog(\'' +
+        '<div class="log-group-actions">' +
+        (isNationalNfseDocument(doc)
+          ? '<button type="button" class="btn" onclick="consultNationalDps(\'' + doc.id + '\')">Consultar SEFIN</button>'
+          : '') +
+        '<button type="button" class="btn ghost" onclick="inspectLog(\'' +
         doc.id + '\')">Inspecionar nota</button></div></div></details>';
+    }
+
+    function isNationalNfseDocument(doc) {
+      if (doc.tipoDocumento !== 'NFSe') return false;
+      const serviceConfig = serviceConfigFor(doc.issuerCnpj, doc.ambiente, 'NFSE');
+      return serviceConfig && serviceConfig.settings && serviceConfig.settings.nfseProvider === 'nfse-nacional';
     }
 
     function eventTone(level) {
@@ -3148,6 +3158,21 @@ const page = String.raw`<!doctype html>
         body: JSON.stringify({ confirmation: confirmation })
       });
       setResponse(await response.json());
+      await refreshSnapshot();
+    }
+
+    async function consultNationalDps(id) {
+      setResponse('Consultando a DPS na SEFIN Nacional. Nenhuma nova nota sera emitida...');
+      const token = await getAccessToken();
+      if (!token.access_token) {
+        setResponse(token);
+        return;
+      }
+      const response = await fetch('/nfse/' + id + '?consultar_nacional=1', {
+        headers: { Authorization: 'Bearer ' + token.access_token }
+      });
+      const json = await response.json();
+      setResponse(json);
       await refreshSnapshot();
     }
 
