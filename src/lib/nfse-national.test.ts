@@ -15,6 +15,7 @@ import {
   buildNationalDpsXml,
   buildNationalCancellationEventXml,
   isNationalNfseConfig,
+  mapNationalProcessingError,
   NFSE_NATIONAL_NAMESPACE,
   normalizeNationalNfseDraft,
   resolveNationalSefinEndpoint,
@@ -99,6 +100,18 @@ function document(payloadOriginal: unknown): Pick<
     payloadOriginal
   };
 }
+
+test("classifica indisponibilidade HTTP da SEFIN com orientação amigável", () => {
+  assert.deepEqual(
+    mapNationalProcessingError("SEFIN Nacional retornou HTTP 503."),
+    {
+      reasonCode: "NFSE_NACIONAL_TRANSPORT_ERROR",
+      userMessage:
+        "A SEFIN Nacional está temporariamente indisponível (HTTP 503). " +
+        "Aguarde alguns minutos e consulte o status antes de tentar novamente."
+    }
+  );
+});
 
 test("recognizes an explicitly configured national NFS-e provider", () => {
   assert.equal(isNationalNfseConfig(issuer, serviceConfig), true);

@@ -31,6 +31,31 @@ export const NFSE_NATIONAL_RESTRICTED_ENDPOINT =
 export const NFSE_NATIONAL_PRODUCTION_ENDPOINT =
   "https://sefin.nfse.gov.br/SefinNacional";
 
+export function mapNationalProcessingError(message: string): {
+  reasonCode: string;
+  userMessage: string;
+} {
+  const statusMatch = message.match(/SEFIN Nacional retornou HTTP (5\d{2})/i);
+  if (statusMatch) {
+    return {
+      reasonCode: "NFSE_NACIONAL_TRANSPORT_ERROR",
+      userMessage:
+        `A SEFIN Nacional está temporariamente indisponível (HTTP ${statusMatch[1]}). ` +
+        "Aguarde alguns minutos e consulte o status antes de tentar novamente."
+    };
+  }
+
+  const isTransportError = /timeout|timed out|econn|enotfound|eai_again|socket|tls|certificate/i.test(
+    message
+  );
+  return {
+    reasonCode: isTransportError
+      ? "NFSE_NACIONAL_TRANSPORT_ERROR"
+      : "NFSE_NACIONAL_PAYLOAD_INVALIDO",
+    userMessage: message
+  };
+}
+
 const XMLDSIG = "http://www.w3.org/2000/09/xmldsig#";
 const C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 const ENVELOPED = `${XMLDSIG}enveloped-signature`;
@@ -876,16 +901,14 @@ export async function processNationalNfse(
     return { document: saved ?? document, transmitted, error: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const reasonCode = /timeout|timed out|econn|enotfound|eai_again|socket|tls|certificate/i.test(message)
-      ? "NFSE_NACIONAL_TRANSPORT_ERROR"
-      : "NFSE_NACIONAL_PAYLOAD_INVALIDO";
+    const failure = mapNationalProcessingError(message);
     store.addDocumentEvent(document.id, {
       eventType: "nfse_nacional_processing_failed",
       level: "error",
-      message,
-      payload: { provider: "nfse-nacional" }
+      message: failure.userMessage,
+      payload: { provider: "nfse-nacional", upstreamError: message }
     });
-    const failed = store.failDocument(document.id, reasonCode, message);
+    const failed = store.failDocument(document.id, failure.reasonCode, failure.userMessage);
     await store.waitForPersistence();
     return { document: failed ?? document, transmitted: false, error: message };
   }
