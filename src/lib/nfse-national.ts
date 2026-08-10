@@ -910,7 +910,7 @@ export async function processNationalNfse(
     });
     const failed = store.failDocument(document.id, failure.reasonCode, failure.userMessage);
     await store.waitForPersistence();
-    return { document: failed ?? document, transmitted: false, error: message };
+    return { document: failed ?? document, transmitted: false, error: failure.userMessage };
   }
 }
 
