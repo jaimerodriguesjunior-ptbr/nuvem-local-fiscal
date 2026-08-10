@@ -767,11 +767,9 @@ function parseIntegrationDraft(
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
-  app.get("/admin", async (request, reply) => {
-    if (!isValidBasic(request.headers.authorization)) {
-      reply.header("www-authenticate", 'Basic realm="Nuvem Local Fiscal"');
-      return reply.code(401).send(unauthorized());
-    }
+  // O Nginx protege a pagina /admin com Basic Auth. As APIs abaixo continuam
+  // validando as credenciais da aplicacao, enviadas pelo painel depois da carga.
+  app.get("/admin", async (_request, reply) => {
     reply.header("content-type", "text/html; charset=utf-8");
     return adminHtml;
   });
