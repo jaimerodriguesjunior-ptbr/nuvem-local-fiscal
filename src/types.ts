@@ -87,6 +87,7 @@ export type ServiceConfig = {
     nfseNextLotNumber?: number;
     nfseNationalDpsSerie?: string;
     nfseNationalNextDpsNumber?: number;
+    nfseNationalMunicipalRegistration?: string;
     nfseDefaultServiceCode?: string;
     nfseDefaultServiceItem?: string;
     nfseDefaultServiceSubItem?: string;

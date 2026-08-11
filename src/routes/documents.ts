@@ -109,6 +109,10 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
     numero: document.numero,
     serie: document.serie,
     chave: document.chave,
+    id_dps:
+      document.providerReference?.startsWith("DPS")
+        ? document.providerReference
+        : null,
     protocolo: document.protocolo,
     motivo: document.motivo,
     motivo_status: document.motivoStatus,
@@ -470,6 +474,19 @@ function definedNestedRecord(input: Record<string, unknown>) {
       return true;
     })
   );
+}
+
+function requestIdempotencyKey(request: FastifyRequest) {
+  const header = request.headers["idempotency-key"];
+  const value = Array.isArray(header) ? header[0] : header;
+  const key = String(value ?? "").trim();
+  if (!key) return null;
+  if (key.length > 160 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
+    throw new Error(
+      "Idempotency-Key invalida; use ate 160 caracteres alfanumericos, ponto, dois-pontos, sublinhado ou hifen."
+    );
+  }
+  return key;
 }
 
 function usedToledoSequenceFromDocuments(
@@ -846,7 +863,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         endpoint: serviceConfig.settings.nfseEndpoint ?? null,
         serie_dps: serviceConfig.settings.nfseNationalDpsSerie ?? null,
         numero_dps: serviceConfig.settings.nfseNationalNextDpsNumber ?? null,
-        inscricao_municipal: serviceConfig.settings.nfseInscricaoMunicipal ?? null,
+        inscricao_municipal:
+          serviceConfig.settings.nfseNationalMunicipalRegistration ?? null,
         versao_leiaute: serviceConfig.settings.nfseNationalLayoutVersion ?? null,
         codigo_tributacao_nacional: serviceConfig.settings.nfseNationalTaxCode ?? null,
         codigo_tributacao_municipal:
@@ -1123,11 +1141,9 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
             ? "soap" as const
             : undefined,
       nfseInscricaoMunicipal:
-        isNationalProvider &&
-        Object.prototype.hasOwnProperty.call(nacional, "inscricao_municipal")
-          ? String(nacional.inscricao_municipal ?? "").trim()
+        isNationalProvider
+          ? undefined
           : firstNonEmptyText(
-              nacional.inscricao_municipal,
               equiplano.inscricao_municipal,
               body.inscricao_municipal,
               prefeitura.inscricao_municipal,
@@ -1165,6 +1181,11 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
       nfseNationalNextDpsNumber: isNationalProvider
         ? nextNationalDpsNumber
         : reusableExistingSettings?.nfseNationalNextDpsNumber,
+      nfseNationalMunicipalRegistration: isNationalProvider
+        ? Object.prototype.hasOwnProperty.call(nacional, "inscricao_municipal")
+          ? String(nacional.inscricao_municipal ?? "").trim()
+          : reusableExistingSettings?.nfseNationalMunicipalRegistration
+        : reusableExistingSettings?.nfseNationalMunicipalRegistration,
       nfseMunicipalFallback: municipalFallback,
       nfseDefaultServiceCode: firstNonEmptyText(
         servico.codigo,
@@ -1369,6 +1390,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
           nfseNationalTaxCode: source.nfseNationalTaxCode,
           nfseNationalMunicipalTaxCode: source.nfseNationalMunicipalTaxCode,
           nfseNationalNbsCode: source.nfseNationalNbsCode,
+          nfseNationalMunicipalRegistration:
+            productionConfig?.settings.nfseNationalMunicipalRegistration,
           nfseNationalSimpleOption: source.nfseNationalSimpleOption,
           nfseNationalSimpleTaxRegime: source.nfseNationalSimpleTaxRegime,
           nfseNationalSpecialTaxRegime: source.nfseNationalSpecialTaxRegime,
@@ -2158,6 +2181,34 @@ async function handleCreateNfseDps(
   const issuer = app.store.findIssuerByCnpj(issuerCnpj, ambiente);
   const serviceConfig = app.store.findServiceConfigRecord(issuerCnpj, ambiente, "NFSE");
   const configuredProvider = resolveNfseProvider({ issuer, serviceConfig });
+  let idempotencyKey: string | null = null;
+  try {
+    idempotencyKey = requestIdempotencyKey(request);
+  } catch (error) {
+    return reply.code(400).send({
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+  const providerLikeId = idempotencyKey
+    ? `idem:nfse:${issuerCnpj}:${ambiente}:${idempotencyKey}`
+    : undefined;
+  if (providerLikeId) {
+    const existing = app.store.findDocumentByProviderLikeId(providerLikeId, "NFSe");
+    if (existing) {
+      const replayStatusCode = existing.status === "autorizado"
+        ? 200
+        : existing.status === "erro" || existing.status === "rejeitado"
+          ? 422
+          : 202;
+      return reply.code(replayStatusCode).send({
+        ...mapDocumentResponse(existing, requestBaseUrl(request)),
+        message: existing.motivo ?? "Requisicao de emissao ja recebida.",
+        transmissao_municipal: false,
+        provedor: existing.providerName ?? configuredProvider,
+        idempotent_replay: true
+      });
+    }
+  }
   const payloadForDocument = structuredClone(body);
   if (configuredProvider === "nfse-nacional") {
     const reservation = app.store.reserveNextNationalDpsNumber(issuerCnpj, ambiente);
@@ -2178,7 +2229,8 @@ async function handleCreateNfseDps(
     issuerCnpj,
     ambiente,
     payloadOriginal: payloadForDocument,
-    payloadNormalizado
+    payloadNormalizado,
+    providerLikeId
   });
   await app.store.waitForPersistence();
 

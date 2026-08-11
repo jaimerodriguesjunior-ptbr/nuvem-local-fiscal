@@ -36,6 +36,7 @@ type CreateDocumentInput = {
   payloadNormalizado: unknown;
   nfceConfigEncrypted?: string | null;
   forcedStatus?: DocumentStatus;
+  providerLikeId?: string;
 };
 
 const nowIso = () => new Date().toISOString();
@@ -612,10 +613,11 @@ export class InMemoryStore {
     const status = input.forcedStatus ?? "processamento";
     const authorized = status === "autorizado";
     const id = `doc_${randomUUID().slice(0, 8)}`;
+    const providerLikeId = String(input.providerLikeId ?? "").trim() || id;
 
     const document: DocumentRecord = {
       id,
-      providerLikeId: id,
+      providerLikeId,
       tipoDocumento: input.tipoDocumento,
       issuerCnpj: input.issuerCnpj,
       ambiente: input.ambiente,
@@ -643,7 +645,17 @@ export class InMemoryStore {
 
   findDocument(id: string, tipoDocumento?: DocumentType) {
     return this.documents.find(
-      (item) => item.id === id && (!tipoDocumento || item.tipoDocumento === tipoDocumento)
+      (item) =>
+        (item.id === id || item.providerLikeId === id) &&
+        (!tipoDocumento || item.tipoDocumento === tipoDocumento)
+    ) ?? null;
+  }
+
+  findDocumentByProviderLikeId(providerLikeId: string, tipoDocumento?: DocumentType) {
+    return this.documents.find(
+      (item) =>
+        item.providerLikeId === providerLikeId &&
+        (!tipoDocumento || item.tipoDocumento === tipoDocumento)
     ) ?? null;
   }
 
@@ -839,7 +851,8 @@ export class InMemoryStore {
   saveSignedXml(
     id: string,
     input: {
-      accessKey: string;
+      accessKey?: string;
+      providerReference?: string;
       unsignedXml: string;
       signedXml: string;
       signatureValid: boolean;
@@ -853,7 +866,9 @@ export class InMemoryStore {
       return null;
     }
 
-    document.chave = input.accessKey;
+    document.chave = input.accessKey ?? document.chave;
+    document.providerReference =
+      input.providerReference ?? document.providerReference ?? null;
     document.xmlGenerated = input.unsignedXml;
     document.xmlSigned = input.signedXml;
     document.signatureValid = input.signatureValid;
@@ -960,6 +975,12 @@ export class InMemoryStore {
     document.xsdErrors = input.xsdErrors ?? document.xsdErrors;
     if (input.processedXml) {
       document.xml = input.processedXml;
+    }
+    if (input.reasonCode !== undefined && input.reason !== undefined) {
+      document.mensagens =
+        document.status === "autorizado" || document.status === "cancelado"
+          ? []
+          : [{ codigo: input.reasonCode ?? "", descricao: input.reason ?? "" }];
     }
     document.updatedAt = nowIso();
     this.saveState({ documents: [document] });

@@ -1556,7 +1556,10 @@ const page = String.raw`<!doctype html>
               '<label>Município<input name="municipalityName" value="' +
                 escapeHtml(isIpm ? 'Guaíra' : isToledo ? (settings.nfseMunicipalityName || 'Toledo') : (settings.nfseMunicipalityName || '')) + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
-                escapeHtml(settings.nfseInscricaoMunicipal || '') + '" required /></label>' +
+                escapeHtml(isNational
+                  ? (settings.nfseNationalMunicipalRegistration || '')
+                  : (settings.nfseInscricaoMunicipal || '')) + '"' +
+                (isNational ? '' : ' required') + ' /></label>' +
             '</div>' +
             (isIpm ? '<div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
@@ -1907,7 +1910,9 @@ const page = String.raw`<!doctype html>
               '<label>Município<input name="municipalityName" value="' +
                 escapeHtml(municipalityName || '') + '" /></label>' +
               '<label>Inscrição municipal / cadastro econômico<input name="municipalRegistration" value="' +
-                escapeHtml(settings.nfseInscricaoMunicipal || '') + '" /></label>' +
+                escapeHtml(isNational
+                  ? (settings.nfseNationalMunicipalRegistration || '')
+                  : (settings.nfseInscricaoMunicipal || '')) + '" /></label>' +
             '</div>' +
             (isIpm ? '<div class="two-col">' +
               '<label>Login / usuário da prefeitura<input name="login" value="' +
@@ -3176,6 +3181,9 @@ const page = String.raw`<!doctype html>
             modo_teste: false
           },
           nacional: {
+            inscricao_municipal: form.get('provider') === 'nfse-nacional'
+              ? form.get('municipalRegistration')
+              : undefined,
             codigo_nbs: form.get('nationalNbs'),
             codigo_tributacao_nacional: form.get('nationalTaxCode'),
             dps_serie: form.get('nationalDpsSerie'),

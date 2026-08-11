@@ -240,7 +240,9 @@ export function resolveNationalNfseConfig(
   return {
     environment: serviceConfig.ambiente,
     municipalityCode: digitsOnly(settings.nfseMunicipalityCode),
-    municipalRegistration: firstText(settings.nfseInscricaoMunicipal),
+    municipalRegistration: firstText(
+      settings.nfseNationalMunicipalRegistration
+    ),
     dpsSeries: firstText(settings.nfseNationalDpsSerie, settings.nfseRpsSerie, "1"),
     layoutVersion: firstText(
       settings.nfseNationalLayoutVersion,
@@ -638,10 +640,9 @@ export async function cancelNationalNfse(
     throw new Error(runtimePolicy.reason ?? "Cancelamento Nacional bloqueado pelo motor de regras.");
   }
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
-  const serviceConfig = store.findServiceConfigRecord(document.issuerCnpj, document.ambiente, "NFSE");
   const certificate = store.findActiveCertificate(document.issuerCnpj);
-  if (!issuer || !serviceConfig?.active || !isNationalNfseConfig(issuer, serviceConfig)) {
-    throw new Error("Configuracao NFS-e Nacional nao encontrada.");
+  if (!issuer || document.providerName !== "nfse-nacional") {
+    throw new Error("Documento Nacional NFS-e invalido para cancelamento.");
   }
   if (!certificate?.encryptedBundle) {
     throw new Error("Certificado A1 ativo nao encontrado para cancelar NFS-e Nacional.");
@@ -695,7 +696,7 @@ export async function cancelNationalNfse(
 
   try {
     const response = await transmitNationalCancellation({
-      endpoint: resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint),
+      endpoint: resolveNationalSefinEndpoint(document.ambiente),
       accessKey,
       signedEventXml: signed.signedXml,
       privateKeyPem: opened.privateKeyPem,
@@ -802,6 +803,7 @@ export async function processNationalNfse(
     return { document: failed ?? document, transmitted: false, error: message };
   }
 
+  let transmissionStarted = false;
   try {
     const nationalConfig = resolveNationalNfseConfig(issuer, serviceConfig);
     const draft = normalizeNationalNfseDraft(document, nationalConfig);
@@ -821,7 +823,7 @@ export async function processNationalNfse(
     });
     const xsd = validateNationalDpsXml(signed.signedXml);
     store.saveSignedXml(document.id, {
-      accessKey: draft.id,
+      providerReference: draft.id,
       unsignedXml: signed.unsignedXml,
       signedXml: signed.signedXml,
       signatureValid: signed.signatureValid,
@@ -835,15 +837,30 @@ export async function processNationalNfse(
     if (!xsd.valid) {
       throw new Error(`DPS Nacional reprovada no XSD: ${xsd.errors.join(" | ")}`);
     }
+    const preparedReason =
+      "DPS nacional gerada, assinada e validada localmente; transmissao ainda nao executada.";
+    store.saveMunicipalProcessingResult(document.id, {
+      providerName: "nfse-nacional",
+      generatedXml,
+      signedXml: signed.signedXml,
+      requestBody: generatedXml,
+      providerReference: draft.id,
+      status: "processamento",
+      reason: preparedReason,
+      reasonCode: "NFSE_NACIONAL_DPS_GENERATED"
+    });
+    // O identificador da DPS e o XML assinado precisam estar persistidos antes
+    // do POST. Assim uma resposta perdida nunca exige reenviar a mesma DPS.
+    await store.waitForPersistence();
     const autoTransmit = serviceConfig.settings.autoTransmit === true;
     let transmitted = false;
     let responseBody: string | null = null;
     let processedXml: string | null = null;
     let providerDocumentNumber: string | null = null;
-    let reason =
-      "DPS nacional gerada, assinada e validada localmente; transmissao ainda nao executada.";
+    let reason = preparedReason;
     let reasonCode = "NFSE_NACIONAL_DPS_GENERATED";
     if (autoTransmit) {
+      transmissionStarted = true;
       const transmission = await transmitNationalDps({
         endpoint: resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint),
         signedDpsXml: signed.signedXml,
@@ -858,7 +875,51 @@ export async function processNationalNfse(
         const errors = transmission.errors
           .map((item) => `${item.code}: ${item.description}${item.detail ? ` (${item.detail})` : ""}`)
           .join(" | ");
-        throw new Error(errors || `SEFIN Nacional retornou HTTP ${transmission.statusCode}.`);
+        const upstreamMessage =
+          errors || `SEFIN Nacional retornou HTTP ${transmission.statusCode}.`;
+        const duplicateDps = transmission.errors.some((item) => item.code === "E0014");
+        const uncertainTransport = transmission.statusCode >= 500;
+        const failure = mapNationalProcessingError(upstreamMessage);
+        const savedFailure = store.saveMunicipalProcessingResult(document.id, {
+          providerName: "nfse-nacional",
+          responseBody: transmission.rawBody,
+          providerReference: draft.id,
+          status: duplicateDps || uncertainTransport ? "processamento" : "erro",
+          reason: duplicateDps ? upstreamMessage : failure.userMessage,
+          reasonCode: duplicateDps
+            ? "NFSE_NACIONAL_DPS_ALREADY_EXISTS"
+            : uncertainTransport
+              ? "NFSE_NACIONAL_TRANSPORT_UNCONFIRMED"
+              : "NFSE_NACIONAL_DPS_REJECTED"
+        });
+        store.addDocumentEvent(document.id, {
+          eventType: duplicateDps
+            ? "nfse_nacional_dps_duplicate_detected"
+            : uncertainTransport
+              ? "nfse_nacional_dps_transmission_unconfirmed"
+              : "nfse_nacional_dps_transmission_rejected",
+          level: duplicateDps || uncertainTransport ? "warn" : "error",
+          message: duplicateDps ? upstreamMessage : failure.userMessage,
+          payload: {
+            provider: "nfse-nacional",
+            statusCode: transmission.statusCode,
+            dpsId: draft.id
+          }
+        });
+        await store.waitForPersistence();
+        if (duplicateDps) {
+          const consulted = await consultNationalNfse(store, document.id);
+          return {
+            document: consulted.document,
+            transmitted: true,
+            error: consulted.error
+          };
+        }
+        return {
+          document: savedFailure ?? document,
+          transmitted: false,
+          error: uncertainTransport ? null : failure.userMessage
+        };
       }
       transmitted = true;
       reason = processedXml
@@ -908,7 +969,14 @@ export async function processNationalNfse(
       message: failure.userMessage,
       payload: { provider: "nfse-nacional", upstreamError: message }
     });
-    const failed = store.failDocument(document.id, failure.reasonCode, failure.userMessage);
+    const failed = transmissionStarted
+      ? store.saveMunicipalProcessingResult(document.id, {
+          providerName: "nfse-nacional",
+          status: "processamento",
+          reason: failure.userMessage,
+          reasonCode: "NFSE_NACIONAL_TRANSPORT_UNCONFIRMED"
+        })
+      : store.failDocument(document.id, failure.reasonCode, failure.userMessage);
     await store.waitForPersistence();
     return { document: failed ?? document, transmitted: false, error: failure.userMessage };
   }
@@ -1036,25 +1104,26 @@ export async function consultNationalNfse(
   const document = store.findDocument(documentId, "NFSe");
   if (!document) throw new Error("Documento NFS-e nao encontrado para consulta.");
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
-  const serviceConfig = store.findServiceConfigRecord(
-    document.issuerCnpj,
-    document.ambiente,
-    "NFSE"
-  );
   const certificate = store.findActiveCertificate(document.issuerCnpj);
-  if (!issuer || !serviceConfig?.active || !isNationalNfseConfig(issuer, serviceConfig)) {
-    return { document, transmitted: false, error: "Configuracao do Sistema Nacional NFS-e nao encontrada." };
+  if (!issuer || document.providerName !== "nfse-nacional") {
+    return { document, transmitted: false, error: "Documento Nacional NFS-e invalido para consulta." };
   }
   if (!certificate?.encryptedBundle) {
     return { document, transmitted: false, error: "Certificado A1 ativo nao encontrado para consultar a SEFIN." };
   }
-  const dpsId = String(document.providerReference ?? document.chave ?? "").trim();
+  const dpsId = String(
+    document.providerReference ??
+    document.xmlSigned?.match(/<infDPS\s+Id="([^"]+)"/)?.[1] ??
+    document.xmlGenerated?.match(/<infDPS\s+Id="([^"]+)"/)?.[1] ??
+    document.chave ??
+    ""
+  ).trim();
   if (!dpsId.startsWith("DPS")) {
     return { document, transmitted: false, error: "Identificador DPS indisponivel para consulta." };
   }
   try {
     const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
-    const endpoint = resolveNationalSefinEndpoint(document.ambiente, serviceConfig.settings.nfseEndpoint);
+    const endpoint = resolveNationalSefinEndpoint(document.ambiente);
     const dps = await consultNationalDpsAtSefin({
       endpoint,
       dpsId,
@@ -1068,6 +1137,7 @@ export async function consultNationalNfse(
       const saved = store.saveMunicipalProcessingResult(document.id, {
         providerName: "nfse-nacional",
         responseBody: dps.rawBody,
+        providerReference: dpsId,
         status: "processamento",
         reason,
         reasonCode: "NFSE_NACIONAL_DPS_PENDING"
@@ -1088,6 +1158,7 @@ export async function consultNationalNfse(
       const saved = store.saveMunicipalProcessingResult(document.id, {
         providerName: "nfse-nacional",
         responseBody: nfse.rawBody,
+        providerReference: dpsId,
         providerDocumentNumber: dps.accessKey,
         status: "processamento",
         reason,
@@ -1099,6 +1170,7 @@ export async function consultNationalNfse(
     const saved = store.saveMunicipalProcessingResult(document.id, {
       providerName: "nfse-nacional",
       responseBody: nfse.rawBody,
+      providerReference: dpsId,
       providerDocumentNumber: dps.accessKey,
       processedXml: nfse.nfseXml,
       status: "autorizado",

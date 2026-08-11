@@ -73,6 +73,7 @@ const serviceConfig: ServiceConfig = {
     nfseProvider: "nfse-nacional",
     nfseMunicipalityCode: "4108809",
     nfseInscricaoMunicipal: "324743",
+    nfseNationalMunicipalRegistration: "324743",
     nfseRpsSerie: "1",
     nfseNationalLayoutVersion: "1.01",
     nfseNationalTaxCode: "140101",
@@ -166,6 +167,38 @@ test("normalizes the existing client payload and generates a national DPS", () =
   assert.match(xml, /<cNBS>123456789<\/cNBS>/);
   assert.match(xml, /<vServ>200\.00<\/vServ>/);
   assert.doesNotThrow(() => parseXml(xml, { nonet: true }));
+});
+
+test("nao reaproveita a inscricao municipal do conector municipal na DPS Nacional", () => {
+  const config = resolveNationalNfseConfig(issuer, {
+    ...serviceConfig,
+    settings: {
+      ...serviceConfig.settings,
+      nfseInscricaoMunicipal: "970339",
+      nfseNationalMunicipalRegistration: ""
+    }
+  });
+  const draft = normalizeNationalNfseDraft(
+    document({
+      infDPS: {
+        serv: {
+          locPrest: { cLocPrestacao: "4127700" },
+          cServ: { cTribNac: "140101", xDescServ: "Servico" }
+        },
+        valores: { vServPrest: { vServ: 100 } }
+      }
+    }),
+    { ...config, municipalityCode: "4127700", nbsCode: "120013110" }
+  );
+
+  assert.equal(draft.municipalRegistration, "");
+  assert.doesNotMatch(
+    buildNationalDpsXml(
+      { ...config, municipalityCode: "4127700", nbsCode: "120013110" },
+      draft
+    ),
+    /<IM>/
+  );
 });
 
 test("omite aliquota para ME/EPP do Simples sem retencao do ISSQN", () => {

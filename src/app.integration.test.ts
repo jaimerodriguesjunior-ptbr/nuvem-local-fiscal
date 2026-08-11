@@ -785,6 +785,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     });
     assert.equal(nationalNfseConfig.statusCode, 200, nationalNfseConfig.body);
     assert.equal(nationalNfseConfig.json().provedor, "nfse-nacional");
+    assert.equal(nationalNfseConfig.json().nacional.inscricao_municipal, "324743");
     assert.equal(
       nationalNfseConfig.json().nacional.codigo_tributacao_nacional,
       "140101"
@@ -835,26 +836,29 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.equal(nationalConfigAfterRewind?.settings.nfseNextRpsNumber, 9);
 
+    const nationalNfsePayload = {
+      ambiente: "homologacao",
+      infDPS: {
+        dhEmi: "2026-08-06T10:15:30-03:00",
+        prest: { CNPJ: cnpj },
+        toma: { CPF: "12345678909", xNome: "Tomador Nacional Teste" },
+        serv: {
+          locPrest: { cLocPrestacao: "4108809" },
+          cServ: { xDescServ: "Servico de teste NFS-e Nacional" }
+        },
+        valores: { vServPrest: { vServ: 100 } }
+      }
+    };
+    const documentCountBeforeNationalEmission = app.store.documents.length;
     const nationalNfseEmission = await app.inject({
       method: "POST",
       url: "/nfse/dps",
       headers: {
         ...bearer,
-        "content-type": "application/json"
+        "content-type": "application/json",
+        "idempotency-key": "integration-national-emission-1"
       },
-      payload: {
-        ambiente: "homologacao",
-        infDPS: {
-          dhEmi: "2026-08-06T10:15:30-03:00",
-          prest: { CNPJ: cnpj },
-          toma: { CPF: "12345678909", xNome: "Tomador Nacional Teste" },
-          serv: {
-            locPrest: { cLocPrestacao: "4108809" },
-            cServ: { xDescServ: "Servico de teste NFS-e Nacional" }
-          },
-          valores: { vServPrest: { vServ: 100 } }
-        }
-      }
+      payload: nationalNfsePayload
     });
     assert.equal(nationalNfseEmission.statusCode, 422, nationalNfseEmission.body);
     assert.equal(nationalNfseEmission.json().provedor, "nfse-nacional");
@@ -865,6 +869,21 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     );
     assert.match(nationalNfseEmission.json().motivo, /certificado A1 ativo/i);
     assert.equal(nationalNfseEmission.json().transmissao_municipal, false);
+
+    const repeatedNationalNfseEmission = await app.inject({
+      method: "POST",
+      url: "/nfse/dps",
+      headers: {
+        ...bearer,
+        "content-type": "application/json",
+        "idempotency-key": "integration-national-emission-1"
+      },
+      payload: nationalNfsePayload
+    });
+    assert.equal(repeatedNationalNfseEmission.statusCode, 422, repeatedNationalNfseEmission.body);
+    assert.equal(repeatedNationalNfseEmission.json().id, nationalNfseEmission.json().id);
+    assert.equal(repeatedNationalNfseEmission.json().idempotent_replay, true);
+    assert.equal(app.store.documents.length, documentCountBeforeNationalEmission + 1);
 
     const remoteCompany = await app.inject({
       method: "GET",

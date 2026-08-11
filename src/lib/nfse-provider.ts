@@ -76,7 +76,9 @@ export async function consultConfiguredNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para consulta.");
   }
-  const provider = configuredNfseProvider(store, document);
+  // Consultas pertencem ao conector que gerou o documento, mesmo quando a
+  // empresa ja voltou para o provedor municipal ou trocou de contingencia.
+  const provider = document.providerName ?? configuredNfseProvider(store, document);
   if (provider === "guaira-ipm") return consultGuairaIpmNfse(store, documentId);
   if (provider === "toledo-equiplano") return consultToledoNfse(store, documentId);
   if (provider === "nfse-nacional") return consultNationalNfse(store, documentId);
@@ -123,7 +125,7 @@ export async function cancelConfiguredNfse(
   if (!document) {
     throw new Error("Documento NFS-e nao encontrado para cancelamento.");
   }
-  const provider = configuredNfseProvider(store, document);
+  const provider = document.providerName ?? configuredNfseProvider(store, document);
   if (provider === "toledo-equiplano") {
     return cancelToledoNfse(store, documentId, reason);
   }
