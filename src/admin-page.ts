@@ -1034,6 +1034,7 @@ const page = String.raw`<!doctype html>
 
     function isNationalNfseDocument(doc) {
       if (doc.tipoDocumento !== 'NFSe') return false;
+      if (doc.providerName === 'nfse-nacional') return true;
       const serviceConfig = serviceConfigFor(doc.issuerCnpj, doc.ambiente, 'NFSE');
       return serviceConfig && serviceConfig.settings && serviceConfig.settings.nfseProvider === 'nfse-nacional';
     }
