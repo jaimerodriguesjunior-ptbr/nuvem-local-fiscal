@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 function loadEnvFile(path: string) {
@@ -28,6 +28,22 @@ async function main() {
   }
   const { data: updated, error: updateError } = await supabase.from("fiscal_service_configs").update({ settings }).eq("id", current.id).select("id,settings,updated_at").single();
   if (updateError) throw updateError;
+  const statePath = process.env.STATE_FILE || "/opt/nuvem-local-fiscal/storage/fallback-state.json";
+  try {
+    const state = JSON.parse(readFileSync(statePath, "utf8")) as { serviceConfigs?: Array<Record<string, unknown>> };
+    const matches = (state.serviceConfigs ?? []).filter((item) => item.cnpj === cnpj && item.ambiente === ambiente && item.serviceType === "NFSE" && item.active !== false);
+    if (matches.length === 1) {
+      const stateSettings = { ...((matches[0].settings ?? {}) as Record<string, unknown>), nfseNationalDpsSerie: serie } as Record<string, unknown>;
+      if (nextNumber) stateSettings.nfseNationalNextDpsNumber = Number(nextNumber);
+      matches[0].settings = stateSettings;
+      matches[0].updatedAt = new Date().toISOString();
+      writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+    } else if (matches.length > 1) {
+      throw new Error(`Snapshot local possui configuracoes duplicadas: ${matches.length}.`);
+    }
+  } catch (stateError) {
+    if (stateError instanceof Error && /Snapshot local possui/.test(stateError.message)) throw stateError;
+  }
   console.log(JSON.stringify({ changed: true, cnpj, ambiente, previousSeries: (current.settings as Record<string, unknown>).nfseNationalDpsSerie ?? null, newSeries: updated.settings.nfseNationalDpsSerie, previousNextNumber: (current.settings as Record<string, unknown>).nfseNationalNextDpsNumber ?? null, nextNumber: updated.settings.nfseNationalNextDpsNumber ?? null, updatedAt: updated.updated_at }, null, 2));
 }
 main().catch((error) => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
