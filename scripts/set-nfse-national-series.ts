@@ -13,6 +13,7 @@ async function main() {
   const cnpj = required("cnpj").replace(/\D/g, "");
   const ambiente = option("ambiente") ?? "producao";
   const serie = required("serie").replace(/\D/g, "");
+  const nextNumber = option("numero")?.replace(/\D/g, "");
   if (!/^\d{14}$/.test(cnpj) || !/^\d{1,5}$/.test(serie)) throw new Error("CNPJ ou serie invalida.");
   if (option("confirmar") !== "NHT-SERIE-2") throw new Error("Use --confirmar=NHT-SERIE-2 para autorizar a alteracao.");
   const supabase = createClient(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || "", { auth: { persistSession: false } });
@@ -20,9 +21,13 @@ async function main() {
   if (error) throw error;
   if (!data || data.length !== 1) throw new Error(`Configuracao NFSE unica nao encontrada; encontrados: ${data?.length ?? 0}.`);
   const current = data[0];
-  const settings = { ...(current.settings as Record<string, unknown>), nfseNationalDpsSerie: serie };
+  const settings = { ...(current.settings as Record<string, unknown>), nfseNationalDpsSerie: serie } as Record<string, unknown>;
+  if (nextNumber) {
+    if (!/^\d+$/.test(nextNumber) || Number(nextNumber) < 1) throw new Error("Numero inicial invalido.");
+    settings.nfseNationalNextDpsNumber = Number(nextNumber);
+  }
   const { data: updated, error: updateError } = await supabase.from("fiscal_service_configs").update({ settings }).eq("id", current.id).select("id,settings,updated_at").single();
   if (updateError) throw updateError;
-  console.log(JSON.stringify({ changed: true, cnpj, ambiente, previousSeries: (current.settings as Record<string, unknown>).nfseNationalDpsSerie ?? null, newSeries: updated.settings.nfseNationalDpsSerie, nextNumber: updated.settings.nfseNationalNextDpsNumber ?? null, updatedAt: updated.updated_at }, null, 2));
+  console.log(JSON.stringify({ changed: true, cnpj, ambiente, previousSeries: (current.settings as Record<string, unknown>).nfseNationalDpsSerie ?? null, newSeries: updated.settings.nfseNationalDpsSerie, previousNextNumber: (current.settings as Record<string, unknown>).nfseNationalNextDpsNumber ?? null, nextNumber: updated.settings.nfseNationalNextDpsNumber ?? null, updatedAt: updated.updated_at }, null, 2));
 }
 main().catch((error) => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
