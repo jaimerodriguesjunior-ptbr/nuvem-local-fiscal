@@ -156,6 +156,120 @@ function numberFrom(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function firstElementByLocalName(node: any, name: string): any | null {
+  if (!node) return null;
+  if (node.nodeType === 1 && (node.localName === name || node.nodeName === name)) {
+    return node;
+  }
+  const children = node.childNodes ?? [];
+  for (let index = 0; index < children.length; index += 1) {
+    const found = firstElementByLocalName(children.item ? children.item(index) : children[index], name);
+    if (found) return found;
+  }
+  return null;
+}
+
+function elementTextByLocalName(node: any, name: string) {
+  return String(firstElementByLocalName(node, name)?.textContent ?? "").trim();
+}
+
+function normalizedName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizedDateTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value.trim() : date.toISOString();
+}
+
+export type NationalDpsReconciliation = {
+  matches: boolean;
+  discrepancies: string[];
+};
+
+/**
+ * A consulta por DPS pode localizar uma NFS-e antiga se a numeracao tiver sido
+ * reutilizada por outro emissor/instalacao. A chave encontrada, sozinha, nao
+ * prova que ela corresponde ao XML assinado nesta tentativa.
+ */
+export function reconcileNationalDpsWithAuthorizedXml(
+  signedDpsXml: string,
+  authorizedNfseXml: string
+): NationalDpsReconciliation {
+  const expectedRoot = new DOMParser().parseFromString(signedDpsXml, "application/xml");
+  const authorizedRoot = new DOMParser().parseFromString(authorizedNfseXml, "application/xml");
+  const expected = firstElementByLocalName(expectedRoot, "infDPS");
+  const recovered = firstElementByLocalName(authorizedRoot, "infDPS");
+  if (!expected || !recovered) {
+    return {
+      matches: false,
+      discrepancies: ["XML autorizado sem a DPS incorporada para reconciliacao"]
+    };
+  }
+
+  const discrepancies: string[] = [];
+  const compareText = (label: string, expectedValue: string, recoveredValue: string) => {
+    if (expectedValue && expectedValue !== recoveredValue) discrepancies.push(label);
+  };
+  const compareDigits = (label: string, expectedValue: string, recoveredValue: string) => {
+    if (digitsOnly(expectedValue) && digitsOnly(expectedValue) !== digitsOnly(recoveredValue)) {
+      discrepancies.push(label);
+    }
+  };
+  const compareMoney = (label: string, expectedValue: string, recoveredValue: string) => {
+    if (expectedValue && Math.round(numberFrom(expectedValue) * 100) !== Math.round(numberFrom(recoveredValue) * 100)) {
+      discrepancies.push(label);
+    }
+  };
+
+  compareText("identificador da DPS", expected.getAttribute("Id") ?? "", recovered.getAttribute("Id") ?? "");
+  compareText("serie da DPS", elementTextByLocalName(expected, "serie"), elementTextByLocalName(recovered, "serie"));
+  compareText("numero da DPS", elementTextByLocalName(expected, "nDPS"), elementTextByLocalName(recovered, "nDPS"));
+  compareDigits("CNPJ do prestador", elementTextByLocalName(firstElementByLocalName(expected, "prest"), "CNPJ"), elementTextByLocalName(firstElementByLocalName(recovered, "prest"), "CNPJ"));
+  compareText("municipio emissor", elementTextByLocalName(expected, "cLocEmi"), elementTextByLocalName(recovered, "cLocEmi"));
+  const expectedIssuedAt = elementTextByLocalName(expected, "dhEmi");
+  const recoveredIssuedAt = elementTextByLocalName(recovered, "dhEmi");
+  if (expectedIssuedAt && normalizedDateTime(expectedIssuedAt) !== normalizedDateTime(recoveredIssuedAt)) {
+    discrepancies.push("data/hora de emissao da DPS");
+  }
+  compareText("data de competencia", elementTextByLocalName(expected, "dCompet"), elementTextByLocalName(recovered, "dCompet"));
+  compareMoney("valor do servico", elementTextByLocalName(expected, "vServ"), elementTextByLocalName(recovered, "vServ"));
+  compareText("codigo de tributacao nacional", elementTextByLocalName(expected, "cTribNac"), elementTextByLocalName(recovered, "cTribNac"));
+  compareText("municipio da prestacao", elementTextByLocalName(expected, "cLocPrestacao"), elementTextByLocalName(recovered, "cLocPrestacao"));
+
+  const expectedCustomer = firstElementByLocalName(expected, "toma");
+  const recoveredCustomer = firstElementByLocalName(recovered, "toma");
+  const expectedCustomerDocument = firstText(
+    elementTextByLocalName(expectedCustomer, "CNPJ"),
+    elementTextByLocalName(expectedCustomer, "CPF")
+  );
+  const recoveredCustomerDocument = firstText(
+    elementTextByLocalName(recoveredCustomer, "CNPJ"),
+    elementTextByLocalName(recoveredCustomer, "CPF")
+  );
+  compareDigits("documento do tomador", expectedCustomerDocument, recoveredCustomerDocument);
+  const expectedCustomerName = elementTextByLocalName(expectedCustomer, "xNome");
+  const recoveredCustomerName = elementTextByLocalName(recoveredCustomer, "xNome");
+  if (expectedCustomerName && normalizedName(expectedCustomerName) !== normalizedName(recoveredCustomerName)) {
+    discrepancies.push("nome do tomador");
+  }
+
+  return { matches: discrepancies.length === 0, discrepancies };
+}
+
+function nationalDpsReconciliationMismatchMessage(discrepancies: string[]) {
+  return (
+    "A NFS-e localizada na SEFIN nao corresponde a DPS assinada nesta emissao. " +
+    `Divergencias: ${discrepancies.join(", ") || "nao especificadas"}. ` +
+    "A nota nao foi autorizada automaticamente para evitar associar uma emissao anterior ao pedido atual."
+  );
+}
+
 function validDigits(value: unknown, length: number, fallback = "") {
   const candidate = digitsOnly(value);
   if (candidate.length === length) return candidate;
@@ -922,6 +1036,37 @@ export async function processNationalNfse(
         };
       }
       transmitted = true;
+      if (processedXml) {
+        const reconciliation = reconcileNationalDpsWithAuthorizedXml(
+          signed.signedXml,
+          processedXml
+        );
+        if (!reconciliation.matches) {
+          const message = nationalDpsReconciliationMismatchMessage(reconciliation.discrepancies);
+          const savedMismatch = store.saveMunicipalProcessingResult(document.id, {
+            providerName: "nfse-nacional",
+            responseBody,
+            providerReference: draft.id,
+            providerDocumentNumber,
+            status: "erro",
+            reason: message,
+            reasonCode: "NFSE_NACIONAL_RECOVERY_MISMATCH"
+          });
+          store.addDocumentEvent(document.id, {
+            eventType: "nfse_nacional_dps_reconciliation_mismatch",
+            level: "error",
+            message,
+            payload: {
+              provider: "nfse-nacional",
+              dpsId: draft.id,
+              accessKey: providerDocumentNumber,
+              discrepancies: reconciliation.discrepancies
+            }
+          });
+          await store.waitForPersistence();
+          return { document: savedMismatch ?? document, transmitted: true, error: message };
+        }
+      }
       reason = processedXml
         ? "NFS-e Nacional gerada pela SEFIN."
         : "DPS Nacional transmitida para a SEFIN; aguardando consulta de processamento.";
@@ -1166,6 +1311,35 @@ export async function consultNationalNfse(
       });
       await store.waitForPersistence();
       return { document: saved ?? document, transmitted: false, error: null };
+    }
+    const reconciliation = reconcileNationalDpsWithAuthorizedXml(
+      document.xmlSigned ?? document.xmlGenerated ?? "",
+      nfse.nfseXml
+    );
+    if (!reconciliation.matches) {
+      const reason = nationalDpsReconciliationMismatchMessage(reconciliation.discrepancies);
+      const saved = store.saveMunicipalProcessingResult(document.id, {
+        providerName: "nfse-nacional",
+        responseBody: nfse.rawBody,
+        providerReference: dpsId,
+        providerDocumentNumber: dps.accessKey,
+        status: "erro",
+        reason,
+        reasonCode: "NFSE_NACIONAL_RECOVERY_MISMATCH"
+      });
+      store.addDocumentEvent(document.id, {
+        eventType: "nfse_nacional_dps_reconciliation_mismatch",
+        level: "error",
+        message: reason,
+        payload: {
+          provider: "nfse-nacional",
+          dpsId,
+          accessKey: dps.accessKey,
+          discrepancies: reconciliation.discrepancies
+        }
+      });
+      await store.waitForPersistence();
+      return { document: saved ?? document, transmitted: false, error: reason };
     }
     const saved = store.saveMunicipalProcessingResult(document.id, {
       providerName: "nfse-nacional",

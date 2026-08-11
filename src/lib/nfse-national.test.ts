@@ -18,6 +18,7 @@ import {
   mapNationalProcessingError,
   NFSE_NATIONAL_NAMESPACE,
   normalizeNationalNfseDraft,
+  reconcileNationalDpsWithAuthorizedXml,
   resolveNationalSefinEndpoint,
   resolveNationalNfseConfig,
   transmitPreparedNationalDps,
@@ -167,6 +168,44 @@ test("normalizes the existing client payload and generates a national DPS", () =
   assert.match(xml, /<cNBS>123456789<\/cNBS>/);
   assert.match(xml, /<vServ>200\.00<\/vServ>/);
   assert.doesNotThrow(() => parseXml(xml, { nonet: true }));
+});
+
+test("reconcilia a NFS-e recuperada com a DPS enviada antes de autorizar", () => {
+  const config = resolveNationalNfseConfig(issuer, serviceConfig);
+  const draft = normalizeNationalNfseDraft(
+    document({
+      infDPS: {
+        dhEmi: "2026-08-11T18:32:46-03:00",
+        dCompet: "2026-08-11",
+        toma: { CPF: "01041025947", xNome: "Diego Rocco" },
+        serv: {
+          locPrest: { cLocPrestacao: "4108809" },
+          cServ: { cTribNac: "140101", xDescServ: "Servico de teste" }
+        },
+        valores: { vServPrest: { vServ: 10 } }
+      }
+    }),
+    config
+  );
+  const dpsXml = buildNationalDpsXml(config, draft);
+  const authorizedXml = `<NFSe><infNFSe><nNFSe>27</nNFSe>${dpsXml.replace(/^<\?xml[^>]*>\s*/, "")}</infNFSe></NFSe>`;
+
+  assert.deepEqual(reconcileNationalDpsWithAuthorizedXml(dpsXml, authorizedXml), {
+    matches: true,
+    discrepancies: []
+  });
+
+  const divergentAuthorizedXml = authorizedXml
+    .replace("2026-08-11T18:32:46-03:00", "2026-02-03T22:28:46-03:00")
+    .replace("2026-08-11", "2026-02-03")
+    .replace("<vServ>10.00</vServ>", "<vServ>3.00</vServ>");
+  const divergent = reconcileNationalDpsWithAuthorizedXml(dpsXml, divergentAuthorizedXml);
+  assert.equal(divergent.matches, false);
+  assert.deepEqual(divergent.discrepancies, [
+    "data/hora de emissao da DPS",
+    "data de competencia",
+    "valor do servico"
+  ]);
 });
 
 test("nao reaproveita a inscricao municipal do conector municipal na DPS Nacional", () => {
