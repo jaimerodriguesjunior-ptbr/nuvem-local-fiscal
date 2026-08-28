@@ -999,6 +999,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
     const isToledoProvider = effectiveProvider === "toledo-equiplano";
     const isNationalProvider = effectiveProvider === "nfse-nacional";
+    const issuerCrt = app.store.findIssuerByCnpj(cnpj, environment)?.crt;
+    const defaultNationalSimpleOption = issuerCrt === "4" ? "2" : "3";
     const municipalFallback =
       isNationalProvider && previousProvider && previousProvider !== "nfse-nacional"
         ? {
@@ -1277,13 +1279,13 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         nacional.opcao_simples_nacional,
         nacional.opSimpNac,
         reusableExistingSettings?.nfseNationalSimpleOption,
-        isNationalProvider ? "3" : ""
+        isNationalProvider ? defaultNationalSimpleOption : ""
       ) || undefined) as "1" | "2" | "3" | undefined,
       nfseNationalSimpleTaxRegime: (firstNonEmptyText(
         nacional.regime_apuracao_simples,
         nacional.regApTribSN,
         reusableExistingSettings?.nfseNationalSimpleTaxRegime,
-        isNationalProvider ? "1" : ""
+        isNationalProvider && defaultNationalSimpleOption === "3" ? "1" : ""
       ) || undefined) as "1" | "2" | "3" | undefined,
       nfseNationalSpecialTaxRegime: (firstNonEmptyText(
         nacional.regime_especial_tributacao,
