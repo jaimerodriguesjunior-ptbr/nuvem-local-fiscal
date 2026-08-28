@@ -170,6 +170,35 @@ test("normalizes the existing client payload and generates a national DPS", () =
   assert.doesNotThrow(() => parseXml(xml, { nonet: true }));
 });
 
+test("omite aliquota de ISS para MEI", () => {
+  const config = {
+    ...resolveNationalNfseConfig(issuer, serviceConfig),
+    simpleOption: "2" as const,
+    simpleTaxRegime: "" as const
+  };
+  const draft = normalizeNationalNfseDraft(
+    document({
+      infDPS: {
+        toma: { CPF: "08701600958", xNome: "Cliente MEI" },
+        serv: {
+          locPrest: { cLocPrestacao: "4108809" },
+          cServ: { cTribNac: "140101", xDescServ: "Servico MEI" }
+        },
+        valores: {
+          vServPrest: { vServ: 100 },
+          trib: { tribMun: { tribISSQN: "1", tpRetISSQN: "1", pAliq: 5 } }
+        }
+      }
+    }),
+    config
+  );
+  const xml = buildNationalDpsXml(config, draft);
+
+  assert.match(xml, /<opSimpNac>2<\/opSimpNac>/);
+  assert.doesNotMatch(xml, /<regApTribSN>/);
+  assert.doesNotMatch(xml, /<pAliq>/);
+});
+
 test("reconcilia a NFS-e recuperada com a DPS enviada antes de autorizar", () => {
   const config = resolveNationalNfseConfig(issuer, serviceConfig);
   const draft = normalizeNationalNfseDraft(

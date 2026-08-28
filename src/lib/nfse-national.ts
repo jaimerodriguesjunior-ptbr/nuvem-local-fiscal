@@ -596,7 +596,12 @@ export function buildNationalDpsXml(
   const municipalRegistration = optionalTag("IM", draft.municipalRegistration);
   const nbsCode = optionalTag("cNBS", draft.nbsCode);
   const internalServiceCode = optionalTag("cIntContrib", draft.internalServiceCode);
-  const issRate = draft.issRate > 0 ? `<pAliq>${draft.issRate.toFixed(2)}</pAliq>` : "";
+  // O SIMEI nao informa aliquota de ISS na DPS. A SEFIN rejeita o campo
+  // pAliq para opSimpNac=2 (E0600), mesmo quando o cliente legado o envia.
+  const issRate =
+    draft.simpleOption !== "2" && draft.issRate > 0
+      ? `<pAliq>${draft.issRate.toFixed(2)}</pAliq>`
+      : "";
   const totalTaxes = draft.simpleOption === "3"
     ? "<totTrib><pTotTribSN>0.00</pTotTribSN></totTrib>"
     : "<totTrib><indTotTrib>0</indTotTrib></totTrib>";
