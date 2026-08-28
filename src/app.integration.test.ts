@@ -791,6 +791,8 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       "140101"
     );
     assert.equal(nationalNfseConfig.json().nacional.codigo_nbs, null);
+    // Este cenario desabilita AUTO_TRANSMIT_HOMOLOGATION no inicio do teste;
+    // a configuracao nacional deve respeitar a politica global.
     assert.equal(nationalNfseConfig.json().nacional.transmissao_automatica, false);
     const nationalProductionConfig = app.store.findServiceConfigRecord(
       cnpj,

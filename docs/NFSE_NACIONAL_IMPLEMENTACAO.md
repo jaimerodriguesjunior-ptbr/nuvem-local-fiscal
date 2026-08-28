@@ -12,9 +12,10 @@ contrato HTTP existente de `POST /nfse/dps`. A Nuvem Local:
 - roteia por empresa, município e ambiente;
 - gera e assina DPS no leiaute 1.01;
 - valida o XML localmente contra os schemas de produção restrita;
-- transmite manualmente para a SEFIN Nacional em homologação;
+- transmite automaticamente para a SEFIN Nacional em homologação quando
+  `AUTO_TRANSMIT_HOMOLOGATION=true`;
 - persiste status, eventos, XML e DANFSe;
-- mantém a transmissão Nacional automática desativada;
+- não utiliza dry-run local para NFS-e Nacional em homologação;
 - impede que uma configuração Nacional de homologação altere a produção
   municipal;
 - mantém numeração Nacional própria por empresa/ambiente.

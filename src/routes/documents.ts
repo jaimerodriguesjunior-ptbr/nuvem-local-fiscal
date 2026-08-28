@@ -1303,9 +1303,15 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
         reusableExistingSettings?.nfseNationalIssRetention,
         isNationalProvider ? "1" : ""
       ) || undefined) as "1" | "2" | "3" | undefined,
-      // Dry-run municipal foi descontinuado. Homologacao continua controlada por nfseTestMode.
+      // A SEFIN de producao restrita e o ambiente real de homologacao da
+      // NFS-e Nacional. Nao deixar a DPS em dry-run local: quando a politica
+      // de homologacao esta habilitada, ela deve ser transmitida normalmente.
+      // Producao continua condicionada a liberacao fiscal explicita.
       autoTransmit: isNationalProvider
-        ? environment === "producao" && config.fiscalProductionEnabled
+        ? (
+          (environment === "homologacao" && config.autoTransmitHomologation) ||
+          (environment === "producao" && config.fiscalProductionEnabled)
+        )
         : true
     };
     const configValidation = validateNfseConfigDraft({
