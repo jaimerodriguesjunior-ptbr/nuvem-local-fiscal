@@ -2800,7 +2800,9 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   // Para MEI, a NFS-e Nacional não admite pAliq (E0600). O DANFSe deve
   // refletir o XML autorizado e não reaproveitar a alíquota municipal legada
   // presente no payload de origem.
-  const isMei = String(regTrib.opSimpNac ?? "") === "2";
+  const isMei =
+    xmlValue("opSimpNac") === "2" ||
+    String(regTrib.opSimpNac ?? "") === "2";
   const aliquota = isMei ? null : Number(tribMun.pAliq ?? 0);
   const issValue = aliquota === null
     ? null

@@ -443,7 +443,6 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           serie: "1",
           dCompet: "2026-08-06",
           dhEmi: "2026-08-06T10:00:00-03:00",
-          prest: { regTrib: { opSimpNac: "2" } },
           toma: {
             CNPJ: "12345678000195",
             xNome: "Tomador Nacional",
@@ -464,7 +463,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       providerName: "nfse-nacional",
       status: "autorizado",
       providerDocumentNumber: "41260835181069000143000000000000000000000000000001",
-      processedXml: "<NFSe><infNFSe><nNFSe>1</nNFSe><chNFSe>41260835181069000143000000000000000000000000000001</chNFSe></infNFSe></NFSe>"
+      processedXml: "<NFSe><infNFSe><nNFSe>1</nNFSe><chNFSe>41260835181069000143000000000000000000000000000001</chNFSe><opSimpNac>2</opSimpNac></infNFSe></NFSe>"
     });
     const nationalPdf = await app.inject({
       method: "GET",
