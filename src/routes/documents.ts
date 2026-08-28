@@ -2776,6 +2776,8 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const vServPrest = recordValue(valores.vServPrest);
   const trib = recordValue(valores.trib);
   const tribMun = recordValue(trib.tribMun);
+  const prest = recordValue(infDps.prest);
+  const regTrib = recordValue(prest.regTrib);
   const issuerMetadata = recordValue(issuer?.metadata);
   const issuerAddress = recordValue(issuerMetadata.endereco);
   const xml = document.xml ?? "";
@@ -2795,8 +2797,14 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const issuerMunicipality = String(issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
   const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
   const serviceValue = Number(vServPrest.vServ ?? 0);
-  const aliquota = Number(tribMun.pAliq ?? 0);
-  const issValue = Number(((serviceValue * aliquota) / 100).toFixed(2));
+  // Para MEI, a NFS-e Nacional não admite pAliq (E0600). O DANFSe deve
+  // refletir o XML autorizado e não reaproveitar a alíquota municipal legada
+  // presente no payload de origem.
+  const isMei = String(regTrib.opSimpNac ?? "") === "2";
+  const aliquota = isMei ? null : Number(tribMun.pAliq ?? 0);
+  const issValue = aliquota === null
+    ? null
+    : Number(((serviceValue * aliquota) / 100).toFixed(2));
   const money = (value: number) => value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -2825,6 +2833,9 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     commands.push("0.90 g");
     commands.push(`${left} ${top - 18} ${width} 18 re f`);
     commands.push("0 G");
+    // `g` controla a cor de preenchimento do texto. Sem restaurá-la, os
+    // campos após a primeira seção ficavam em cinza 90% e ilegíveis.
+    commands.push("0 g");
     rect(left, top - 18, width, 18);
     text(left + 6, top - 12, 7, title, "F2");
   };
@@ -2880,8 +2891,8 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   section(265, "VALORES E TRIBUTACAO");
   label(left + 10, 233, "Valor do servico (R$)", money(serviceValue));
   label(left + 145, 233, "Base de calculo (R$)", money(serviceValue));
-  label(left + 300, 233, "Aliquota ISS (%)", aliquota.toFixed(2));
-  label(left + 420, 233, "ISS devido (R$)", money(issValue));
+  label(left + 300, 233, "Aliquota ISS (%)", aliquota === null ? "MEI - nao informado" : aliquota.toFixed(2));
+  label(left + 420, 233, "ISS devido (R$)", issValue === null ? "MEI - nao aplicavel" : money(issValue));
   label(left + 10, 200, "Valor liquido (R$)", money(serviceValue));
   label(left + 145, 200, "ISS retido", String(tribMun.indRetISS ?? "1") === "2" ? "Sim" : "Nao");
 

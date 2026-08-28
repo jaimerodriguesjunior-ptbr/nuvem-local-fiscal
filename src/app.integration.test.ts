@@ -443,6 +443,7 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
           serie: "1",
           dCompet: "2026-08-06",
           dhEmi: "2026-08-06T10:00:00-03:00",
+          prest: { regTrib: { opSimpNac: "2" } },
           toma: {
             CNPJ: "12345678000195",
             xNome: "Tomador Nacional",
@@ -475,6 +476,9 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nationalPdfText, /DANFSe v2\.0/);
     assert.match(nationalPdfText, /NFS-e SEM VALIDADE JURIDICA/);
     assert.match(nationalPdfText, /ConsultaPublica/);
+    assert.match(nationalPdfText, /MEI - nao informado/);
+    assert.match(nationalPdfText, /MEI - nao aplicavel/);
+    assert.doesNotMatch(nationalPdfText, /\(2\.00\)/);
     assert.doesNotMatch(nationalPdfText, /MUNICIPIO DE GUAIRA/);
 
     const saveToledoWithoutEntityId = await app.inject({
