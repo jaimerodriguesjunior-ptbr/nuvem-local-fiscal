@@ -475,8 +475,9 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nationalPdfText, /DANFSe v2\.0/);
     assert.match(nationalPdfText, /NFS-e SEM VALIDADE JURIDICA/);
     assert.match(nationalPdfText, /ConsultaPublica/);
-    assert.match(nationalPdfText, /A autenticidade desta NFS-e pode ser/);
-    assert.match(nationalPdfText, /verificada pela leitura deste codigo QR ou pela/);
+    assert.match(nationalPdfText, /A autenticidade desta NFS-e pode ser verificada/);
+    assert.match(nationalPdfText, /pela leitura deste codigo QR ou pela consulta da/);
+    assert.match(nationalPdfText, /chave de acesso no portal nacional da NFS-e\./);
     assert.match(nationalPdfText, /https:\/\/www\.nfse\.gov\.br\/ConsultaPublica\/\?tpc=1&chave=41260835181069000143000000000000000000000000000001/);
     assert.match(nationalPdfText, /495\.496[^\n]*751\.574[^\n]*43\.086[^\n]*re S/);
     assert.match(nationalPdfText, /DADOS DA NFS-e/);

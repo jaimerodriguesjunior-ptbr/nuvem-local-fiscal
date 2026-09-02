@@ -2843,6 +2843,9 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const qrSize = 1.52 * pointsPerCm;
   const qrX = 17.48 * pointsPerCm;
   const qrY = 842 - 1.67 * pointsPerCm - qrSize;
+  // A legenda obrigatoria fica abaixo do QR, mas inicia antes dele para que as
+  // tres linhas caibam integralmente dentro da area imprimivel da pagina.
+  const qrCaptionX = 13.3 * pointsPerCm;
   const commands: string[] = ["0.5 w"];
   const left = 28;
   const right = 567;
@@ -2885,9 +2888,9 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   text(left + 10, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
   if (consultationUrl) {
     drawQrCode(commands, consultationUrl, qrX, qrY, qrSize);
-    text(15.8 * pointsPerCm, qrY - 8, 6, "A autenticidade desta NFS-e pode ser");
-    text(15.8 * pointsPerCm, qrY - 15, 6, "verificada pela leitura deste codigo QR ou pela");
-    text(15.8 * pointsPerCm, qrY - 22, 6, "consulta da chave de acesso no portal nacional da NFS-e.");
+    text(qrCaptionX, qrY - 8, 5.5, "A autenticidade desta NFS-e pode ser verificada");
+    text(qrCaptionX, qrY - 15, 5.5, "pela leitura deste codigo QR ou pela consulta da");
+    text(qrCaptionX, qrY - 22, 5.5, "chave de acesso no portal nacional da NFS-e.");
   }
   if (document.ambiente === "homologacao") {
     center(684, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
