@@ -475,8 +475,16 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(nationalPdfText, /DANFSe v2\.0/);
     assert.match(nationalPdfText, /NFS-e SEM VALIDADE JURIDICA/);
     assert.match(nationalPdfText, /ConsultaPublica/);
-    assert.match(nationalPdfText, /MEI - nao informado/);
-    assert.match(nationalPdfText, /MEI - nao aplicavel/);
+    assert.match(nationalPdfText, /A autenticidade desta NFS-e pode ser/);
+    assert.match(nationalPdfText, /verificada pela leitura deste codigo QR ou pela/);
+    assert.match(nationalPdfText, /https:\/\/www\.nfse\.gov\.br\/ConsultaPublica\/\?tpc=1&chave=41260835181069000143000000000000000000000000000001/);
+    assert.match(nationalPdfText, /495\.496[^\n]*751\.574[^\n]*43\.086[^\n]*re S/);
+    assert.match(nationalPdfText, /DADOS DA NFS-e/);
+    assert.match(nationalPdfText, /PRESTADOR \/ FORNECEDOR/);
+    assert.match(nationalPdfText, /TOMADOR \/ ADQUIRENTE/);
+    assert.match(nationalPdfText, /TRIBUTACAO MUNICIPAL/);
+    assert.match(nationalPdfText, /VALOR TOTAL DA NFS-e/);
+    assert.match(nationalPdfText, /Codigo da NBS/);
     assert.doesNotMatch(nationalPdfText, /\(2\.00\)/);
     assert.doesNotMatch(nationalPdfText, /MUNICIPIO DE GUAIRA/);
 

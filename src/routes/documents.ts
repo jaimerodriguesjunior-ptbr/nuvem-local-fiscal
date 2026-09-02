@@ -2790,12 +2790,29 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   };
   const accessKey = xmlValue("chNFSe", "chNFS-e", "chaveAcesso") || document.chave || "";
   const nfseNumber = xmlValue("nNFSe", "nNfse", "numero") || String(document.numero);
-  const issueDate = xmlValue("dhEmi", "dhProc", "dEmi") || String(infDps.dhEmi ?? document.createdAt);
+  const dpsIssuedAt = xmlValue("dhEmi", "dEmi") || String(infDps.dhEmi ?? document.createdAt);
+  const processedAt = xmlValue("dhProc", "dhProcessamento") || dpsIssuedAt;
   const dpsNumber = xmlValue("nDPS") || String(infDps.nDPS ?? document.numero);
   const dpsSeries = xmlValue("serie") || String(infDps.serie ?? "1");
   const issuerName = issuer?.razaoSocial ?? String(issuerMetadata.razao_social ?? "");
   const issuerMunicipality = String(issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
   const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
+  const recipientMunicipality = String(tomaEnd.xMun ?? tomaEnd.cidade ?? tomaEndNac.xMun ?? tomaEndNac.cidade ?? "");
+  const recipientUf = String(tomaEnd.UF ?? tomaEnd.uf ?? "");
+  const issuerDocument = formatCnpj(document.issuerCnpj);
+  const issuerAddressText = [
+    issuerAddress.logradouro,
+    issuerAddress.numero,
+    issuerAddress.complemento,
+    issuerAddress.bairro
+  ].filter(Boolean).join(", ");
+  const issuerMunicipalityCode = String(issuerAddress.codigo_municipio ?? issuerMetadata.codigo_municipio ?? "");
+  const issuerPostalCode = String(issuerAddress.cep ?? issuerMetadata.cep ?? "");
+  const nationalTaxCode = xmlValue("cTribNac") || String(cServ.cTribNac ?? "");
+  const municipalTaxCode = xmlValue("cTribMun") || String(cServ.cTribMun ?? "");
+  const nbsCode = xmlValue("cNBS") || String(cServ.cNBS ?? "");
+  const serviceMunicipality = xmlValue("cLocPrestacao") || String(serv.locPrest ? recordValue(serv.locPrest).cLocPrestacao ?? "" : "");
+  const issRetention = xmlValue("tpRetISSQN") || String(tribMun.tpRetISSQN ?? tribMun.indRetISS ?? "1");
   const serviceValue = Number(vServPrest.vServ ?? 0);
   // Para MEI, a NFS-e Nacional não admite pAliq (E0600). O DANFSe deve
   // refletir o XML autorizado e não reaproveitar a alíquota municipal legada
@@ -2811,12 +2828,21 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
-  const formattedDate = issueDate
-    ? new Date(issueDate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+  const formatDateTime = (value: string) => value
+    ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
     : "";
+  const formattedProcessedAt = formatDateTime(processedAt);
+  const formattedDpsIssuedAt = formatDateTime(dpsIssuedAt);
   const consultationUrl = accessKey
     ? `https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=${accessKey}`
     : "";
+  // NT 008/2026, item 2.4.3: QR Code em X=17,48 cm, Y=1,67 cm, com
+  // dimensao minima de 1,52 cm. As coordenadas da NT sao contadas a partir
+  // do canto superior esquerdo; o PDF usa pontos e a origem no canto inferior.
+  const pointsPerCm = 72 / 2.54;
+  const qrSize = 1.52 * pointsPerCm;
+  const qrX = 17.48 * pointsPerCm;
+  const qrY = 842 - 1.67 * pointsPerCm - qrSize;
   const commands: string[] = ["0.5 w"];
   const left = 28;
   const right = 567;
@@ -2847,66 +2873,90 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     text(x, y - 10, 7, rendered, "F2");
   };
 
+  // NT 008/2026: o DANFSe deve conter QR Code, chave de acesso e os blocos
+  // padronizados. O PDF e apenas auxiliar; os valores sempre sao extraidos
+  // da NFS-e autorizada, nunca de uma resposta municipal ou de um rascunho.
   rect(left, 28, width, 786);
   center(792, 13, "DANFSe v2.0", "F2");
-  center(778, 8, "Documento Auxiliar da Nota Fiscal de Servico Eletronica", "F2");
-  text(left + 12, 750, 7, "Numero da NFS-e:");
-  text(left + 100, 750, 10, nfseNumber, "F2");
-  text(left + 12, 735, 7, "Data e hora de emissao:");
-  text(left + 120, 735, 8, formattedDate, "F2");
-  text(left + 12, 720, 7, "Chave de acesso:");
-  text(left + 90, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
-  if (document.ambiente === "homologacao") {
-    center(701, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
+  center(778, 8, "Documento Auxiliar da NFS-e", "F2");
+  text(left + 10, 758, 7, `Municipio: ${issuerMunicipality || "-"} / ${String(issuerAddress.uf ?? "-")}`, "F2");
+  text(left + 10, 746, 6, `Ambiente gerador: 1     Tipo de ambiente: ${document.ambiente === "homologacao" ? "2 - Homologacao" : "1 - Producao"}`);
+  text(left + 10, 731, 6, "CHAVE DE ACESSO DA NFS-e", "F2");
+  text(left + 10, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
+  if (consultationUrl) {
+    drawQrCode(commands, consultationUrl, qrX, qrY, qrSize);
+    text(15.8 * pointsPerCm, qrY - 8, 6, "A autenticidade desta NFS-e pode ser");
+    text(15.8 * pointsPerCm, qrY - 15, 6, "verificada pela leitura deste codigo QR ou pela");
+    text(15.8 * pointsPerCm, qrY - 22, 6, "consulta da chave de acesso no portal nacional da NFS-e.");
   }
-  if (consultationUrl) drawQrCode(commands, consultationUrl, 488, 724, 62);
+  if (document.ambiente === "homologacao") {
+    center(684, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
+  }
+  section(675, "DADOS DA NFS-e");
+  label(left + 10, 648, "Numero da NFS-e", nfseNumber, 100);
+  label(left + 135, 648, "Competencia", String(infDps.dCompet ?? ""), 110);
+  label(left + 270, 648, "Data e hora de emissao da NFS-e", formattedProcessedAt, 180);
+  label(left + 10, 620, "Numero da DPS", dpsNumber, 100);
+  label(left + 135, 620, "Serie da DPS", dpsSeries, 100);
+  label(left + 270, 620, "Data e hora de emissao da DPS", formattedDpsIssuedAt, 180);
+  label(left + 10, 592, "Emitente da NFS-e", "Prestador", 100);
+  label(left + 135, 592, "Situacao da NFS-e", document.status === "cancelado" ? "NFS-e cancelada" : "NFS-e gerada", 130);
+  label(left + 300, 592, "Finalidade", "NFS-e regular", 120);
 
-  section(680, "IDENTIFICACAO DA DPS");
-  label(left + 10, 648, "Numero da DPS", dpsNumber);
-  label(left + 180, 648, "Serie", dpsSeries);
-  label(left + 280, 648, "Competencia", String(infDps.dCompet ?? ""));
-  label(left + 420, 648, "Ambiente", document.ambiente === "homologacao" ? "Producao restrita" : "Producao");
+  section(565, "PRESTADOR / FORNECEDOR");
+  label(left + 10, 538, "CNPJ / CPF / NIF", issuerDocument, 130);
+  label(left + 155, 538, "Indicador municipal (inscricao)", String(issuerMetadata.inscricao_municipal ?? "-"), 130);
+  label(left + 300, 538, "Telefone", String(issuerMetadata.telefone ?? issuerMetadata.fone ?? "-"), 100);
+  label(left + 10, 510, "Nome / Nome empresarial", issuerName, 280);
+  label(left + 300, 510, "Municipio / UF", `${issuerMunicipality || "-"} / ${String(issuerAddress.uf ?? "-")}`, 180);
+  label(left + 10, 482, "Codigo IBGE / CEP", `${issuerMunicipalityCode || "-"} / ${issuerPostalCode || "-"}`, 150);
+  label(left + 175, 482, "Endereco", issuerAddressText || "-", 290);
+  label(left + 10, 454, "E-mail", String(issuerMetadata.email ?? "-"), 180);
+  label(left + 205, 454, "Simples Nacional na competencia", isMei ? "Optante - MEI" : "Optante - ME/EPP", 220);
 
-  section(615, "PRESTADOR DE SERVICOS");
-  label(left + 10, 583, "Nome/Razao social", issuerName, 300);
-  label(left + 330, 583, "CPF/CNPJ", formatCnpj(document.issuerCnpj), 180);
-  label(left + 10, 550, "Inscricao municipal", String(issuerMetadata.inscricao_municipal ?? ""));
-  label(left + 180, 550, "Municipio", issuerMunicipality, 180);
-  label(left + 380, 550, "UF", String(issuerAddress.uf ?? ""), 80);
-
-  section(517, "TOMADOR DE SERVICOS");
-  label(left + 10, 485, "Nome/Razao social", String(toma.xNome ?? ""), 300);
-  label(left + 330, 485, "CPF/CNPJ", formatFiscalDocument(recipientDocument), 180);
+  section(427, "TOMADOR / ADQUIRENTE");
+  label(left + 10, 400, "CNPJ / CPF / NIF", formatFiscalDocument(recipientDocument), 130);
+  label(left + 155, 400, "Telefone", String(toma.fone ?? "-"), 100);
+  label(left + 270, 400, "Nome / Nome empresarial", String(toma.xNome ?? "-"), 220);
   const recipientAddress = [tomaEnd.xLgr, tomaEnd.nro, tomaEnd.xCpl, tomaEnd.xBairro]
-    .filter(Boolean).join(" - ");
-  label(left + 10, 452, "Endereco", recipientAddress, 300);
-  label(left + 330, 452, "Municipio/UF", `${String(tomaEnd.xMun ?? tomaEndNac.xMun ?? "")} ${String(tomaEnd.UF ?? "")}`, 180);
+    .filter(Boolean).join(", ");
+  label(left + 10, 372, "Municipio / UF", `${recipientMunicipality || "-"} / ${recipientUf || "-"}`, 130);
+  label(left + 155, 372, "Codigo IBGE / CEP", `${String(tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? "-")} / ${String(tomaEndNac.CEP ?? tomaEnd.CEP ?? "-")}`, 130);
+  label(left + 300, 372, "Endereco", recipientAddress || "-", 180);
+  label(left + 10, 344, "E-mail", String(toma.email ?? "-"), 180);
 
-  section(419, "SERVICO PRESTADO");
-  label(left + 10, 387, "Codigo de tributacao nacional", String(cServ.cTribNac ?? ""), 150);
-  label(left + 180, 387, "NBS", String(cServ.cNBS ?? ""), 120);
-  label(left + 320, 387, "Codigo municipal", String(cServ.cTribMun ?? ""), 160);
+  section(317, "SERVICO PRESTADO");
+  label(left + 10, 290, "Codigo de tributacao nacional / municipal", `${nationalTaxCode || "-"} / ${municipalTaxCode || "-"}`, 180);
+  label(left + 205, 290, "Codigo da NBS", nbsCode || "-", 120);
+  label(left + 340, 290, "Local da prestacao", serviceMunicipality || issuerMunicipality || "-", 150);
   const descriptionLines = wrapPdfTextByWidth(String(cServ.xDescServ ?? ""), width - 20, 7).slice(0, 6);
-  text(left + 10, 355, 6, "Discriminacao do servico:");
-  descriptionLines.forEach((description, index) => text(left + 10, 343 - index * 10, 7, description));
+  text(left + 10, 262, 6, "Descricao do servico:");
+  descriptionLines.slice(0, 2).forEach((description, index) => text(left + 10, 250 - index * 9, 6.5, description));
 
-  section(265, "VALORES E TRIBUTACAO");
-  label(left + 10, 233, "Valor do servico (R$)", money(serviceValue));
-  label(left + 145, 233, "Base de calculo (R$)", money(serviceValue));
-  label(left + 300, 233, "Aliquota ISS (%)", aliquota === null ? "MEI - nao informado" : aliquota.toFixed(2));
-  label(left + 420, 233, "ISS devido (R$)", issValue === null ? "MEI - nao aplicavel" : money(issValue));
-  label(left + 10, 200, "Valor liquido (R$)", money(serviceValue));
-  label(left + 145, 200, "ISS retido", String(tribMun.indRetISS ?? "1") === "2" ? "Sim" : "Nao");
+  section(223, "TRIBUTACAO MUNICIPAL (ISSQN)");
+  label(left + 10, 196, "Tipo de tributacao do ISSQN", "Operacao tributavel", 130);
+  label(left + 155, 196, "Municipio de incidencia do ISSQN", issuerMunicipality || "-", 150);
+  label(left + 320, 196, "Retencao do ISSQN", issRetention === "2" ? "Retido" : "Nao retido", 100);
+  label(left + 10, 168, "BC ISSQN", money(serviceValue), 100);
+  label(left + 125, 168, "Aliquota aplicada", aliquota === null ? "-" : `${aliquota.toFixed(2)}%`, 100);
+  label(left + 240, 168, "ISSQN apurado", issValue === null ? "-" : money(issValue), 100);
+  label(left + 355, 168, "Tributacao federal (exceto CBS)", "Conforme XML autorizado", 150);
 
-  section(167, "INFORMACOES COMPLEMENTARES");
+  section(141, "VALOR TOTAL DA NFS-e");
+  label(left + 10, 114, "Valor da operacao / servico", money(serviceValue), 135);
+  label(left + 160, 114, "Desconto incondicionado", "-", 110);
+  label(left + 285, 114, "Total das retencoes", issRetention === "2" && issValue !== null ? money(issValue) : "-", 110);
+  label(left + 410, 114, "Valor liquido da NFS-e", money(serviceValue), 120);
+
+  section(87, "INFORMACOES COMPLEMENTARES");
   const info = [
     `NFS-e nacional ${nfseNumber}.`,
     accessKey ? `Consulte pela chave ${accessKey}.` : "Chave de acesso nao informada no retorno.",
     "Documento auxiliar gerado localmente conforme NT 008/2026."
   ].join(" ");
-  wrapPdfTextByWidth(info, width - 20, 7).slice(0, 4)
-    .forEach((value, index) => text(left + 10, 137 - index * 11, 7, value));
-  if (consultationUrl) text(left + 10, 72, 6, consultationUrl);
+  wrapPdfTextByWidth(info, width - 20, 6).slice(0, 2)
+    .forEach((value, index) => text(left + 10, 62 - index * 8, 6, value));
+  if (consultationUrl) text(left + 10, 38, 5.5, consultationUrl);
 
   return { width: 595, height: 842, content: commands.join("\n") };
 }
