@@ -96,8 +96,9 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
           CRT: 1
         },
         dest: {
-          CPF: "12345678901",
-          xNome: "Cliente Real"
+          CNPJ: "12345678000195",
+          xNome: "Empresa Cliente",
+          indIEDest: 9
         },
         det: [
           {
@@ -161,6 +162,8 @@ test("abre PFX, protege o bundle e assina infNFe", () => {
     /<xProd>NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL<\/xProd>/
   );
   assert.doesNotMatch(result.unsignedXml, /Cliente Real|Produto Real/);
+  assert.match(result.unsignedXml, /<dest><CNPJ>12345678000195<\/CNPJ>/);
+  assert.doesNotMatch(result.unsignedXml, /<dest><CPF>/);
   assert.match(
     result.unsignedXml,
     /<infCpl>NFs de origem Scherer: NF 1\.494\.482: 4 x R\$ 75,26<\/infCpl>/

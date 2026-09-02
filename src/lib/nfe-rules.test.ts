@@ -40,6 +40,20 @@ test("NF-e aceita modelo 55 com DANFE A4 retrato", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("NF-e normaliza CNPJ do destinatario e rejeita CNPJ invalido", () => {
+  const payload = minimalNfePayload();
+  Object.assign(payload.infNFe, { dest: { CNPJ: "35.181.069/0001-43", xNome: "Cliente PJ" } });
+  const valid = validateNfeEmissionPayload(payload);
+  assert.equal(valid.ok, true);
+  assert.equal((payload.infNFe as Record<string, any>).dest.CNPJ, "35181069000143");
+
+  const invalidPayload = minimalNfePayload();
+  Object.assign(invalidPayload.infNFe, { dest: { CNPJ: "35181069000144", xNome: "Cliente PJ" } });
+  const invalid = validateNfeEmissionPayload(invalidPayload);
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.issues.some((issue) => issue.code === "invalid_recipient_cnpj"), true);
+});
+
 test("NF-e bloqueia tipo de impressao DANFE fora do layout local validado", () => {
   const result = validateNfeEmissionPayload(minimalNfePayload({ tpImp: 3 }));
 

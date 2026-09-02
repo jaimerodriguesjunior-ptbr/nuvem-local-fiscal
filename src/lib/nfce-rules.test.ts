@@ -84,6 +84,35 @@ test("aceita NFC-e online com payload fiscal minimo", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("normaliza CNPJ do destinatario e rejeita documento conflitante ou invalido", () => {
+  const payload = validNfcePayload();
+  (payload.infNFe as Record<string, unknown>).dest = { CNPJ: "35.181.069/0001-43", xNome: "Cliente PJ", indIEDest: 9 };
+  const valid = validateNfceEmissionPayload(payload, { expectedEnvironment: "homologacao" });
+  assert.equal(valid.ok, true);
+  assert.equal(((payload.infNFe as Record<string, any>).dest.CNPJ), "35181069000143");
+
+  const invalidPayload = validNfcePayload();
+  (invalidPayload.infNFe as Record<string, unknown>).dest = { CNPJ: "35181069000144", CPF: "12345678909" };
+  const invalid = validateNfceEmissionPayload(invalidPayload, { expectedEnvironment: "homologacao" });
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.issues.some((issue) => issue.code === "recipient_document_conflict"), true);
+});
+
+test("aceita CPF do destinatario sem CNPJ e rejeita CNPJ invalido isolado", () => {
+  const pfPayload = validNfcePayload();
+  (pfPayload.infNFe as Record<string, unknown>).dest = { CPF: "529.982.247-25", xNome: "Cliente PF", indIEDest: 9 };
+  const pf = validateNfceEmissionPayload(pfPayload, { expectedEnvironment: "homologacao" });
+  assert.equal(pf.ok, true);
+  assert.equal(((pfPayload.infNFe as Record<string, any>).dest.CPF), "52998224725");
+  assert.equal(((pfPayload.infNFe as Record<string, any>).dest.CNPJ), undefined);
+
+  const invalidPayload = validNfcePayload();
+  (invalidPayload.infNFe as Record<string, unknown>).dest = { CNPJ: "35181069000144", xNome: "Cliente PJ", indIEDest: 9 };
+  const invalid = validateNfceEmissionPayload(invalidPayload, { expectedEnvironment: "homologacao" });
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.issues.some((issue) => issue.code === "invalid_recipient_cnpj"), true);
+});
+
 test("bloqueia NFC-e em contingencia offline ate existir QR Code v3 offline", () => {
   const payload = validNfcePayload();
   (payload.infNFe.ide as Record<string, unknown>).tpEmis = 9;

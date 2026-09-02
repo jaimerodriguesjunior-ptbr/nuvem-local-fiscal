@@ -50,6 +50,35 @@ function normalizeUf(value: unknown) {
   return /^[A-Z]{2}$/.test(uf) ? uf : "";
 }
 
+function documentDigits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function isValidCpf(value: string) {
+  if (!/^\d{11}$/.test(value) || /^(\d)\1+$/.test(value)) return false;
+  const digit = (length: number) => {
+    const sum = value.slice(0, length).split("").reduce((total, item, index) => total + Number(item) * (length + 1 - index), 0);
+    const result = (sum * 10) % 11;
+    return result === 10 ? 0 : result;
+  };
+  return digit(9) === Number(value[9]) && digit(10) === Number(value[10]);
+}
+
+function isValidCnpj(value: string) {
+  if (!/^\d{14}$/.test(value) || /^(\d)\1+$/.test(value)) return false;
+  const digit = (base: string) => {
+    let factor = base.length - 7;
+    const sum = base.split("").reduce((total, item) => {
+      const next = total + Number(item) * factor;
+      factor = factor === 2 ? 9 : factor - 1;
+      return next;
+    }, 0);
+    const result = 11 - (sum % 11);
+    return result >= 10 ? 0 : result;
+  };
+  return digit(value.slice(0, 12)) === Number(value[12]) && digit(value.slice(0, 13)) === Number(value[13]);
+}
+
 function pushIssue(
   issues: NfceValidationIssue[],
   code: string,
@@ -87,6 +116,24 @@ export function validateNfceEmissionPayload(
   const payment = asObject(infNFe.pag);
   const paymentDetails = asArray(payment?.detPag);
   const details = asArray(infNFe.det);
+
+  if (dest) {
+    const cpf = documentDigits(dest.CPF ?? dest.cpf);
+    const cnpj = documentDigits(dest.CNPJ ?? dest.cnpj);
+    if (cpf && cnpj) {
+      pushIssue(issues, "recipient_document_conflict", "infNFe.dest", "Informe somente CPF ou CNPJ do destinatario.");
+    } else if (cpf && !isValidCpf(cpf)) {
+      pushIssue(issues, "invalid_recipient_cpf", "infNFe.dest.CPF", "CPF do destinatario invalido.");
+    } else if (cnpj && !isValidCnpj(cnpj)) {
+      pushIssue(issues, "invalid_recipient_cnpj", "infNFe.dest.CNPJ", "CNPJ do destinatario invalido.");
+    } else if (cpf) {
+      dest.CPF = cpf;
+      delete dest.cpf;
+    } else if (cnpj) {
+      dest.CNPJ = cnpj;
+      delete dest.cnpj;
+    }
+  }
 
   if (!ide) {
     pushIssue(issues, "missing_ide", "infNFe.ide", "Informe o grupo ide da NFC-e.");
