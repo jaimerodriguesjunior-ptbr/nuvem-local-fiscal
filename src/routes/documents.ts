@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
@@ -2719,8 +2721,79 @@ async function handlePdfDownload(
   return reply.send(pdf);
 }
 
+type LocalPdfImage = {
+  name: string;
+  data: Buffer;
+  width: number;
+  height: number;
+};
+
+type LocalPdfEmbeddedFont = {
+  baseName: string;
+  data: Buffer;
+  widths: number[];
+  ascent: number;
+  descent: number;
+  bbox: [number, number, number, number];
+};
+
+type LocalPdfPage = {
+  width: number;
+  height: number;
+  content: string;
+  images?: LocalPdfImage[];
+};
+
+const ARIAL_BOLD_ASCII_WIDTHS = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,750];
+const MICROSOFT_SANS_ASCII_WIDTHS = [266,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,552,333,556,556,500,556,556,278,556,556,228,228,500,228,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,293];
+
+function winAnsiWidths(asciiWidths: number[]) {
+  const widths = Array.from({ length: 224 }, (_, index) => asciiWidths[index] ?? asciiWidths[78]);
+  // WinAnsi usa bytes de 32 a 255. Letras acentuadas devem conservar a
+  // largura da letra-base; usar uma largura genérica deixa, sobretudo, o
+  // "í" visualmente separado do restante da palavra.
+  const sameWidthAs = (characters: string, base: string) => {
+    const baseWidth = asciiWidths[base.charCodeAt(0) - 32];
+    for (const character of characters) widths[character.charCodeAt(0) - 32] = baseWidth;
+  };
+  sameWidthAs("ÀÁÂÃÄÅ", "A"); sameWidthAs("Ç", "C");
+  sameWidthAs("ÈÉÊË", "E"); sameWidthAs("ÌÍÎÏ", "I");
+  sameWidthAs("Ñ", "N"); sameWidthAs("ÒÓÔÕÖØ", "O");
+  sameWidthAs("ÙÚÛÜ", "U"); sameWidthAs("Ý", "Y");
+  sameWidthAs("àáâãäåª", "a"); sameWidthAs("ç", "c");
+  sameWidthAs("èéêë", "e"); sameWidthAs("ìíîï", "i");
+  sameWidthAs("ñ", "n"); sameWidthAs("òóôõöøº", "o");
+  sameWidthAs("ùúûü", "u"); sameWidthAs("ýÿ", "y");
+  return widths;
+}
+
+function nationalDanfseFonts(): LocalPdfEmbeddedFont[] | null {
+  try {
+    return [
+      {
+        baseName: "MicrosoftSansSerif",
+        data: readFileSync(resolve(process.cwd(), "assets", "fonts", "micross.ttf")),
+        widths: winAnsiWidths(MICROSOFT_SANS_ASCII_WIDTHS),
+        ascent: 922,
+        descent: -210,
+        bbox: [-580, -257, 1473, 1003]
+      },
+      {
+        baseName: "Arial-BoldMT",
+        data: readFileSync(resolve(process.cwd(), "assets", "fonts", "arialbd.ttf")),
+        widths: winAnsiWidths(ARIAL_BOLD_ASCII_WIDTHS),
+        ascent: 905,
+        descent: -212,
+        bbox: [-628, -376, 2000, 1056]
+      }
+    ];
+  } catch {
+    return null;
+  }
+}
+
 function createLocalPdf(document: DocumentRecord, issuer: Issuer | null = null) {
-  const page =
+  const page: LocalPdfPage =
     document.tipoDocumento === "NFSe"
       ? document.providerName === "nfse-nacional"
         ? nationalDanfseContentStream(document, issuer)
@@ -2728,30 +2801,88 @@ function createLocalPdf(document: DocumentRecord, issuer: Issuer | null = null) 
       : document.tipoDocumento === "NFe"
         ? nfeDanfeContentStream(parseDanfeData(document))
         : nfceDanfeContentStream(parseDanfeData(document));
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width} ${page.height}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Length ${Buffer.byteLength(page.content, "ascii")} >>\nstream\n${page.content}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"
+  const imageObjects = page.images ?? [];
+  const nationalDanfse = document.tipoDocumento === "NFSe" && document.providerName === "nfse-nacional";
+  const embeddedFonts = nationalDanfse ? nationalDanfseFonts() : null;
+  const firstImageObject = embeddedFonts ? 11 : 7;
+  const xObjects = imageObjects.length
+    ? ` /XObject << ${imageObjects.map((image, index) => `/${image.name} ${firstImageObject + index} 0 R`).join(" ")} >>`
+    : "";
+  const objects: Buffer[] = [
+    Buffer.from("<< /Type /Catalog /Pages 2 0 R >>", "latin1"),
+    Buffer.from("<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "latin1"),
+    Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width} ${page.height}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >>${xObjects} >> /Contents 4 0 R >>`, "latin1"),
+    Buffer.from(`<< /Length ${Buffer.byteLength(page.content, "latin1")} >>\nstream\n${page.content}\nendstream`, "latin1"),
+    // A NT 008 determina Microsoft Sans Serif para conteudos e Arial para
+    // titulos. Para o DANFSe nacional declaramos essas familias no PDF; nos
+    // demais documentos preservamos as fontes historicas do emissor.
+    Buffer.from(embeddedFonts
+      ? `<< /Type /Font /Subtype /TrueType /BaseFont /${embeddedFonts[0].baseName} /FirstChar 32 /LastChar 255 /Widths [${embeddedFonts[0].widths.join(" ")}] /FontDescriptor 7 0 R /Encoding /WinAnsiEncoding >>`
+      : nationalDanfse
+      ? "<< /Type /Font /Subtype /Type1 /BaseFont /MicrosoftSansSerif /Encoding /WinAnsiEncoding >>"
+      : "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>", "latin1"),
+    Buffer.from(embeddedFonts
+      ? `<< /Type /Font /Subtype /TrueType /BaseFont /${embeddedFonts[1].baseName} /FirstChar 32 /LastChar 255 /Widths [${embeddedFonts[1].widths.join(" ")}] /FontDescriptor 9 0 R /Encoding /WinAnsiEncoding >>`
+      : nationalDanfse
+      ? "<< /Type /Font /Subtype /Type1 /BaseFont /Arial-BoldMT /Encoding /WinAnsiEncoding >>"
+      : "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>", "latin1")
   ];
 
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (let index = 0; index < objects.length; index += 1) {
-    offsets.push(Buffer.byteLength(pdf, "ascii"));
-    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  if (embeddedFonts) {
+    for (const [index, font] of embeddedFonts.entries()) {
+      const descriptorObject = 7 + index * 2;
+      const fileObject = descriptorObject + 1;
+      objects.push(Buffer.from(
+        `<< /Type /FontDescriptor /FontName /${font.baseName} /Flags 32 /FontBBox [${font.bbox.join(" ")}] /ItalicAngle 0 /Ascent ${font.ascent} /Descent ${font.descent} /CapHeight ${font.ascent} /StemV 80 /FontFile2 ${fileObject} 0 R >>`,
+        "latin1"
+      ));
+      objects.push(Buffer.concat([
+        Buffer.from(`<< /Length ${font.data.length} /Length1 ${font.data.length} >>\nstream\n`, "latin1"),
+        font.data,
+        Buffer.from("\nendstream", "latin1")
+      ]));
+    }
   }
 
-  const xrefOffset = Buffer.byteLength(pdf, "ascii");
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-  for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  for (const image of imageObjects) {
+    objects.push(Buffer.concat([
+      Buffer.from(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.data.length} >>\nstream\n`, "latin1"),
+      image.data,
+      Buffer.from("\nendstream", "latin1")
+    ]));
   }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return Buffer.from(pdf, "ascii");
+
+  const chunks: Buffer[] = [Buffer.from("%PDF-1.4\n", "latin1")];
+  const offsets = [0];
+  let byteLength = chunks[0].length;
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(byteLength);
+    const object = Buffer.concat([
+      Buffer.from(`${index + 1} 0 obj\n`, "latin1"),
+      objects[index],
+      Buffer.from("\nendobj\n", "latin1")
+    ]);
+    chunks.push(object);
+    byteLength += object.length;
+  }
+
+  const xrefOffset = byteLength;
+  let trailer = `xref\n0 ${objects.length + 1}\n`;
+  trailer += "0000000000 65535 f \n";
+  for (const offset of offsets.slice(1)) {
+    trailer += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  trailer += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  chunks.push(Buffer.from(trailer, "latin1"));
+  return Buffer.concat(chunks);
+}
+
+function nationalNfseLogo() {
+  try {
+    return readFileSync(resolve(process.cwd(), "public", "nfse-logo-horizontal.jpg"));
+  } catch {
+    return null;
+  }
 }
 
 function recordValue(value: unknown) {
@@ -2776,11 +2907,69 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const vServPrest = recordValue(valores.vServPrest);
   const trib = recordValue(valores.trib);
   const tribMun = recordValue(trib.tribMun);
+  const tribFed = recordValue(trib.tribFed);
+  const pisCofins = recordValue(tribFed.piscofins);
+  const payloadInfoCompl = recordValue(serv.infoCompl);
   const prest = recordValue(infDps.prest);
   const regTrib = recordValue(prest.regTrib);
   const issuerMetadata = recordValue(issuer?.metadata);
   const issuerAddress = recordValue(issuerMetadata.endereco);
   const xml = document.xml ?? "";
+  const xmlDocument = xml ? new DOMParser().parseFromString(xml, "application/xml") : null;
+  const xmlRoot = xmlDocument?.documentElement ?? null;
+  const directElement = (parent: Element | null, localName: string) => {
+    if (!parent) return null;
+    for (let index = 0; index < parent.childNodes.length; index += 1) {
+      const child = parent.childNodes.item(index);
+      if (child?.nodeType === 1 && child.localName === localName) return child as Element;
+    }
+    return null;
+  };
+  const infNfseXml = firstElement(xmlRoot, "infNFSe");
+  const dpsXml = directElement(infNfseXml, "DPS") ?? firstElement(infNfseXml, "DPS");
+  const infDpsXml = directElement(dpsXml, "infDPS") ?? firstElement(infNfseXml, "infDPS");
+  const prestXml = directElement(infDpsXml, "prest");
+  const regTribXml = directElement(prestXml, "regTrib");
+  const prestEndXml = directElement(prestXml, "end");
+  const prestEndNacXml = directElement(prestEndXml, "endNac");
+  const tomaXml = directElement(infDpsXml, "toma");
+  const tomaEndXml = directElement(tomaXml, "end");
+  const tomaEndNacXml = directElement(tomaEndXml, "endNac");
+  const servXml = directElement(infDpsXml, "serv");
+  const cServXml = directElement(servXml, "cServ");
+  const locPrestXml = directElement(servXml, "locPrest");
+  const obraXml = directElement(servXml, "obra");
+  const atvEventoXml = directElement(servXml, "atvEvento");
+  const infoComplXml = directElement(servXml, "infoCompl");
+  const itemPedidoXml = directElement(infoComplXml, "gItemPed");
+  const substXml = directElement(infDpsXml, "subst");
+  const valoresDpsXml = directElement(infDpsXml, "valores");
+  const discountsXml = directElement(valoresDpsXml, "vDescCondIncond");
+  const tribXml = directElement(valoresDpsXml, "trib");
+  const tribMunXml = directElement(tribXml, "tribMun");
+  const tribFedXml = directElement(tribXml, "tribFed");
+  const pisCofinsXml = directElement(tribFedXml, "piscofins");
+  const valoresNfseXml = directElement(infNfseXml, "valores");
+  const ibsCbsDpsXml = directElement(infDpsXml, "IBSCBS");
+  const ibsDpsValuesXml = directElement(ibsCbsDpsXml, "valores");
+  const ibsDpsTribXml = directElement(ibsDpsValuesXml, "trib");
+  const ibsCbsGroupXml = directElement(ibsDpsTribXml, "gIBSCBS");
+  const ibsCbsNfseXml = directElement(infNfseXml, "IBSCBS");
+  const ibsValuesXml = directElement(ibsCbsNfseXml, "valores");
+  const ibsUfXml = directElement(ibsValuesXml, "uf");
+  const ibsMunXml = directElement(ibsValuesXml, "mun");
+  const ibsFedXml = directElement(ibsValuesXml, "fed");
+  const ibsTotalsXml = directElement(ibsCbsNfseXml, "totCIBS");
+  const ibsGroupTotalXml = directElement(ibsTotalsXml, "gIBS");
+  const ibsMunTotalXml = directElement(ibsGroupTotalXml, "gIBSMunTot");
+  const ibsUfTotalXml = directElement(ibsGroupTotalXml, "gIBSUFTot");
+  const cbsTotalXml = directElement(ibsTotalsXml, "gCBS");
+  const totalTaxesXml = directElement(tribXml, "totTrib");
+  const totalTaxesValuesXml = directElement(totalTaxesXml, "vTotTrib");
+  const totalTaxesPercentXml = directElement(totalTaxesXml, "pTotTrib");
+  const destXml = directElement(ibsCbsDpsXml, "dest");
+  const imovelXml = directElement(ibsCbsDpsXml, "imovel");
+  const intermXml = directElement(infDpsXml, "interm");
   const xmlValue = (...names: string[]) => {
     for (const name of names) {
       const value = xml.match(new RegExp(`<${name}[^>]*>([^<]+)</${name}>`, "i"))?.[1];
@@ -2788,42 +2977,50 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     }
     return "";
   };
-  const accessKey = xmlValue("chNFSe", "chNFS-e", "chaveAcesso") || document.chave || "";
+  const valueFrom = (parent: Element | null, name: string, fallback: unknown = "") =>
+    childText(parent, name) || String(fallback ?? "");
+  const numericText = (value: unknown) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const accessKey = infNfseXml?.getAttribute("Id")?.replace(/^NFS/i, "") ||
+    xmlValue("chNFSe", "chNFS-e", "chaveAcesso") || document.chave || "";
   const nfseNumber = xmlValue("nNFSe", "nNfse", "numero") || String(document.numero);
   const dpsIssuedAt = xmlValue("dhEmi", "dEmi") || String(infDps.dhEmi ?? document.createdAt);
   const processedAt = xmlValue("dhProc", "dhProcessamento") || dpsIssuedAt;
   const dpsNumber = xmlValue("nDPS") || String(infDps.nDPS ?? document.numero);
   const dpsSeries = xmlValue("serie") || String(infDps.serie ?? "1");
-  const issuerName = issuer?.razaoSocial ?? String(issuerMetadata.razao_social ?? "");
-  const issuerMunicipality = String(issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
-  const recipientDocument = String(toma.CNPJ ?? toma.CPF ?? "");
-  const recipientMunicipality = String(tomaEnd.xMun ?? tomaEnd.cidade ?? tomaEndNac.xMun ?? tomaEndNac.cidade ?? "");
-  const recipientUf = String(tomaEnd.UF ?? tomaEnd.uf ?? "");
-  const issuerDocument = formatCnpj(document.issuerCnpj);
+  const issuerName = valueFrom(prestXml, "xNome", issuer?.razaoSocial ?? issuerMetadata.razao_social ?? "");
+  const issuerMunicipality = valueFrom(infNfseXml, "xLocEmi", issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
+  const issuerUf = valueFrom(prestEndNacXml, "UF", issuerAddress.uf ?? "-");
+  const recipientDocument = valueFrom(tomaXml, "CNPJ", valueFrom(tomaXml, "CPF", toma.CNPJ ?? toma.CPF ?? ""));
+  const recipientMunicipality = valueFrom(tomaEndNacXml, "xMun", tomaEnd.xMun ?? tomaEnd.cidade ?? tomaEndNac.xMun ?? tomaEndNac.cidade ?? "");
+  const recipientUf = valueFrom(tomaEndNacXml, "UF", tomaEnd.UF ?? tomaEnd.uf ?? "");
+  const issuerDocument = formatFiscalDocument(valueFrom(prestXml, "CNPJ", valueFrom(prestXml, "CPF", document.issuerCnpj)));
   const issuerAddressText = [
-    issuerAddress.logradouro,
-    issuerAddress.numero,
-    issuerAddress.complemento,
-    issuerAddress.bairro
+    valueFrom(prestEndXml, "xLgr", issuerAddress.logradouro),
+    valueFrom(prestEndXml, "nro", issuerAddress.numero),
+    valueFrom(prestEndXml, "xCpl", issuerAddress.complemento),
+    valueFrom(prestEndXml, "xBairro", issuerAddress.bairro)
   ].filter(Boolean).join(", ");
-  const issuerMunicipalityCode = String(issuerAddress.codigo_municipio ?? issuerMetadata.codigo_municipio ?? "");
-  const issuerPostalCode = String(issuerAddress.cep ?? issuerMetadata.cep ?? "");
-  const nationalTaxCode = xmlValue("cTribNac") || String(cServ.cTribNac ?? "");
-  const municipalTaxCode = xmlValue("cTribMun") || String(cServ.cTribMun ?? "");
-  const nbsCode = xmlValue("cNBS") || String(cServ.cNBS ?? "");
-  const serviceMunicipality = xmlValue("cLocPrestacao") || String(serv.locPrest ? recordValue(serv.locPrest).cLocPrestacao ?? "" : "");
-  const issRetention = xmlValue("tpRetISSQN") || String(tribMun.tpRetISSQN ?? tribMun.indRetISS ?? "1");
-  const serviceValue = Number(vServPrest.vServ ?? 0);
+  const issuerMunicipalityCode = valueFrom(prestEndNacXml, "cMun", issuerAddress.codigo_municipio ?? issuerMetadata.codigo_municipio ?? "");
+  const issuerPostalCode = valueFrom(prestEndNacXml, "CEP", issuerAddress.cep ?? issuerMetadata.cep ?? "");
+  const nationalTaxCode = valueFrom(cServXml, "cTribNac", cServ.cTribNac ?? "");
+  const municipalTaxCode = valueFrom(cServXml, "cTribMun", cServ.cTribMun ?? "");
+  const nbsCode = valueFrom(cServXml, "cNBS", cServ.cNBS ?? "");
+  const serviceMunicipality = valueFrom(infNfseXml, "xLocPrestacao", serv.locPrest ? recordValue(serv.locPrest).cLocPrestacao ?? "" : "");
+  const issRetention = valueFrom(tribMunXml, "tpRetISSQN", tribMun.tpRetISSQN ?? tribMun.indRetISS ?? "1");
+  const serviceValue = numericText(valueFrom(valoresNfseXml, "vServ", vServPrest.vServ ?? 0));
   // Para MEI, a NFS-e Nacional não admite pAliq (E0600). O DANFSe deve
   // refletir o XML autorizado e não reaproveitar a alíquota municipal legada
   // presente no payload de origem.
   const isMei =
     xmlValue("opSimpNac") === "2" ||
     String(regTrib.opSimpNac ?? "") === "2";
-  const aliquota = isMei ? null : Number(tribMun.pAliq ?? 0);
-  const issValue = aliquota === null
-    ? null
-    : Number(((serviceValue * aliquota) / 100).toFixed(2));
+  const authorizedAliquota = valueFrom(valoresNfseXml, "pAliqAplic", tribMun.pAliq ?? "");
+  const aliquota = authorizedAliquota === "" || isMei ? null : numericText(authorizedAliquota);
+  const authorizedIss = valueFrom(valoresNfseXml, "vISSQN", "");
+  const issValue = authorizedIss === "" ? null : numericText(authorizedIss);
   const money = (value: number) => value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -2840,35 +3037,46 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   // dimensao minima de 1,52 cm. As coordenadas da NT sao contadas a partir
   // do canto superior esquerdo; o PDF usa pontos e a origem no canto inferior.
   const pointsPerCm = 72 / 2.54;
+  const cm = (value: number) => value * pointsPerCm;
   const qrSize = 1.52 * pointsPerCm;
-  const qrX = 17.48 * pointsPerCm;
-  const qrY = 842 - 1.67 * pointsPerCm - qrSize;
+  const qrX = cm(17.48);
+  const qrY = 842 - cm(1.67) - qrSize;
   const commands: string[] = ["0.5 w"];
-  const left = 28;
-  const right = 567;
-  const width = right - left;
+  const left = cm(0.3);
+  const width = cm(20.4);
+  const right = left + width;
+  // NT 008, item 2.2.2: a borda do formulario deve ficar entre 0,15 e
+  // 0,20 cm do fim do papel. Os campos do Anexo I permanecem em X=0,30 cm.
+  const pageBorder = cm(0.2);
   const line = (x1: number, y1: number, x2: number, y2: number) =>
     commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
   const rect = (x: number, y: number, w: number, h: number) =>
     commands.push(`${x} ${y} ${w} ${h} re S`);
+  const lightGrayRect = (x: number, y: number, w: number, h: number) => {
+    commands.push("0.95 g");
+    commands.push(`${x} ${y} ${w} ${h} re f`);
+    commands.push("0 g");
+  };
   const text = (x: number, y: number, size: number, value: string, font = "F1") =>
-    commands.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdf(value)}) Tj ET`);
+    commands.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdfWinAnsi(value)}) Tj ET`);
   const center = (y: number, size: number, value: string, font = "F1") => {
     const estimated = pdfText(value).length * size * 0.48;
     text(left + Math.max(2, (width - estimated) / 2), y, size, value, font);
   };
+  const centeredIn = (x: number, boxWidth: number, y: number, size: number, value: string, font = "F1") => {
+    const measured = estimatePdfTextWidth(value, size, font === "F2");
+    text(x + Math.max(0, (boxWidth - measured) / 2), y, size, value, font);
+  };
   const qrCaption = (y: number, value: string) => {
-    // A NT exige tres linhas sob o QR. A escala horizontal preserva a altura
-    // legivel de 5,5 pt e permite centralizar as tres linhas no mesmo eixo do
-    // QR, sem ultrapassar a margem direita do DANFSe.
-    const horizontalScale = 80;
-    const renderedWidth = estimatePdfTextWidth(value, 5.5, false) * horizontalScale / 100;
-    const x = qrX + qrSize / 2 - renderedWidth / 2;
-    commands.push(`BT /F1 5.5 Tf ${horizontalScale} Tz ${x} ${y} Td (${escapePdf(value)}) Tj ET`);
+    // NT 008, quadro "COMPLEMENTO QR CODE": X=15,80 cm, Y=3,36 cm,
+    // largura=4,72 cm, altura=0,68 cm, em tres linhas de 6 pontos.
+    centeredIn(cm(15.8), cm(4.72), y, 6, value);
   };
   const section = (top: number, title: string) => {
-    commands.push("0.90 g");
-    commands.push(`${left} ${top - 18} ${width} 18 re f`);
+    commands.push("0.95 g");
+    // Anexo I: o nome do bloco ocupa somente a primeira coluna (5,09 cm),
+    // mantendo os campos da primeira linha livres a direita.
+    commands.push(`${left} ${top - 18} ${cm(5.09)} 18 re f`);
     commands.push("0 G");
     // `g` controla a cor de preenchimento do texto. Sem restaurá-la, os
     // campos após a primeira seção ficavam em cinza 90% e ilegíveis.
@@ -2877,97 +3085,328 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     text(left + 6, top - 12, 7, title, "F2");
   };
   const label = (x: number, y: number, title: string, value: string, maxWidth = 230) => {
-    text(x, y, 6, title);
-    const rendered = wrapPdfTextByWidth(value, maxWidth, 7, "F2")[0] ?? "";
-    text(x, y - 10, 7, rendered, "F2");
+    if (title) text(x, y, 6, title, "F2");
+    const rendered = wrapPdfTextByWidth(value, maxWidth, 7, "F1", true)[0] ?? "";
+    text(x, y - 10, 7, rendered);
   };
 
-  // NT 008/2026: o DANFSe deve conter QR Code, chave de acesso e os blocos
-  // padronizados. O PDF e apenas auxiliar; os valores sempre sao extraidos
-  // da NFS-e autorizada, nunca de uma resposta municipal ou de um rascunho.
-  rect(left, 28, width, 786);
-  center(792, 13, "DANFSe v2.0", "F2");
-  center(778, 8, "Documento Auxiliar da NFS-e", "F2");
-  text(left + 10, 758, 7, `Municipio: ${issuerMunicipality || "-"} / ${String(issuerAddress.uf ?? "-")}`, "F2");
-  text(left + 10, 746, 6, `Ambiente gerador: 1     Tipo de ambiente: ${document.ambiente === "homologacao" ? "2 - Homologacao" : "1 - Producao"}`);
-  text(left + 10, 731, 6, "CHAVE DE ACESSO DA NFS-e", "F2");
-  text(left + 10, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
+  // Grade obrigatoria da NT 008, itens 2.4.3 e 2.4.5. O quadro de dados
+  // comeca imediatamente abaixo do cabecalho, sem area vazia intermediaria.
+  const headerBottom = 842 - cm(1.46);
+  const dataTop = 842 - cm(1.48);
+  const dataBottom = 842 - cm(4.32);
+  const dateOnly = (value: string) => value
+    ? new Date(`${value.slice(0, 10)}T12:00:00-03:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+    : "-";
+  const municipalityLabel = `Município: ${issuerMunicipality || "-"} / ${issuerUf}`;
+  const labelFor = (value: string, labels: Record<string, string>, fallback = "-") => labels[value] ?? (value || fallback);
+  const xmlEnvironment = valueFrom(infNfseXml, "tpAmb", document.ambiente === "homologacao" ? "2" : "1");
+  const generatorLabel = labelFor(valueFrom(infNfseXml, "ambGer", "2"), {
+    "1": "Prefeitura", "2": "Sistema Nacional da NFS-e"
+  });
+  const environmentLabel = labelFor(xmlEnvironment, {
+    "1": "Produção", "2": "Homologação"
+  });
+  const finality = labelFor(valueFrom(ibsCbsDpsXml, "finNFSe", "0"), {
+    "0": "NFS-e regular"
+  }, "NFS-e regular");
+  const emitente = labelFor(valueFrom(infDpsXml, "tpEmit", "1"), {
+    "1": "Prestador", "2": "Tomador", "3": "Intermediário"
+  });
+  const issTaxation = labelFor(valueFrom(tribMunXml, "tribISSQN", ""), {
+    "1": "Operação tributável", "2": "Imunidade", "3": "Exportação de serviço", "4": "Não incidência"
+  });
+  const issRetentionLabel = labelFor(issRetention, {
+    "1": "Não retido", "2": "Retido pelo tomador", "3": "Retido pelo intermediário"
+  });
+  const simpleNational = labelFor(valueFrom(regTribXml, "opSimpNac", xmlValue("opSimpNac") || regTrib.opSimpNac), {
+    "1": "Não optante", "2": "Optante - MEI", "3": "Optante - ME/EPP"
+  });
+  const simpleTaxRegime = labelFor(valueFrom(regTribXml, "regApTribSN", regTrib.regApTribSN ?? ""), {
+    "1": "Tributos federais e municipal pelo SN",
+    "2": "Tributos federais pelo SN; ISSQN fora do SN",
+    "3": "Tributos federais e municipal fora do SN"
+  });
+  const specialTaxRegime = labelFor(valueFrom(regTribXml, "regEspTrib", regTrib.regEspTrib ?? ""), {
+    "0": "Nenhum", "1": "Ato cooperado (cooperativa)", "2": "Estimativa",
+    "3": "Microempresa municipal", "4": "Notário ou registrador",
+    "5": "Profissional autônomo", "6": "Sociedade de profissionais", "9": "Outros"
+  });
+  const nfseSituation = document.status === "cancelado"
+    ? "NFS-e cancelada"
+    : labelFor(valueFrom(infNfseXml, "cStat", "100"), {
+      "100": "NFS-e gerada", "102": "NFS-e de decisão judicial",
+      "103": "NFS-e avulsa", "107": "NFS-e MEI"
+    });
+  const immunityType = labelFor(valueFrom(tribMunXml, "tpImunidade", ""), {
+    "0": "Imunidade - tipo não informado", "1": "Entes federativos",
+    "2": "Templos de qualquer culto", "3": "Partidos, sindicatos e instituições",
+    "4": "Livros, jornais e periódicos", "5": "Fonogramas e videofonogramas"
+  });
+  const suspensionType = labelFor(valueFrom(tribMunXml, "tpSusp", ""), {
+    "1": "Decisão judicial", "2": "Processo administrativo"
+  });
+  const municipalBenefit = labelFor(valueFrom(valoresNfseXml, "tpBM", ""), {
+    "1": "Isenção", "2": "Redução percentual da BC",
+    "3": "Redução da BC em valor", "4": "Alíquota diferenciada"
+  });
+  const pisCofinsRetention = labelFor(valueFrom(pisCofinsXml, "tpRetPisCofins", pisCofins.tpRetPisCofins ?? ""), {
+    "0": "PIS/COFINS/CSLL não retidos", "1": "PIS/COFINS retidos",
+    "2": "PIS/COFINS não retidos", "3": "PIS/COFINS/CSLL retidos",
+    "4": "PIS/COFINS retidos; CSLL não", "5": "PIS retido; COFINS/CSLL não",
+    "6": "COFINS retido; PIS/CSLL não", "7": "COFINS/CSLL retidos; PIS não",
+    "8": "CSLL retido; PIS/COFINS não", "9": "PIS/CSLL retidos; COFINS não"
+  });
+
+  commands.push("1 w");
+  rect(pageBorder, pageBorder, 595 - pageBorder * 2, 842 - pageBorder * 2);
+  commands.push("0.5 w");
+  lightGrayRect(left, headerBottom, width, cm(1.16));
+  line(left, headerBottom, right, headerBottom);
+  if (consultationUrl) {
+    commands.push(`q ${cm(4)} 0 0 ${cm(0.85)} ${cm(0.49)} ${842 - cm(0.44 + 0.85)} cm /NfseLogo Do Q`);
+  }
+  centeredIn(cm(5.41), cm(10.19), 842 - cm(0.69), 9, "DANFSe v2.0", "F2");
+  centeredIn(cm(5.41), cm(10.19), 842 - cm(1.06), 9, "Documento Auxiliar da NFS-e", "F2");
+  text(cm(15.62), 842 - cm(0.67), 8, municipalityLabel);
+  text(cm(15.62), 842 - cm(1.07), 6, `Ambiente Gerador: ${generatorLabel}`);
+  text(cm(15.62), 842 - cm(1.32), 6, `Tipo de Ambiente: ${environmentLabel}`);
+
+  rect(left, dataBottom, width, dataTop - dataBottom);
+  text(cm(0.3), 842 - cm(1.72), 7, "CHAVE DE ACESSO DA NFS-e", "F2");
+  text(cm(0.3), 842 - cm(1.98), 7, accessKey || "Pendente de retorno da SEFIN");
   if (consultationUrl) {
     drawQrCode(commands, consultationUrl, qrX, qrY, qrSize);
-    qrCaption(qrY - 8, "A autenticidade desta NFS-e pode ser verificada");
-    qrCaption(qrY - 15, "pela leitura deste codigo QR ou pela consulta da");
-    qrCaption(qrY - 22, "chave de acesso no portal nacional da NFS-e.");
+    qrCaption(842 - cm(3.57), "A autenticidade desta NFS-e pode ser verificada");
+    qrCaption(842 - cm(3.80), "pela leitura deste código QR ou pela consulta da");
+    qrCaption(842 - cm(4.03), "chave de acesso no portal nacional da NFS-e.");
   }
-  if (document.ambiente === "homologacao") {
-    center(684, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
+  if (xmlEnvironment === "2") {
+    commands.push("1 0 0 rg");
+    centeredIn(cm(5.41), cm(10.19), 842 - cm(1.36), 9, "NFS-e SEM VALIDADE JURIDICA", "F2");
+    commands.push("0 g");
   }
-  section(675, "DADOS DA NFS-e");
-  label(left + 10, 648, "Numero da NFS-e", nfseNumber, 100);
-  label(left + 135, 648, "Competencia", String(infDps.dCompet ?? ""), 110);
-  label(left + 270, 648, "Data e hora de emissao da NFS-e", formattedProcessedAt, 180);
-  label(left + 10, 620, "Numero da DPS", dpsNumber, 100);
-  label(left + 135, 620, "Serie da DPS", dpsSeries, 100);
-  label(left + 270, 620, "Data e hora de emissao da DPS", formattedDpsIssuedAt, 180);
-  label(left + 10, 592, "Emitente da NFS-e", "Prestador", 100);
-  label(left + 135, 592, "Situacao da NFS-e", document.status === "cancelado" ? "NFS-e cancelada" : "NFS-e gerada", 130);
-  label(left + 300, 592, "Finalidade", "NFS-e regular", 120);
 
-  section(565, "PRESTADOR / FORNECEDOR");
-  label(left + 10, 538, "CNPJ / CPF / NIF", issuerDocument, 130);
-  label(left + 155, 538, "Indicador municipal (inscricao)", String(issuerMetadata.inscricao_municipal ?? "-"), 130);
-  label(left + 300, 538, "Telefone", String(issuerMetadata.telefone ?? issuerMetadata.fone ?? "-"), 100);
-  label(left + 10, 510, "Nome / Nome empresarial", issuerName, 280);
-  label(left + 300, 510, "Municipio / UF", `${issuerMunicipality || "-"} / ${String(issuerAddress.uf ?? "-")}`, 180);
-  label(left + 10, 482, "Codigo IBGE / CEP", `${issuerMunicipalityCode || "-"} / ${issuerPostalCode || "-"}`, 150);
-  label(left + 175, 482, "Endereco", issuerAddressText || "-", 290);
-  label(left + 10, 454, "E-mail", String(issuerMetadata.email ?? "-"), 180);
-  label(left + 205, 454, "Simples Nacional na competencia", isMei ? "Optante - MEI" : "Optante - ME/EPP", 220);
+  const dataField = (xCm: number, topCm: number, title: string, value: string) => {
+    text(cm(xCm), 842 - cm(topCm) - 7, 7, title.toUpperCase(), "F2");
+    text(cm(xCm), 842 - cm(topCm) - 16, 7, value || "-");
+  };
+  lightGrayRect(cm(0.3), 842 - cm(4.32), cm(5.09), cm(0.67));
+  dataField(0.3, 2.27, "Número da NFS-e", nfseNumber);
+  dataField(5.41, 2.27, "Competência da NFS-e", dateOnly(valueFrom(infDpsXml, "dCompet", infDps.dCompet ?? "")));
+  dataField(10.51, 2.27, "Data e hora da emissão da NFS-e", formattedProcessedAt);
+  dataField(0.3, 2.96, "Número da DPS", dpsNumber);
+  dataField(5.41, 2.96, "Série da DPS", dpsSeries);
+  dataField(10.51, 2.96, "Data e hora da emissão da DPS", formattedDpsIssuedAt);
+  dataField(0.3, 3.65, "Emitente da NFS-e", emitente);
+  dataField(5.41, 3.65, "Situação da NFS-e", nfseSituation);
+  dataField(10.51, 3.65, "Finalidade", finality);
 
-  section(427, "TOMADOR / ADQUIRENTE");
-  label(left + 10, 400, "CNPJ / CPF / NIF", formatFiscalDocument(recipientDocument), 130);
-  label(left + 155, 400, "Telefone", String(toma.fone ?? "-"), 100);
-  label(left + 270, 400, "Nome / Nome empresarial", String(toma.xNome ?? "-"), 220);
+  // Grade do Anexo I da NT 008, usando as mesmas coordenadas de inicio dos
+  // blocos. Campos sem conteudo no XML sao impressos com "-" (nota 12).
+  const sectionAt = (topCm: number, title: string) => section(842 - cm(topCm), title);
+  const fieldAt = (xCm: number, topCm: number, title: string, value: string, maxWidth = 140) =>
+    label(cm(xCm) + 4, 842 - cm(topCm) - 7, title, value || "-", maxWidth);
   const recipientAddress = [tomaEnd.xLgr, tomaEnd.nro, tomaEnd.xCpl, tomaEnd.xBairro]
+    .map((fallback, index) => valueFrom(tomaEndXml, ["xLgr", "nro", "xCpl", "xBairro"][index], fallback))
     .filter(Boolean).join(", ");
-  label(left + 10, 372, "Municipio / UF", `${recipientMunicipality || "-"} / ${recipientUf || "-"}`, 130);
-  label(left + 155, 372, "Codigo IBGE / CEP", `${String(tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? "-")} / ${String(tomaEndNac.CEP ?? tomaEnd.CEP ?? "-")}`, 130);
-  label(left + 300, 372, "Endereco", recipientAddress || "-", 180);
-  label(left + 10, 344, "E-mail", String(toma.email ?? "-"), 180);
 
-  section(317, "SERVICO PRESTADO");
-  label(left + 10, 290, "Codigo de tributacao nacional / municipal", `${nationalTaxCode || "-"} / ${municipalTaxCode || "-"}`, 180);
-  label(left + 205, 290, "Codigo da NBS", nbsCode || "-", 120);
-  label(left + 340, 290, "Local da prestacao", serviceMunicipality || issuerMunicipality || "-", 150);
-  const descriptionLines = wrapPdfTextByWidth(String(cServ.xDescServ ?? ""), width - 20, 7).slice(0, 6);
-  text(left + 10, 262, 6, "Descricao do servico:");
-  descriptionLines.slice(0, 2).forEach((description, index) => text(left + 10, 250 - index * 9, 6.5, description));
+  sectionAt(4.34, "PRESTADOR / FORNECEDOR");
+  fieldAt(5.41, 4.34, "CNPJ / CPF / NIF", issuerDocument);
+  fieldAt(10.51, 4.34, "Indicador municipal (inscrição)", valueFrom(prestXml, "IM", issuerMetadata.inscricao_municipal ?? "-"));
+  fieldAt(15.62, 4.34, "Telefone", valueFrom(prestXml, "fone", issuerMetadata.telefone ?? issuerMetadata.fone ?? "-"), 105);
+  fieldAt(0.3, 4.99, "Nome / Nome empresarial", issuerName, 275);
+  fieldAt(10.51, 4.99, "Município / Sigla UF", `${issuerMunicipality || "-"} / ${issuerUf}`);
+  fieldAt(15.62, 4.99, "Código IBGE / CEP", `${issuerMunicipalityCode || "-"} / ${issuerPostalCode || "-"}`, 105);
+  fieldAt(0.3, 5.64, "Endereço", issuerAddressText || "-", 275);
+  fieldAt(10.51, 5.64, "E-mail", valueFrom(prestXml, "email", issuerMetadata.email ?? "-"));
+  fieldAt(0.3, 6.29, "Simples Nacional na competência", simpleNational, 275);
+  fieldAt(10.51, 6.29, "Regime de apuração tributária pelo SN", simpleTaxRegime, 275);
 
-  section(223, "TRIBUTACAO MUNICIPAL (ISSQN)");
-  label(left + 10, 196, "Tipo de tributacao do ISSQN", "Operacao tributavel", 130);
-  label(left + 155, 196, "Municipio de incidencia do ISSQN", issuerMunicipality || "-", 150);
-  label(left + 320, 196, "Retencao do ISSQN", issRetention === "2" ? "Retido" : "Nao retido", 100);
-  label(left + 10, 168, "BC ISSQN", money(serviceValue), 100);
-  label(left + 125, 168, "Aliquota aplicada", aliquota === null ? "-" : `${aliquota.toFixed(2)}%`, 100);
-  label(left + 240, 168, "ISSQN apurado", issValue === null ? "-" : money(issValue), 100);
-  label(left + 355, 168, "Tributacao federal (exceto CBS)", "Conforme XML autorizado", 150);
+  const compactBlock = (topCm: number, message: string) => {
+    const top = 842 - cm(topCm);
+    const bottom = 842 - cm(topCm + 0.32);
+    line(left, top, right, top);
+    line(left, bottom, right, bottom);
+    centeredIn(left, width, bottom + 2.5, 7, message);
+  };
+  const tomaPresent = Boolean(tomaXml || recipientDocument || toma.xNome);
+  const tomaTop = 6.92;
+  if (tomaPresent) {
+    sectionAt(tomaTop, "TOMADOR / ADQUIRENTE");
+    fieldAt(5.41, tomaTop, "CNPJ / CPF / NIF", formatFiscalDocument(recipientDocument));
+    fieldAt(10.51, tomaTop, "Indicador municipal (inscrição)", valueFrom(tomaXml, "IM", toma.IM ?? toma.inscricao_municipal ?? "-"));
+    fieldAt(15.62, tomaTop, "Telefone", valueFrom(tomaXml, "fone", toma.fone ?? "-"), 105);
+    fieldAt(0.3, tomaTop + 0.64, "Nome / Nome empresarial", valueFrom(tomaXml, "xNome", toma.xNome ?? "-"), 275);
+    fieldAt(10.51, tomaTop + 0.64, "Município / Sigla UF", `${recipientMunicipality || "-"} / ${recipientUf || "-"}`);
+    fieldAt(15.62, tomaTop + 0.64, "Código IBGE / CEP", `${valueFrom(tomaEndNacXml, "cMun", tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? "-")} / ${valueFrom(tomaEndNacXml, "CEP", tomaEndNac.CEP ?? tomaEnd.CEP ?? "-")}`, 105);
+    fieldAt(0.3, tomaTop + 1.30, "Endereço", recipientAddress || "-", 275);
+    fieldAt(10.51, tomaTop + 1.30, "E-mail", valueFrom(tomaXml, "email", toma.email ?? "-"));
+  } else {
+    compactBlock(tomaTop, "TOMADOR/ADQUIRENTE DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e");
+  }
 
-  section(141, "VALOR TOTAL DA NFS-e");
-  label(left + 10, 114, "Valor da operacao / servico", money(serviceValue), 135);
-  label(left + 160, 114, "Desconto incondicionado", "-", 110);
-  label(left + 285, 114, "Total das retencoes", issRetention === "2" && issValue !== null ? money(issValue) : "-", 110);
-  label(left + 410, 114, "Valor liquido da NFS-e", money(serviceValue), 120);
+  const renderOperationParty = (
+    party: Element | null,
+    title: string,
+    topCm: number,
+    includeMunicipalIndicator: boolean
+  ) => {
+    if (!party) {
+      compactBlock(topCm, `${title} NÃO IDENTIFICADO NA NFS-e`);
+      return 0.32;
+    }
+    sectionAt(topCm, title);
+    const partyEnd = directElement(party, "end");
+    const partyEndNac = directElement(partyEnd, "endNac");
+    const partyDocument = valueFrom(party, "CNPJ", valueFrom(party, "CPF", valueFrom(party, "NIF", "-")));
+    const partyAddress = ["xLgr", "nro", "xCpl", "xBairro"]
+      .map((name) => valueFrom(partyEnd, name, ""))
+      .filter(Boolean).join(", ");
+    fieldAt(5.41, topCm, "CNPJ / CPF / NIF", formatFiscalDocument(partyDocument));
+    if (includeMunicipalIndicator) fieldAt(10.51, topCm, "Indicador municipal (inscrição)", valueFrom(party, "IM", "-"));
+    fieldAt(15.62, topCm, "Telefone", valueFrom(party, "fone", "-"), 105);
+    fieldAt(0.3, topCm + 0.64, "Nome / Nome empresarial", valueFrom(party, "xNome", "-"), 275);
+    fieldAt(10.51, topCm + 0.64, "Município / Sigla UF", `${valueFrom(partyEndNac, "xMun", "-")} / ${valueFrom(partyEndNac, "UF", "-")}`);
+    fieldAt(15.62, topCm + 0.64, "Código IBGE / CEP", `${valueFrom(partyEndNac, "cMun", "-")} / ${valueFrom(partyEndNac, "CEP", "-")}`, 105);
+    fieldAt(0.3, topCm + 1.30, "Endereço", partyAddress || "-", 275);
+    fieldAt(10.51, topCm + 1.30, "E-mail", valueFrom(party, "email", "-"));
+    return 1.94;
+  };
+  const destTop = tomaTop + (tomaPresent ? 1.94 : 0.32);
+  const destHeight = renderOperationParty(destXml, "DESTINATÁRIO DA OPERAÇÃO", destTop, false);
+  const intermTop = destTop + destHeight;
+  const intermHeight = renderOperationParty(intermXml, "INTERMEDIÁRIO DA OPERAÇÃO", intermTop, true);
+  const serviceTop = intermTop + intermHeight;
 
-  section(87, "INFORMACOES COMPLEMENTARES");
-  const info = [
-    `NFS-e nacional ${nfseNumber}.`,
-    accessKey ? `Consulte pela chave ${accessKey}.` : "Chave de acesso nao informada no retorno.",
-    "Documento auxiliar gerado localmente conforme NT 008/2026."
-  ].join(" ");
-  wrapPdfTextByWidth(info, width - 20, 6).slice(0, 2)
-    .forEach((value, index) => text(left + 10, 62 - index * 8, 6, value));
-  if (consultationUrl) text(left + 10, 38, 5.5, consultationUrl);
+  sectionAt(serviceTop, "SERVIÇO PRESTADO");
+  fieldAt(5.41, serviceTop, "Código de tributação nacional / municipal", `${nationalTaxCode || "-"} / ${municipalTaxCode || "-"}`);
+  fieldAt(10.51, serviceTop, "Código da NBS", nbsCode || "-");
+  fieldAt(15.62, serviceTop, "Local da prestação / UF / país", `${serviceMunicipality || issuerMunicipality || "-"} / ${valueFrom(infNfseXml, "UF", issuerUf)} / ${valueFrom(locPrestXml, "cPaisPrestacao", "BR")}`, 105);
+  const descriptionLines = wrapPdfTextByWidth(valueFrom(cServXml, "xDescServ", cServ.xDescServ ?? "-"), width - 16, 6, "F1", true).slice(0, 4);
+  text(left + 5, 842 - cm(serviceTop + 0.65) - 7, 6, valueFrom(infNfseXml, municipalTaxCode ? "xTribMun" : "xTribNac", cServ.xTribMun ?? cServ.xTribNac ?? "-"));
+  text(left + 5, 842 - cm(serviceTop + 1.05) + 2, 6, "Descrição do serviço:", "F2");
+  descriptionLines.slice(0, 2).forEach((description, index) => text(left + 5, 842 - cm(serviceTop + 1.29) - index * 8, 6, description));
+  const issTop = serviceTop + 1.69;
 
-  return { width: 595, height: 842, content: commands.join("\n") };
+  const fiscalMoney = (parent: Element | null, tag: string, fallback: unknown = "") => {
+    const value = valueFrom(parent, tag, fallback);
+    return value === "" ? "-" : money(numericText(value));
+  };
+  const fiscalPercent = (parent: Element | null, tag: string, fallback: unknown = "") => {
+    const value = valueFrom(parent, tag, fallback);
+    return value === "" ? "-" : `${numericText(value).toFixed(2)}%`;
+  };
+  const issIncidence = `${valueFrom(infNfseXml, "xLocIncid", issuerMunicipality || "-")} / ${valueFrom(infNfseXml, "UF", issuerUf)} / ${valueFrom(infNfseXml, "cPaisResult", "BR")}`;
+
+  sectionAt(issTop, "TRIBUTAÇÃO MUNICIPAL (ISSQN)");
+  fieldAt(5.41, issTop, "Tipo de tributação do ISSQN", issTaxation);
+  fieldAt(10.51, issTop, "Município / UF / país da incidência", issIncidence, 275);
+  fieldAt(0.3, issTop + 0.65, "Regime especial de tributação", specialTaxRegime);
+  fieldAt(5.41, issTop + 0.65, "Tipo de imunidade do ISSQN", immunityType);
+  fieldAt(10.51, issTop + 0.65, "Suspensão da exigibilidade", suspensionType);
+  fieldAt(15.62, issTop + 0.65, "Número processo suspensão", valueFrom(tribMunXml, "nProcesso", "-"), 105);
+  fieldAt(0.3, issTop + 1.30, "Benefício municipal", municipalBenefit);
+  fieldAt(5.41, issTop + 1.30, "Cálculo do BM", fiscalMoney(valoresNfseXml, "vCalcBM"));
+  fieldAt(10.51, issTop + 1.30, "Total deduções/reduções", fiscalMoney(valoresNfseXml, "vDR", valores.vDedRed ?? ""));
+  fieldAt(15.62, issTop + 1.30, "Desconto incondicionado", fiscalMoney(discountsXml, "vDescIncond", valores.vDescIncond ?? ""), 105);
+  fieldAt(0.3, issTop + 1.94, "BC ISSQN", fiscalMoney(valoresNfseXml, "vBC"));
+  fieldAt(5.41, issTop + 1.94, "Alíquota aplicada", aliquota === null ? "-" : `${aliquota.toFixed(2)}%`);
+  fieldAt(10.51, issTop + 1.94, "Retenção do ISSQN", issRetentionLabel);
+  fieldAt(15.62, issTop + 1.94, "ISSQN apurado", issValue === null ? "-" : money(issValue), 105);
+
+  const federalTop = issTop + 2.59;
+
+  sectionAt(federalTop, "TRIBUTAÇÃO FEDERAL (EXCETO CBS)");
+  fieldAt(5.41, federalTop, "IRRF", fiscalMoney(tribFedXml, "vRetIRRF", tribFed.vRetIRRF ?? ""));
+  fieldAt(10.51, federalTop, "Contribuição previdenciária - retida", fiscalMoney(tribFedXml, "vRetCP", tribFed.vRetCP ?? ""));
+  fieldAt(15.62, federalTop, "Contribuições sociais - retidas", fiscalMoney(tribFedXml, "vRetCSLL", tribFed.vRetCSLL ?? ""), 105);
+  fieldAt(0.3, federalTop + 0.65, "PIS - débito apuração própria", fiscalMoney(pisCofinsXml, "vPis", pisCofins.vPis ?? ""));
+  fieldAt(5.41, federalTop + 0.65, "COFINS - débito apuração própria", fiscalMoney(pisCofinsXml, "vCofins", pisCofins.vCofins ?? ""));
+  fieldAt(10.51, federalTop + 0.65, "Descrição contrib. sociais - retidas", pisCofinsRetention, 275);
+  const ibsTop = federalTop + 1.30;
+
+  const ibsExclusions = [
+    valueFrom(discountsXml, "vDescIncond", "0"),
+    valueFrom(ibsValuesXml, "vCalcReeRepRes", "0"),
+    valueFrom(valoresNfseXml, "vISSQN", "0"),
+    valueFrom(pisCofinsXml, "vPis", "0"),
+    valueFrom(pisCofinsXml, "vCofins", "0")
+  ].reduce((total, value) => total + numericText(value), 0);
+  const ibsTotal = numericText(valueFrom(ibsGroupTotalXml, "vIBSTot", "0"));
+  const cbsTotal = numericText(valueFrom(cbsTotalXml, "vCBS", "0"));
+  const totalIbsCbs = ibsTotal + cbsTotal;
+
+  sectionAt(ibsTop, "TRIBUTAÇÃO IBS / CBS");
+  fieldAt(5.41, ibsTop, "CST / cClassTrib", `${valueFrom(ibsCbsGroupXml, "CST", "-")} / ${valueFrom(ibsCbsGroupXml, "cClassTrib", "-")}`);
+  fieldAt(10.51, ibsTop, "Indicador operação / incidência", `${valueFrom(ibsCbsDpsXml, "cIndOp", "-")} / ${valueFrom(ibsCbsNfseXml, "cLocalidadeIncid", "-")} / ${valueFrom(ibsCbsNfseXml, "xLocalidadeIncid", "-")}`, 275);
+  fieldAt(0.3, ibsTop + 0.64, "Exclusões e reduções da base", money(ibsExclusions));
+  fieldAt(5.41, ibsTop + 0.64, "Base de cálculo após exclusões", fiscalMoney(ibsValuesXml, "vBC"));
+  fieldAt(10.51, ibsTop + 0.64, "Red. alíquota IBS / CBS", `${fiscalPercent(ibsUfXml, "pRedAliqUF")} / ${fiscalPercent(ibsMunXml, "pRedAliqMun")} / ${fiscalPercent(ibsFedXml, "pRedAliqCBS")}`);
+  fieldAt(15.62, ibsTop + 0.64, "Alíquota - IBS UF / IBS Mun", `${fiscalPercent(ibsUfXml, "pIBSUF")} / ${fiscalPercent(ibsMunXml, "pIBSMun")}`, 105);
+  fieldAt(0.3, ibsTop + 1.29, "Alíq. efetiva municipal - IBS", fiscalPercent(ibsMunXml, "pAliqEfetMun"));
+  fieldAt(5.41, ibsTop + 1.29, "Valor apurado municipal - IBS", fiscalMoney(ibsMunTotalXml, "vIBSMun"));
+  fieldAt(10.51, ibsTop + 1.29, "Alíq. efetiva estadual - IBS", fiscalPercent(ibsUfXml, "pAliqEfetUF"));
+  fieldAt(15.62, ibsTop + 1.29, "Valor apurado estadual - IBS", fiscalMoney(ibsUfTotalXml, "vIBSUF"), 105);
+  fieldAt(0.3, ibsTop + 1.94, "Valor total apurado - IBS", fiscalMoney(ibsGroupTotalXml, "vIBSTot"));
+  fieldAt(5.41, ibsTop + 1.94, "Alíquota - CBS", fiscalPercent(ibsFedXml, "pCBS"));
+  fieldAt(10.51, ibsTop + 1.94, "Alíquota efetiva - CBS", fiscalPercent(ibsFedXml, "pAliqEfetCBS"));
+  fieldAt(15.62, ibsTop + 1.94, "Valor total apurado - CBS", fiscalMoney(cbsTotalXml, "vCBS"), 105);
+  const totalTop = ibsTop + 2.58;
+
+  sectionAt(totalTop, "VALOR TOTAL DA NFS-e");
+  fieldAt(5.41, totalTop, "Valor da operação / serviço", money(serviceValue));
+  fieldAt(10.51, totalTop, "Desconto incondicionado", fiscalMoney(discountsXml, "vDescIncond", valores.vDescIncond ?? ""));
+  fieldAt(15.62, totalTop, "Desconto condicionado", fiscalMoney(discountsXml, "vDescCond", valores.vDescCond ?? ""), 105);
+  lightGrayRect(cm(15.62), 842 - cm(totalTop + 1.36), cm(5.08), cm(0.67));
+  fieldAt(0.3, totalTop + 0.69, "Total das retenções (ISSQN / federais)", fiscalMoney(valoresNfseXml, "vTotalRet"));
+  fieldAt(5.41, totalTop + 0.69, "Valor líquido da NFS-e", fiscalMoney(valoresNfseXml, "vLiq", serviceValue));
+  fieldAt(10.51, totalTop + 0.69, "Total do IBS/CBS", money(totalIbsCbs));
+  fieldAt(15.62, totalTop + 0.69, "Valor líquido da NFS-e + IBS/CBS", fiscalMoney(ibsTotalsXml, "vTotNF"), 105);
+  const infoTop = totalTop + 1.37;
+
+  // Sem o canhoto opcional, o quadro de informações ocupa a área restante
+  // até Y=28,77 cm. Quando blocos opcionais são compactados, esta área cresce
+  // na mesma proporção, conforme itens 2.3.1 e 2.3.3 da NT 008.
+  const infoBottom = 28.77;
+  lightGrayRect(left, 842 - cm(infoTop + 0.39), cm(5.09), cm(0.39));
+  rect(left, 842 - cm(infoBottom), width, cm(infoBottom - infoTop));
+  text(left + 6, 842 - cm(infoTop + 0.28), 7, "INFORMAÇÕES COMPLEMENTARES", "F2");
+  const approximateTaxes = totalTaxesValuesXml
+    ? `Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: R$ ${fiscalMoney(totalTaxesValuesXml, "vTotTribFed")} ; Estaduais: R$ ${fiscalMoney(totalTaxesValuesXml, "vTotTribEst")} ; Municipais: R$ ${fiscalMoney(totalTaxesValuesXml, "vTotTribMun")}`
+    : `Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: ${fiscalPercent(totalTaxesPercentXml, "pTotTribFed")} ; Estaduais: ${fiscalPercent(totalTaxesPercentXml, "pTotTribEst")} ; Municipais: ${fiscalPercent(totalTaxesPercentXml, "pTotTribMun")}`;
+  const complementaryParts = [
+    valueFrom(infoComplXml, "xInfComp", payloadInfoCompl.xInfComp ?? infDps.infoCompl ?? "") ? `Inf. Cont.: ${valueFrom(infoComplXml, "xInfComp", payloadInfoCompl.xInfComp ?? infDps.infoCompl ?? "")}` : "",
+    valueFrom(substXml, "chSubstda", "") ? `NFS-e Subst.: ${valueFrom(substXml, "chSubstda", "")}` : "",
+    valueFrom(infoComplXml, "docRef", "") ? `Doc. Ref.: ${valueFrom(infoComplXml, "docRef", "")}` : "",
+    valueFrom(obraXml, "cObra", "") ? `Cod. Obra: ${valueFrom(obraXml, "cObra", "")}` : "",
+    valueFrom(imovelXml, "inscImobFisc", valueFrom(obraXml, "inscImobFisc", "")) ? `Insc. Imob.: ${valueFrom(imovelXml, "inscImobFisc", valueFrom(obraXml, "inscImobFisc", ""))}` : "",
+    valueFrom(atvEventoXml, "idAtvEvt", "") ? `Cod. Evt.: ${valueFrom(atvEventoXml, "idAtvEvt", "")}` : "",
+    valueFrom(infoComplXml, "idDocTec", "") ? `Doc. Tec.: ${valueFrom(infoComplXml, "idDocTec", "")}` : "",
+    valueFrom(infoComplXml, "xPed", "") ? `Núm. Ped.: ${valueFrom(infoComplXml, "xPed", "")}` : "",
+    valueFrom(itemPedidoXml, "xItemPed", "") ? `Item Ped.: ${valueFrom(itemPedidoXml, "xItemPed", "")}` : "",
+    valueFrom(infNfseXml, "xOutInf", "") ? `Inf. A. T. Mun.: ${valueFrom(infNfseXml, "xOutInf", "")}` : "",
+    approximateTaxes
+  ].filter(Boolean);
+  const info = complementaryParts.join(" | ");
+  wrapPdfTextByWidth(info, width - 12, 6, "F1", true).slice(0, 14)
+    .forEach((value, index) => text(left + 5, 842 - cm(infoTop + 0.41) - 6 - index * 8, 6, value));
+
+  // NT 008, item 2.2.4: documentos cancelados devem trazer marca d'água
+  // diagonal em Arial, 50 pontos e cinza K35.
+  if (document.status === "cancelado") {
+    commands.push("q 0.65 g");
+    commands.push("BT /F2 50 Tf 0.707 0.707 -0.707 0.707 145 315 Tm (CANCELADA) Tj ET");
+    commands.push("Q");
+  }
+
+  const logo = nationalNfseLogo();
+  return {
+    width: 595,
+    height: 842,
+    content: commands.join("\n"),
+    images: logo ? [{ name: "NfseLogo", data: logo, width: 1920, height: 389 }] : []
+  };
 }
 
 function nfseContentStream(document: DocumentRecord, issuer: Issuer | null) {
@@ -4267,9 +4706,13 @@ function wrapPdfTextByWidth(
   value: string,
   maxWidth: number,
   size: number,
-  font = "F1"
+  font = "F1",
+  preserveAccents = false
 ) {
-  const words = pdfText(value).split(/\s+/).filter(Boolean);
+  const source = preserveAccents
+    ? String(value ?? "").normalize("NFC").replace(/[^\x20-\xFF]/g, "?")
+    : pdfText(value);
+  const words = source.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let current = "";
 
@@ -4313,6 +4756,18 @@ function pdfText(value: string) {
 
 function escapePdf(value: string) {
   return pdfText(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("(", "\\(")
+    .replaceAll(")", "\\)");
+}
+
+function escapePdfWinAnsi(value: string) {
+  return String(value ?? "")
+    .normalize("NFC")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[^\x20-\xFF]/g, "?")
     .replaceAll("\\", "\\\\")
     .replaceAll("(", "\\(")
     .replaceAll(")", "\\)");

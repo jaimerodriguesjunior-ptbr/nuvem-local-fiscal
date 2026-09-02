@@ -463,7 +463,25 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       providerName: "nfse-nacional",
       status: "autorizado",
       providerDocumentNumber: "41260835181069000143000000000000000000000000000001",
-      processedXml: "<NFSe><infNFSe><nNFSe>1</nNFSe><chNFSe>41260835181069000143000000000000000000000000000001</chNFSe><opSimpNac>2</opSimpNac></infNFSe></NFSe>"
+      processedXml: `<NFSe><infNFSe>
+        <nNFSe>1</nNFSe><chNFSe>41260835181069000143000000000000000000000000000001</chNFSe>
+        <tpAmb>2</tpAmb><ambGer>2</ambGer><cStat>107</cStat>
+        <dhProc>2026-08-06T10:00:01-03:00</dhProc><xLocEmi>Toledo</xLocEmi>
+        <xLocPrestacao>Toledo</xLocPrestacao><xLocIncid>Toledo</xLocIncid><cPaisResult>BR</cPaisResult>
+        <valores><vServ>123.45</vServ><vBC>123.45</vBC><pAliqAplic>3.00</pAliqAplic><vISSQN>3.70</vISSQN><vTotalRet>5.00</vTotalRet><vLiq>118.45</vLiq><tpBM>1</tpBM></valores>
+        <IBSCBS><cLocalidadeIncid>4127700</cLocalidadeIncid><xLocalidadeIncid>Toledo / PR</xLocalidadeIncid>
+          <valores><vBC>118.45</vBC><uf><pIBSUF>0.10</pIBSUF><pAliqEfetUF>0.10</pAliqEfetUF></uf><mun><pIBSMun>0.00</pIBSMun><pAliqEfetMun>0.00</pAliqEfetMun></mun><fed><pCBS>0.90</pCBS><pAliqEfetCBS>0.90</pAliqEfetCBS></fed></valores>
+          <totCIBS><gIBS><vIBSTot>0.12</vIBSTot><gIBSMunTot><vIBSMun>0.00</vIBSMun></gIBSMunTot><gIBSUFTot><vIBSUF>0.12</vIBSUF></gIBSUFTot></gIBS><gCBS><vCBS>1.07</vCBS></gCBS><vTotNF>119.64</vTotNF></totCIBS>
+        </IBSCBS>
+        <DPS><infDPS><nDPS>1</nDPS><serie>1</serie><dCompet>2026-08-06</dCompet><dhEmi>2026-08-06T10:00:00-03:00</dhEmi><tpEmit>1</tpEmit>
+          <prest><CNPJ>35181069000143</CNPJ><xNome>Empresa Autorizada XML</xNome><IM>7654321</IM><fone>45999999999</fone><email>xml@empresa.test</email><regTrib><opSimpNac>3</opSimpNac><regApTribSN>2</regApTribSN><regEspTrib>6</regEspTrib></regTrib><end><xLgr>Rua XML</xLgr><nro>99</nro><xBairro>Centro</xBairro><endNac><cMun>4127700</cMun><CEP>85900000</CEP><UF>PR</UF></endNac></end></prest>
+          <toma><CNPJ>12345678000195</CNPJ><xNome>Tomador do XML</xNome><end><xLgr>Rua Tomador XML</xLgr><nro>10</nro><endNac><xMun>Toledo</xMun><UF>PR</UF><cMun>4127700</cMun><CEP>85900100</CEP></endNac></end></toma>
+          <interm><CNPJ>11222333000144</CNPJ><xNome>Intermediário XML</xNome><end><endNac><xMun>Toledo</xMun><UF>PR</UF></endNac></end></interm>
+          <serv><cServ><cTribNac>140101</cTribNac><cNBS>120013100</cNBS><xDescServ>Serviço autorizado no XML</xDescServ></cServ><infoCompl><idDocTec>ART-123</idDocTec><docRef>CONTRATO-9</docRef><xPed>PED-8</xPed><gItemPed><xItemPed>ITEM-7</xItemPed></gItemPed><xInfComp>Informação complementar autorizada</xInfComp></infoCompl></serv>
+          <valores><vServPrest><vServ>100.00</vServ></vServPrest><vDescCondIncond><vDescIncond>1.00</vDescIncond><vDescCond>2.00</vDescCond></vDescCondIncond><trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>2</tpRetISSQN><tpSusp>1</tpSusp></tribMun><tribFed><vRetIRRF>1.10</vRetIRRF><vRetCP>2.20</vRetCP><vRetCSLL>3.30</vRetCSLL><piscofins><vPis>0.40</vPis><vCofins>0.50</vCofins><tpRetPisCofins>1</tpRetPisCofins></piscofins></tribFed><totTrib><vTotTrib><vTotTribFed>10.00</vTotTribFed><vTotTribEst>0.00</vTotTribEst><vTotTribMun>5.00</vTotTribMun></vTotTrib></totTrib></trib></valores>
+          <IBSCBS><finNFSe>0</finNFSe><cIndOp>100101</cIndOp><valores><trib><gIBSCBS><CST>000</CST><cClassTrib>000001</cClassTrib></gIBSCBS></trib></valores></IBSCBS>
+        </infDPS></DPS>
+      </infNFSe></NFSe>`
     });
     const nationalPdf = await app.inject({
       method: "GET",
@@ -471,23 +489,67 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
       headers: bearer
     });
     assert.equal(nationalPdf.statusCode, 200, nationalPdf.body);
-    const nationalPdfText = nationalPdf.rawPayload.toString("ascii");
+    const nationalPdfText = nationalPdf.rawPayload.toString("latin1");
     assert.match(nationalPdfText, /DANFSe v2\.0/);
     assert.match(nationalPdfText, /NFS-e SEM VALIDADE JURIDICA/);
-    assert.match(nationalPdfText, /ConsultaPublica/);
     assert.match(nationalPdfText, /A autenticidade desta NFS-e pode ser verificada/);
-    assert.match(nationalPdfText, /pela leitura deste codigo QR ou pela consulta da/);
+    assert.match(nationalPdfText, /pela leitura deste código QR ou pela consulta da/);
     assert.match(nationalPdfText, /chave de acesso no portal nacional da NFS-e\./);
-    assert.match(nationalPdfText, /https:\/\/www\.nfse\.gov\.br\/ConsultaPublica\/\?tpc=1&chave=41260835181069000143000000000000000000000000000001/);
     assert.match(nationalPdfText, /495\.496[^\n]*751\.574[^\n]*43\.086[^\n]*re S/);
-    assert.match(nationalPdfText, /DADOS DA NFS-e/);
+    assert.match(nationalPdfText, /\/NfseLogo 11 0 R/);
+    assert.match(nationalPdfText, /8\.5039[^\n]*719\.543[^\n]*578\.267[^\n]*80\.503[^\n]*re S/);
+    assert.match(nationalPdfText, /NÚMERO DA NFS-E/);
+    assert.match(nationalPdfText, /DATA E HORA DA EMISSÃO DA NFS-E/);
     assert.match(nationalPdfText, /PRESTADOR \/ FORNECEDOR/);
     assert.match(nationalPdfText, /TOMADOR \/ ADQUIRENTE/);
-    assert.match(nationalPdfText, /TRIBUTACAO MUNICIPAL/);
+    assert.match(nationalPdfText, /TRIBUTAÇÃO MUNICIPAL/);
     assert.match(nationalPdfText, /VALOR TOTAL DA NFS-e/);
-    assert.match(nationalPdfText, /Codigo da NBS/);
+    assert.match(nationalPdfText, /\/MicrosoftSansSerif/);
+    assert.match(nationalPdfText, /\/Arial-BoldMT/);
+    assert.match(nationalPdfText, /\/FontFile2 8 0 R/);
+    assert.match(nationalPdfText, /\/FontFile2 10 0 R/);
+    assert.match(nationalPdfText, /1 w/);
+    assert.match(nationalPdfText, /0\.95 g/);
+    assert.doesNotMatch(nationalPdfText, /0\.90 g/);
+    assert.match(nationalPdfText, /Empresa Autorizada XML/);
+    assert.match(nationalPdfText, /Intermediário XML/);
+    assert.match(nationalPdfText, /DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e/);
+    assert.doesNotMatch(nationalPdfText, /INTERMEDIÁRIO DA OPERAÇÃO NÃO IDENTIFICADO/);
+    assert.match(nationalPdfText, /Sistema Nacional da NFS-e/);
+    assert.match(nationalPdfText, /Homologação/);
+    assert.match(nationalPdfText, /NFS-e MEI/);
+    assert.match(nationalPdfText, /Optante - ME\/EPP/);
+    assert.match(nationalPdfText, /Tributos federais pelo SN; ISSQN fora do SN/);
+    assert.match(nationalPdfText, /Sociedade de profissionais/);
+    assert.match(nationalPdfText, /Decisão judicial/);
+    assert.match(nationalPdfText, /Isenção/);
+    assert.match(nationalPdfText, /PIS\/COFINS retidos/);
+    assert.match(nationalPdfText, /Inf\. Cont\.: Informação complementar autorizada/);
+    assert.match(nationalPdfText, /Doc\. Ref\.: CONTRATO-9/);
+    assert.match(nationalPdfText, /Doc\. Tec\.: ART-123/);
+    assert.match(nationalPdfText, /Núm\. Ped\.: PED-8/);
+    assert.match(nationalPdfText, /Item Ped\.: ITEM-7/);
+    assert.match(nationalPdfText, /123,45/);
+    assert.match(nationalPdfText, /3,70/);
+    assert.match(nationalPdfText, /Totais Aproximados dos Tributos cfe\. Lei nº 12\.741\/2012/);
+    assert.match(nationalPdfText, /C\u00f3digo da NBS/);
     assert.doesNotMatch(nationalPdfText, /\(2\.00\)/);
     assert.doesNotMatch(nationalPdfText, /MUNICIPIO DE GUAIRA/);
+
+    app.store.saveCancellationResult(nationalPdfDocument.id, {
+      justification: "Teste de marca d'água",
+      requestXml: "<cancelamento/>", signedXml: "<cancelamento/>",
+      responseXml: "<retorno/>", processedXml: "<evento/>",
+      statusCode: "135", reason: "Cancelamento homologado", protocol: "123", success: true
+    });
+    const cancelledNationalPdf = await app.inject({
+      method: "GET", url: `/nfse/${nationalPdfDocument.providerLikeId}/pdf`, headers: bearer
+    });
+    assert.equal(cancelledNationalPdf.statusCode, 200, cancelledNationalPdf.body);
+    const cancelledNationalPdfText = cancelledNationalPdf.rawPayload.toString("latin1");
+    assert.match(cancelledNationalPdfText, /0\.65 g/);
+    assert.match(cancelledNationalPdfText, /\/F2 50 Tf/);
+    assert.match(cancelledNationalPdfText, /\(CANCELADA\)/);
 
     const saveToledoWithoutEntityId = await app.inject({
       method: "PUT",
