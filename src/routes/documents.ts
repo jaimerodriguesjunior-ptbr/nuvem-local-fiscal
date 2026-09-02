@@ -2843,9 +2843,6 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const qrSize = 1.52 * pointsPerCm;
   const qrX = 17.48 * pointsPerCm;
   const qrY = 842 - 1.67 * pointsPerCm - qrSize;
-  // A legenda obrigatoria fica abaixo do QR, mas inicia antes dele para que as
-  // tres linhas caibam integralmente dentro da area imprimivel da pagina.
-  const qrCaptionX = 13.3 * pointsPerCm;
   const commands: string[] = ["0.5 w"];
   const left = 28;
   const right = 567;
@@ -2859,6 +2856,10 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const center = (y: number, size: number, value: string, font = "F1") => {
     const estimated = pdfText(value).length * size * 0.48;
     text(left + Math.max(2, (width - estimated) / 2), y, size, value, font);
+  };
+  const rightAlign = (xRight: number, y: number, size: number, value: string, font = "F1") => {
+    const estimated = pdfText(value).length * size * 0.48;
+    text(xRight - estimated, y, size, value, font);
   };
   const section = (top: number, title: string) => {
     commands.push("0.90 g");
@@ -2888,9 +2889,11 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   text(left + 10, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
   if (consultationUrl) {
     drawQrCode(commands, consultationUrl, qrX, qrY, qrSize);
-    text(qrCaptionX, qrY - 8, 5.5, "A autenticidade desta NFS-e pode ser verificada");
-    text(qrCaptionX, qrY - 15, 5.5, "pela leitura deste codigo QR ou pela consulta da");
-    text(qrCaptionX, qrY - 22, 5.5, "chave de acesso no portal nacional da NFS-e.");
+    // A legenda acompanha a mesma borda direita do QR Code, criando um unico
+    // bloco visual sem sair da area imprimivel do DANFSe.
+    rightAlign(qrX + qrSize, qrY - 8, 5.5, "A autenticidade desta NFS-e pode ser verificada");
+    rightAlign(qrX + qrSize, qrY - 15, 5.5, "pela leitura deste codigo QR ou pela consulta da");
+    rightAlign(qrX + qrSize, qrY - 22, 5.5, "chave de acesso no portal nacional da NFS-e.");
   }
   if (document.ambiente === "homologacao") {
     center(684, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
