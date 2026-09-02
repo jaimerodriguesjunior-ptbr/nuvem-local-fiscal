@@ -2857,9 +2857,14 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     const estimated = pdfText(value).length * size * 0.48;
     text(left + Math.max(2, (width - estimated) / 2), y, size, value, font);
   };
-  const rightAlign = (xRight: number, y: number, size: number, value: string, font = "F1") => {
-    const estimated = pdfText(value).length * size * 0.48;
-    text(xRight - estimated, y, size, value, font);
+  const qrCaption = (y: number, value: string) => {
+    // A NT exige tres linhas sob o QR. A escala horizontal preserva a altura
+    // legivel de 5,5 pt e permite centralizar as tres linhas no mesmo eixo do
+    // QR, sem ultrapassar a margem direita do DANFSe.
+    const horizontalScale = 80;
+    const renderedWidth = estimatePdfTextWidth(value, 5.5, false) * horizontalScale / 100;
+    const x = qrX + qrSize / 2 - renderedWidth / 2;
+    commands.push(`BT /F1 5.5 Tf ${horizontalScale} Tz ${x} ${y} Td (${escapePdf(value)}) Tj ET`);
   };
   const section = (top: number, title: string) => {
     commands.push("0.90 g");
@@ -2889,11 +2894,9 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   text(left + 10, 720, 7, accessKey || "Pendente de retorno da SEFIN", "F2");
   if (consultationUrl) {
     drawQrCode(commands, consultationUrl, qrX, qrY, qrSize);
-    // A legenda acompanha a mesma borda direita do QR Code, criando um unico
-    // bloco visual sem sair da area imprimivel do DANFSe.
-    rightAlign(qrX + qrSize, qrY - 8, 5.5, "A autenticidade desta NFS-e pode ser verificada");
-    rightAlign(qrX + qrSize, qrY - 15, 5.5, "pela leitura deste codigo QR ou pela consulta da");
-    rightAlign(qrX + qrSize, qrY - 22, 5.5, "chave de acesso no portal nacional da NFS-e.");
+    qrCaption(qrY - 8, "A autenticidade desta NFS-e pode ser verificada");
+    qrCaption(qrY - 15, "pela leitura deste codigo QR ou pela consulta da");
+    qrCaption(qrY - 22, "chave de acesso no portal nacional da NFS-e.");
   }
   if (document.ambiente === "homologacao") {
     center(684, 10, "NFS-e SEM VALIDADE JURIDICA", "F2");
