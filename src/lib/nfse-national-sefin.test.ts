@@ -8,6 +8,7 @@ import {
   type NationalSefinTransport,
   parseNationalSefinEventResponse,
   parseNationalSefinResponse,
+  transmitNationalCancellation,
   transmitNationalDps
 } from "./nfse-national-sefin.js";
 
@@ -86,6 +87,37 @@ test("evento de cancelamento interpreta erro singular da SEFIN", () => {
   );
   assert.equal(rejected.accepted, false);
   assert.equal(rejected.errors[0]?.code, "E9999");
+});
+
+test("evento de cancelamento usa o nome oficial do campo compactado", async () => {
+  let requestBody = "";
+  let requestPath = "";
+  await transmitNationalCancellation({
+    endpoint: "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional",
+    accessKey: "41088091235181069000143000000000000226020000000002",
+    signedEventXml: "<pedRegEvento>assinado</pedRegEvento>",
+    privateKeyPem: "private-key",
+    certificatePem: "certificate",
+    transport: async (options, body) => {
+      requestPath = String(options.path);
+      requestBody = body;
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ codigoStatus: "135", motivoStatus: "Evento registrado" })
+      };
+    }
+  });
+
+  assert.equal(
+    requestPath,
+    "/API/SefinNacional/nfse/41088091235181069000143000000000000226020000000002/eventos"
+  );
+  const parsedBody = JSON.parse(requestBody);
+  assert.deepEqual(Object.keys(parsedBody), ["pedidoRegistroEventoXmlGZipB64"]);
+  assert.equal(
+    gunzipBase64(parsedBody.pedidoRegistroEventoXmlGZipB64),
+    "<pedRegEvento>assinado</pedRegEvento>"
+  );
 });
 
 test("consulta DPS e NFS-e pelos endpoints nacionais", async () => {

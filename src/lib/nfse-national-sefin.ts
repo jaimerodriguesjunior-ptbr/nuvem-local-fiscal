@@ -303,7 +303,9 @@ export async function transmitNationalCancellation(input: {
     input.endpoint,
     `nfse/${encodeURIComponent(input.accessKey)}/eventos`
   );
-  const body = JSON.stringify({ pedRegEventoXmlGZipB64: gzipBase64(input.signedEventXml) });
+  const body = JSON.stringify({
+    pedidoRegistroEventoXmlGZipB64: gzipBase64(input.signedEventXml)
+  });
   const response = await (input.transport ?? requestNationalSefin)(
     {
       protocol: target.protocol,

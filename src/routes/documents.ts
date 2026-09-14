@@ -2483,7 +2483,7 @@ async function handleCancelNfse(
 
   const body = (request.body as Record<string, unknown> | undefined) ?? {};
   const reason = String(
-    body.motivo ?? body.justificativa ?? body.justification ?? ""
+    body.observacao ?? body.motivo ?? body.justificativa ?? body.justification ?? ""
   ).trim();
   const reasonCode = String(body.codigo ?? body.codigo_motivo ?? "9").trim();
   if (!["1", "2", "9"].includes(reasonCode)) {
