@@ -39,11 +39,14 @@ import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { applyReturnCfopResolution, resolveReturnCfop, type ReturnCfopResolution } from "../lib/return-cfop-resolver.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
 import { cancelDocumentAtSefaz } from "../lib/sefaz-cancellation.js";
+import { createSingleFlight } from "../lib/single-flight.js";
 import { inutilizeNumberRangeAtSefaz } from "../lib/sefaz-inutilization.js";
 import { distributeNfeAtSefaz, manifestNfeAtSefaz } from "../lib/sefaz-distribution.js";
 import type { DocumentRecord, DocumentType, DistributionDocumentRecord, DistributionManifestationRecord, DistributionRecord, Environment, Issuer } from "../types.js";
 
 type EstadualDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
+
+const runCancellationSingleFlight = createSingleFlight();
 
 type AuthenticatedRequest = FastifyRequest & {
   tokenRecord: {
@@ -2393,17 +2396,17 @@ async function handleCancelDocument(
   }
 
   try {
-    const result = await cancelDocumentAtSefaz({
+    const result = await runCancellationSingleFlight(`${tipoDocumento}:${document.id}`, () => cancelDocumentAtSefaz({
       uf: issuer.uf,
       ambiente: document.ambiente,
       documentType: tipoDocumento,
       cnpj: document.issuerCnpj,
-      accessKey: document.chave,
-      authorizationProtocol: document.protocolo,
+      accessKey: document.chave!,
+      authorizationProtocol: document.protocolo!,
       justification,
       encryptedCertificateBundle: certificate.encryptedBundle,
       encryptionSecret: config.certificateEncryptionKey
-    });
+    }));
     const updated = app.store.saveCancellationResult(document.id, {
       justification,
       requestXml: result.requestXml,
@@ -2499,7 +2502,9 @@ async function handleCancelNfse(
 
   let result;
   try {
-    result = await cancelConfiguredNfse(app.store, document.id, reason, reasonCode);
+    result = await runCancellationSingleFlight(`NFSe:${document.id}`, () =>
+      cancelConfiguredNfse(app.store, document.id, reason, reasonCode)
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return reply.code(422).send({
