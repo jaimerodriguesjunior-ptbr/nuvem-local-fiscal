@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   consultNationalDps,
   consultNationalNfse,
+  gzipBase64,
   gunzipBase64,
   type NationalSefinTransport,
   parseNationalSefinEventResponse,
@@ -78,6 +79,25 @@ test("evento de cancelamento so aceita cStat 135 explicito", () => {
   );
   assert.equal(unexpected.accepted, false);
   assert.equal(unexpected.errors[0]?.code, "SEFIN_EVENTO_STATUS_NAO_CONFIRMADO");
+});
+
+test("evento Nacional retornado e assinado pela SEFIN confirma cancelamento sem cStat", () => {
+  const eventXml =
+    '<?xml version="1.0"?><evento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">' +
+    '<infEvento Id="EVT41088092268667353000183000000000000226098587746845101101001">' +
+    '<verAplic>SefinNacional_1.6.0</verAplic><nSeqEvento>1</nSeqEvento>' +
+    '<pedRegEvento><infPedReg><e101101><xDesc>Cancelamento de NFS-e</xDesc>' +
+    '</e101101></infPedReg></pedRegEvento></infEvento><Signature /></evento>';
+  const parsed = parseNationalSefinEventResponse(
+    201,
+    JSON.stringify({ eventoXmlGZipB64: gzipBase64(eventXml) })
+  );
+
+  assert.equal(parsed.accepted, true);
+  assert.equal(parsed.eventStatusCode, "EVENT_REGISTERED");
+  assert.equal(parsed.eventReason, "Evento de cancelamento registrado pela SEFIN Nacional.");
+  assert.equal(parsed.errors.length, 0);
+  assert.equal(parsed.processedXml, eventXml);
 });
 
 test("evento de cancelamento interpreta erro singular da SEFIN", () => {

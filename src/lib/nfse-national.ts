@@ -14,6 +14,7 @@ import { openEncryptedCertificate } from "./certificates.js";
 import {
   consultNationalDps as consultNationalDpsAtSefin,
   consultNationalNfse as consultNationalNfseAtSefin,
+  parseNationalSefinEventResponse,
   transmitNationalCancellation,
   transmitNationalDps
 } from "./nfse-national-sefin.js";
@@ -1247,12 +1248,82 @@ export async function transmitPreparedNationalDps(
   }
 }
 
+export async function reconcilePersistedNationalCancellation(
+  store: InMemoryStore,
+  documentId: string
+): Promise<DocumentRecord | null> {
+  const document = store.findDocument(documentId, "NFSe");
+  if (
+    !document ||
+    document.providerName !== "nfse-nacional" ||
+    document.status === "cancelado" ||
+    document.cancellationState !== "pendente_confirmacao" ||
+    !document.cancellationProcessedXml
+  ) {
+    return null;
+  }
+
+  const parsed = parseNationalSefinEventResponse(201, document.cancellationProcessedXml);
+  if (!parsed.accepted || !parsed.processedXml) return null;
+
+  const eventAccessKey = parsed.processedXml.match(
+    /<(?:[A-Za-z0-9_]+:)?infEvento\b[^>]*\bId=["']EVT([0-9]{50})101101001["']/i
+  )?.[1];
+  const documentAccessKey = String(document.chave ?? "").trim();
+  if (!eventAccessKey || !documentAccessKey || eventAccessKey !== documentAccessKey) {
+    store.addDocumentEvent(document.id, {
+      eventType: "nfse_nacional_cancellation_reconciliation_mismatch",
+      level: "error",
+      message: "O evento retornado pela SEFIN nao pertence a chave da NFS-e armazenada.",
+      payload: {
+        provider: "nfse-nacional",
+        documentAccessKey,
+        eventAccessKey: eventAccessKey ?? null
+      }
+    });
+    await store.waitForPersistence();
+    return null;
+  }
+
+  const processedAt = parsed.processedXml.match(
+    /<(?:[A-Za-z0-9_]+:)?dhProc[^>]*>([^<]+)<\/(?:[A-Za-z0-9_]+:)?dhProc>/i
+  )?.[1]?.trim();
+  const saved = store.saveCancellationResult(document.id, {
+    justification: document.cancellationJustification ?? "",
+    requestXml: document.cancellationRequestXml ?? "",
+    signedXml: document.cancellationSignedXml ?? "",
+    responseXml: document.cancellationResponseXml ?? document.cancellationProcessedXml,
+    processedXml: document.cancellationProcessedXml,
+    statusCode: parsed.eventStatusCode ?? "EVENT_REGISTERED",
+    reason: "NFS-e Nacional cancelada.",
+    protocol: parsed.protocol ?? "",
+    cancelledAt: processedAt || new Date().toISOString(),
+    success: true,
+    state: "confirmado"
+  });
+  store.addDocumentEvent(document.id, {
+    eventType: "nfse_nacional_cancellation_reconciled",
+    message: "Cancelamento confirmado pelo evento 101101 retornado pela SEFIN Nacional.",
+    payload: {
+      provider: "nfse-nacional",
+      accessKey: eventAccessKey,
+      statusCode: parsed.eventStatusCode
+    }
+  });
+  await store.waitForPersistence();
+  return saved;
+}
+
 export async function consultNationalNfse(
   store: InMemoryStore,
   documentId: string
 ): Promise<NationalNfseProcessingResult> {
   const document = store.findDocument(documentId, "NFSe");
   if (!document) throw new Error("Documento NFS-e nao encontrado para consulta.");
+  const reconciledCancellation = await reconcilePersistedNationalCancellation(store, document.id);
+  if (reconciledCancellation) {
+    return { document: reconciledCancellation, transmitted: false, error: null };
+  }
   const issuer = store.findIssuerByCnpj(document.issuerCnpj, document.ambiente);
   const certificate = store.findActiveCertificate(document.issuerCnpj);
   if (!issuer || document.providerName !== "nfse-nacional") {

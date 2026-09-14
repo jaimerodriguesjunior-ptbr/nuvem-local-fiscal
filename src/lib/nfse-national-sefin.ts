@@ -163,12 +163,19 @@ export function parseNationalSefinEventResponse(
   const protocol = String(
     payload.numeroProtocolo ?? payload.protocolo ?? payload.nProt ?? ""
   ).trim() || firstXmlTag(processedXml ?? "", ["nProt", "numeroProtocolo"]);
-  // Um HTTP 2xx apenas confirma que o transporte respondeu. O cancelamento so
-  // pode ser refletido localmente quando a SEFIN devolve o cStat de registro
-  // confirmado do evento. Resposta vazia, JSON incompleto e XML sem cStat ficam
-  // pendentes para consulta, nunca como cancelamento homologado.
+  // A API de eventos da NFS-e Nacional confirma o registro devolvendo, em
+  // `eventoXmlGZipB64`, o XML <evento> gerado e assinado pela propria SEFIN.
+  // Esse retorno nao possui cStat. Alguns adaptadores antigos devolvem cStat
+  // 135; mantemos essa compatibilidade sem exigi-la do contrato Nacional.
   const acceptedStatus = eventStatusCode === "135";
-  if (statusCode >= 200 && statusCode < 300 && errors.length === 0 && !acceptedStatus) {
+  const registeredCancellationEvent = Boolean(
+    processedXml &&
+    /<(?:[A-Za-z0-9_]+:)?evento\b/i.test(processedXml) &&
+    /<(?:[A-Za-z0-9_]+:)?infEvento\b[^>]*\bId=["']EVT[0-9]{50}101101001["']/i.test(processedXml) &&
+    /<(?:[A-Za-z0-9_]+:)?e101101\b/i.test(processedXml)
+  );
+  const acceptedEvent = acceptedStatus || registeredCancellationEvent;
+  if (statusCode >= 200 && statusCode < 300 && errors.length === 0 && !acceptedEvent) {
     errors.push({
       code: eventStatusCode ? "SEFIN_EVENTO_STATUS_NAO_CONFIRMADO" : "SEFIN_EVENTO_STATUS_AUSENTE",
       description: eventStatusCode
@@ -178,10 +185,12 @@ export function parseNationalSefinEventResponse(
     });
   }
   return {
-    accepted: statusCode >= 200 && statusCode < 300 && errors.length === 0 && acceptedStatus,
+    accepted: statusCode >= 200 && statusCode < 300 && errors.length === 0 && acceptedEvent,
     statusCode,
-    eventStatusCode,
-    eventReason,
+    eventStatusCode: eventStatusCode || (registeredCancellationEvent ? "EVENT_REGISTERED" : null),
+    eventReason: eventReason || (registeredCancellationEvent
+      ? "Evento de cancelamento registrado pela SEFIN Nacional."
+      : null),
     protocol,
     processedXml,
     rawBody,

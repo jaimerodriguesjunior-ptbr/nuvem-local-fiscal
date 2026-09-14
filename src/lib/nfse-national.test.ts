@@ -18,6 +18,7 @@ import {
   mapNationalProcessingError,
   NFSE_NATIONAL_NAMESPACE,
   normalizeNationalNfseDraft,
+  reconcilePersistedNationalCancellation,
   reconcileNationalDpsWithAuthorizedXml,
   resolveNationalSefinEndpoint,
   resolveNationalNfseConfig,
@@ -562,6 +563,48 @@ test("persiste tentativa de cancelamento e nao confirma status nao aceito", (t) 
   });
   assert.equal(saved?.status, "autorizado");
   assert.equal(saved?.cancellationState, "pendente_confirmacao");
+});
+
+test("reconcilia cancelamento pendente pelo evento 101101 retornado pela SEFIN", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "nlf-nfse-national-reconcile-cancellation-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = new InMemoryStore("client", "secret", "token-secret", join(directory, "state.json"));
+  const accessKey = "41088091235181069000143000000000000226020000000002";
+  const created = store.createDocument({
+    tipoDocumento: "NFSe",
+    issuerCnpj: issuer.cnpj,
+    ambiente: "homologacao",
+    payloadOriginal: {},
+    payloadNormalizado: {}
+  });
+  created.status = "autorizado";
+  created.providerName = "nfse-nacional";
+  created.chave = accessKey;
+  const processedXml =
+    `<evento versao="1.01"><infEvento Id="EVT${accessKey}101101001">` +
+    `<chNFSe>${accessKey}</chNFSe><dhProc>2026-09-14T17:12:21-03:00</dhProc>` +
+    "<e101101><xMotivo>Servico nao prestado pelo emitente.</xMotivo></e101101>" +
+    "</infEvento><Signature /></evento>";
+  store.saveCancellationResult(created.id, {
+    justification: "Servico nao prestado pelo emitente.",
+    requestXml: "<pedRegEvento />",
+    signedXml: "<pedRegEvento><Signature /></pedRegEvento>",
+    responseXml: JSON.stringify({ eventoXmlGZipB64: "persistido" }),
+    processedXml,
+    statusCode: "SEFIN_EVENTO_STATUS_AUSENTE",
+    reason: "Confirmacao pendente.",
+    protocol: "",
+    success: false,
+    status: "autorizado",
+    state: "pendente_confirmacao"
+  });
+
+  const reconciled = await reconcilePersistedNationalCancellation(store, created.id);
+
+  assert.equal(reconciled?.status, "cancelado");
+  assert.equal(reconciled?.cancellationState, "confirmado");
+  assert.equal(reconciled?.cancellationStatusCode, "EVENT_REGISTERED");
+  assert.equal(reconciled?.cancelledAt, "2026-09-14T17:12:21-03:00");
 });
 
 test("transmissao manual nacional recusa qualquer ambiente que nao seja homologacao", async (t) => {
