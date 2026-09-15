@@ -35,6 +35,7 @@ import {
 } from "../lib/nfse-toledo-equiplano.js";
 import { resolveNationalSefinEndpoint } from "../lib/nfse-national.js";
 import { normalizeFiscalIdentifier } from "../lib/fiscal-identity.js";
+import { formatMunicipioUfLabel } from "../lib/ibge-municipios.js";
 import { validateNfeEmissionPayload } from "../lib/nfe-rules.js";
 import { applyReturnCfopResolution, resolveReturnCfop, type ReturnCfopResolution } from "../lib/return-cfop-resolver.js";
 import { validateNfceEmissionPayload } from "../lib/nfce-rules.js";
@@ -2997,10 +2998,22 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const dpsSeries = xmlValue("serie") || String(infDps.serie ?? "1");
   const issuerName = valueFrom(prestXml, "xNome", issuer?.razaoSocial ?? issuerMetadata.razao_social ?? "");
   const issuerMunicipality = valueFrom(infNfseXml, "xLocEmi", issuerAddress.cidade ?? issuerMetadata.cidade ?? "");
-  const issuerUf = valueFrom(prestEndNacXml, "UF", issuerAddress.uf ?? "-");
+  const issuerUf = valueFrom(prestEndNacXml, "UF", issuerAddress.uf ?? "");
+  const issuerMunicipalityCode = valueFrom(prestEndNacXml, "cMun", issuerAddress.codigo_municipio ?? issuerMetadata.codigo_municipio ?? "");
+  const issuerMunicipioUf = formatMunicipioUfLabel({
+    nome: issuerMunicipality,
+    uf: issuerUf,
+    codigoIbge: issuerMunicipalityCode
+  });
   const recipientDocument = valueFrom(tomaXml, "CNPJ", valueFrom(tomaXml, "CPF", toma.CNPJ ?? toma.CPF ?? ""));
   const recipientMunicipality = valueFrom(tomaEndNacXml, "xMun", tomaEnd.xMun ?? tomaEnd.cidade ?? tomaEndNac.xMun ?? tomaEndNac.cidade ?? "");
   const recipientUf = valueFrom(tomaEndNacXml, "UF", tomaEnd.UF ?? tomaEnd.uf ?? "");
+  const recipientMunicipalityCode = valueFrom(tomaEndNacXml, "cMun", tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? "");
+  const recipientMunicipioUf = formatMunicipioUfLabel({
+    nome: recipientMunicipality,
+    uf: recipientUf,
+    codigoIbge: recipientMunicipalityCode
+  });
   const issuerDocument = formatFiscalDocument(valueFrom(prestXml, "CNPJ", valueFrom(prestXml, "CPF", document.issuerCnpj)));
   const issuerAddressText = [
     valueFrom(prestEndXml, "xLgr", issuerAddress.logradouro),
@@ -3008,7 +3021,6 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     valueFrom(prestEndXml, "xCpl", issuerAddress.complemento),
     valueFrom(prestEndXml, "xBairro", issuerAddress.bairro)
   ].filter(Boolean).join(", ");
-  const issuerMunicipalityCode = valueFrom(prestEndNacXml, "cMun", issuerAddress.codigo_municipio ?? issuerMetadata.codigo_municipio ?? "");
   const issuerPostalCode = valueFrom(prestEndNacXml, "CEP", issuerAddress.cep ?? issuerMetadata.cep ?? "");
   const nationalTaxCode = valueFrom(cServXml, "cTribNac", cServ.cTribNac ?? "");
   const municipalTaxCode = valueFrom(cServXml, "cTribMun", cServ.cTribMun ?? "");
@@ -3103,7 +3115,7 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   const dateOnly = (value: string) => value
     ? new Date(`${value.slice(0, 10)}T12:00:00-03:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
     : "-";
-  const municipalityLabel = `Município: ${issuerMunicipality || "-"} / ${issuerUf}`;
+  const municipalityLabel = `Município: ${issuerMunicipioUf || "- / -"}`;
   const labelFor = (value: string, labels: Record<string, string>, fallback = "-") => labels[value] ?? (value || fallback);
   const xmlEnvironment = valueFrom(infNfseXml, "tpAmb", document.ambiente === "homologacao" ? "2" : "1");
   const generatorLabel = labelFor(valueFrom(infNfseXml, "ambGer", "2"), {
@@ -3221,7 +3233,7 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
   fieldAt(10.51, 4.34, "Indicador municipal (inscrição)", valueFrom(prestXml, "IM", issuerMetadata.inscricao_municipal ?? "-"));
   fieldAt(15.62, 4.34, "Telefone", valueFrom(prestXml, "fone", issuerMetadata.telefone ?? issuerMetadata.fone ?? "-"), 105);
   fieldAt(0.3, 4.99, "Nome / Nome empresarial", issuerName, 275);
-  fieldAt(10.51, 4.99, "Município / Sigla UF", `${issuerMunicipality || "-"} / ${issuerUf}`);
+  fieldAt(10.51, 4.99, "Município / Sigla UF", issuerMunicipioUf || "- / -");
   fieldAt(15.62, 4.99, "Código IBGE / CEP", `${issuerMunicipalityCode || "-"} / ${issuerPostalCode || "-"}`, 105);
   fieldAt(0.3, 5.64, "Endereço", issuerAddressText || "-", 275);
   fieldAt(10.51, 5.64, "E-mail", valueFrom(prestXml, "email", issuerMetadata.email ?? "-"));
@@ -3243,7 +3255,7 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     fieldAt(10.51, tomaTop, "Indicador municipal (inscrição)", valueFrom(tomaXml, "IM", toma.IM ?? toma.inscricao_municipal ?? "-"));
     fieldAt(15.62, tomaTop, "Telefone", valueFrom(tomaXml, "fone", toma.fone ?? "-"), 105);
     fieldAt(0.3, tomaTop + 0.64, "Nome / Nome empresarial", valueFrom(tomaXml, "xNome", toma.xNome ?? "-"), 275);
-    fieldAt(10.51, tomaTop + 0.64, "Município / Sigla UF", `${recipientMunicipality || "-"} / ${recipientUf || "-"}`);
+    fieldAt(10.51, tomaTop + 0.64, "Município / Sigla UF", recipientMunicipioUf || "- / -");
     fieldAt(15.62, tomaTop + 0.64, "Código IBGE / CEP", `${valueFrom(tomaEndNacXml, "cMun", tomaEndNac.cMun ?? tomaEnd.codigo_municipio ?? "-")} / ${valueFrom(tomaEndNacXml, "CEP", tomaEndNac.CEP ?? tomaEnd.CEP ?? "-")}`, 105);
     fieldAt(0.3, tomaTop + 1.30, "Endereço", recipientAddress || "-", 275);
     fieldAt(10.51, tomaTop + 1.30, "E-mail", valueFrom(tomaXml, "email", toma.email ?? "-"));
@@ -3272,7 +3284,16 @@ function nationalDanfseContentStream(document: DocumentRecord, issuer: Issuer | 
     if (includeMunicipalIndicator) fieldAt(10.51, topCm, "Indicador municipal (inscrição)", valueFrom(party, "IM", "-"));
     fieldAt(15.62, topCm, "Telefone", valueFrom(party, "fone", "-"), 105);
     fieldAt(0.3, topCm + 0.64, "Nome / Nome empresarial", valueFrom(party, "xNome", "-"), 275);
-    fieldAt(10.51, topCm + 0.64, "Município / Sigla UF", `${valueFrom(partyEndNac, "xMun", "-")} / ${valueFrom(partyEndNac, "UF", "-")}`);
+    fieldAt(
+      10.51,
+      topCm + 0.64,
+      "Município / Sigla UF",
+      formatMunicipioUfLabel({
+        nome: valueFrom(partyEndNac, "xMun", ""),
+        uf: valueFrom(partyEndNac, "UF", ""),
+        codigoIbge: valueFrom(partyEndNac, "cMun", "")
+      }) || "- / -"
+    );
     fieldAt(15.62, topCm + 0.64, "Código IBGE / CEP", `${valueFrom(partyEndNac, "cMun", "-")} / ${valueFrom(partyEndNac, "CEP", "-")}`, 105);
     fieldAt(0.3, topCm + 1.30, "Endereço", partyAddress || "-", 275);
     fieldAt(10.51, topCm + 1.30, "E-mail", valueFrom(party, "email", "-"));

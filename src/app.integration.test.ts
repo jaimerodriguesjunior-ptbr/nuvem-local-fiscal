@@ -551,6 +551,65 @@ test("fluxo HTTP gera, assina e autoriza NFC-e sem transmitir", async () => {
     assert.match(cancelledNationalPdfText, /\/F2 50 Tf/);
     assert.match(cancelledNationalPdfText, /\(CANCELADA\)/);
 
+    const ibgeOnlyPdfDocument = app.store.createDocument({
+      tipoDocumento: "NFSe",
+      issuerCnpj: cnpj,
+      ambiente: "homologacao",
+      payloadOriginal: {
+        infDPS: {
+          nDPS: "6",
+          serie: "1",
+          dCompet: "2026-09-15",
+          dhEmi: "2026-09-15T11:45:00-03:00",
+          toma: {
+            CNPJ: "08769755000167",
+            xNome: "SCM EVOLUTT CONNECT LTDA",
+            end: {
+              xLgr: "Rua da Republica",
+              nro: "3236",
+              xBairro: "Centro",
+              endNac: { cMun: "5000609", CEP: "79990084" }
+            }
+          },
+          serv: {
+            cServ: { cTribNac: "140101", xDescServ: "Servico com IBGE do tomador" }
+          },
+          valores: {
+            vServPrest: { vServ: 100 },
+            trib: { tribMun: { pAliq: 2 } }
+          }
+        }
+      },
+      payloadNormalizado: {}
+    });
+    app.store.saveMunicipalProcessingResult(ibgeOnlyPdfDocument.id, {
+      providerName: "nfse-nacional",
+      status: "autorizado",
+      providerDocumentNumber: "41088092268667353000183000000000000426099352961989",
+      processedXml: `<NFSe><infNFSe>
+        <nNFSe>6</nNFSe><chNFSe>41088092268667353000183000000000000426099352961989</chNFSe>
+        <tpAmb>2</tpAmb><ambGer>2</ambGer><cStat>107</cStat>
+        <dhProc>2026-09-15T11:45:01-03:00</dhProc><xLocEmi>Guaíra</xLocEmi>
+        <DPS><infDPS>
+          <toma><CNPJ>08769755000167</CNPJ><xNome>SCM EVOLUTT CONNECT LTDA</xNome>
+            <end><endNac><cMun>5000609</cMun><CEP>79990084</CEP></endNac>
+            <xLgr>Rua da Republica</xLgr><nro>3236</nro><xBairro>Centro</xBairro></end>
+          </toma>
+          <serv><cServ><cTribNac>140101</cTribNac><xDescServ>Servico com IBGE do tomador</xDescServ></cServ></serv>
+        </infDPS></DPS>
+      </infNFSe></NFSe>`
+    });
+    const ibgeOnlyPdf = await app.inject({
+      method: "GET",
+      url: `/nfse/${ibgeOnlyPdfDocument.providerLikeId}/pdf`,
+      headers: bearer
+    });
+    assert.equal(ibgeOnlyPdf.statusCode, 200, ibgeOnlyPdf.body);
+    const ibgeOnlyPdfText = ibgeOnlyPdf.rawPayload.toString("latin1");
+    assert.match(ibgeOnlyPdfText, /Amambai \/ MS/);
+    assert.match(ibgeOnlyPdfText, /5000609 \/ 79990084/);
+    assert.match(ibgeOnlyPdfText, /TOMADOR \/ ADQUIRENTE[\s\S]*?Amambai \/ MS/);
+
     const saveToledoWithoutEntityId = await app.inject({
       method: "PUT",
       url: `/empresas/${cnpj}/nfse`,
