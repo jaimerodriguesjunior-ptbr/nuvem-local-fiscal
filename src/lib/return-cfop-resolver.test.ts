@@ -102,3 +102,58 @@ test("exige revisao para devolucao ao exterior em vez de aplicar fallback intere
   assert.equal(result.items[0].profile, "exterior_review_required");
   assert.equal(result.items[0].outputCfop, null);
 });
+test("preserva CFOP 5411 explicito apenas no opt-in da devolucao", () => {
+  const input = {
+    metadados: {
+      devolucao: {
+        finalidadeCompra: "revenda",
+        manualCfopOverrideV1: true,
+        itens: [
+          { nItem: 1, cProd: "P1", cfopOrigem: "5405", cfopManual: true, cfopDestino: "5411", st: true },
+          { nItem: 2, cProd: "P2", cfopOrigem: "5405", cfopManual: true, cfopDestino: "5411", st: true }
+        ]
+      }
+    },
+    infNFe: {
+      ide: { finNFe: 4 },
+      dest: { enderDest: { UF: "PR" } },
+      det: [
+        { nItem: 1, prod: { cProd: "P1", CFOP: "5411" } },
+        { nItem: 2, prod: { cProd: "P2", CFOP: "5411" } }
+      ]
+    }
+  };
+
+  const manualResult = resolveReturnCfop(input, "PR", rules);
+  assert.equal(manualResult.shouldBlock, false);
+  assert.deepEqual(manualResult.items.map((item) => item.profile), [
+    "client_manual_override_v1",
+    "client_manual_override_v1"
+  ]);
+  const manualPayload = applyReturnCfopResolution(input, manualResult) as unknown as typeof input;
+  assert.deepEqual(manualPayload.infNFe.det.map((item) => item.prod.CFOP), ["5411", "5411"]);
+
+  const legacyPayload = structuredClone(input);
+  legacyPayload.metadados.devolucao.manualCfopOverrideV1 = false;
+  const legacyResult = resolveReturnCfop(legacyPayload, "PR", rules);
+  assert.equal(legacyResult.shouldBlock, false);
+  assert.deepEqual(legacyResult.items.map((item) => item.outputCfop), ["5202", "5202"]);
+  const legacyNormalized = applyReturnCfopResolution(legacyPayload, legacyResult) as unknown as typeof input;
+  assert.deepEqual(legacyNormalized.infNFe.det.map((item) => item.prod.CFOP), ["5202", "5202"]);
+});
+
+test("bloqueia override manual divergente antes de mudar o CFOP", () => {
+  const input = payload({
+    det: [{ nItem: 1, prod: { cProd: "P1", CFOP: "5411" } }],
+    metadados: {
+      devolucao: {
+        manualCfopOverrideV1: true,
+        itens: [{ nItem: 1, cfopOrigem: "5405", cfopManual: true, cfopDestino: "5202" }]
+      }
+    }
+  });
+  const result = resolveReturnCfop(input, "PR", rules);
+  assert.equal(result.shouldBlock, true);
+  assert.equal(result.items[0].profile, "invalid_client_manual_override_v1");
+  assert.equal(result.items[0].outputCfop, null);
+});

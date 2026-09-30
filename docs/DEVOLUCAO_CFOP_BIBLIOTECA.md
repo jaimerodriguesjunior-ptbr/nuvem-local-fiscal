@@ -33,6 +33,31 @@ Tambem sao aceitos os aliases em ingles (`metadata.return`, `sourceCfop`, `fuel`
 
 `finalidadeCompra` tambem pode ser informada no nivel de `devolucao`, quando vale para todos os itens; o valor do item prevalece. `revenda` e `resale` sao equivalentes, assim como as formas de uso/consumo e ativo imobilizado.
 
+## Override manual opt-in versionado
+
+Clientes que precisam preservar um CFOP escolhido por item podem enviar o
+marcador versionado abaixo em metadados.devolucao:
+
+    {
+      "metadados": {
+        "devolucao": {
+          "manualCfopOverrideV1": true,
+          "itens": [
+            {
+              "nItem": 1,
+              "cfopManual": true,
+              "cfopDestino": "5411"
+            }
+          ]
+        }
+      }
+    }
+
+A Nuvem Local Fiscal preserva esse CFOP apenas quando o valor coincide com o
+CFOP do item e pertence a lista aceita (5202, 6202 ou 5411). O marcador e o
+sinalizador por item sao obrigatorios. Sem eles, inclusive para os payloads
+atuais, o resolvedor continua seguindo as regras e o fallback existentes.
+Casos de alto risco e devolucoes para o exterior continuam exigindo revisao.
 ## Niveis de decisao
 
 | Nivel | Resultado | Efeito para o cliente |

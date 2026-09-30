@@ -85,10 +85,38 @@ function nfeMvpFinalityAllowed(value: unknown) {
   return finality === "1" || finality === "4";
 }
 
-function nfeMvpCfopAllowed(finality: string, cfop: string) {
+function nfeMvpCfopAllowed(finality: string, cfop: string, allowManual5411 = false) {
   if (finality === "1") return nfeMvpSaleCfops.has(cfop);
-  if (finality === "4") return nfeMvpReturnCfops.has(cfop);
+  if (finality === "4") return nfeMvpReturnCfops.has(cfop) || (allowManual5411 && cfop === "5411");
   return false;
+}
+
+function returnMetadata(payload: JsonObject, infNFe: JsonObject) {
+  const metadata = asObject(infNFe.metadados) ?? asObject(payload.metadados) ?? asObject(infNFe.metadata) ?? asObject(payload.metadata);
+  return asObject(metadata?.devolucao) ?? asObject(metadata?.return) ?? {};
+}
+
+function returnItemMetadata(metadata: JsonObject, detail: JsonObject, index: number) {
+  const product = asObject(detail.prod) ?? {};
+  const itemNumber = Number(detail.nItem ?? index + 1);
+  const productCode = text(product.cProd ?? product.codigo);
+  return asArray(metadata.itens ?? metadata.items)
+    .map(asObject)
+    .find((item) => {
+      if (!item) return false;
+      const candidateNumber = Number(item.nItem ?? item.item ?? item.indice);
+      const candidateCode = text(item.cProd ?? item.codigo ?? item.productCode);
+      return (Number.isFinite(candidateNumber) && candidateNumber === itemNumber) ||
+        (productCode && candidateCode && candidateCode === productCode);
+    }) ?? {};
+}
+
+function manualReturnItemMetadata(metadata: JsonObject, detail: JsonObject, index: number) {
+  const itemNumber = Number(detail.nItem ?? index + 1);
+  return asArray(metadata.itens ?? metadata.items)
+    .map(asObject)
+    .find((item) => item && Number(item.nItem ?? item.item ?? item.indice) === itemNumber)
+    ?? returnItemMetadata(metadata, detail, index);
 }
 
 function pushIssue(
@@ -161,12 +189,19 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
   }
 
   const finality = text(ide.finNFe || "1");
+  const returnMeta = returnMetadata(payload, infNFe);
   const details = asArray(infNFe.det);
   details.forEach((detail, index) => {
     const item = asObject(detail);
     const product = asObject(item?.prod);
     const cfop = text(product?.CFOP);
-    if (!cfop || !nfeMvpFinalityAllowed(finality) || nfeMvpCfopAllowed(finality, cfop)) {
+    const itemMeta = returnMeta.manualCfopOverrideV1 === true
+      ? manualReturnItemMetadata(returnMeta, item ?? {}, index)
+      : returnItemMetadata(returnMeta, item ?? {}, index);
+    const allowManual5411 = returnMeta.manualCfopOverrideV1 === true
+      && itemMeta.cfopManual === true
+      && text(itemMeta.cfopDestino) === cfop;
+    if (!cfop || !nfeMvpFinalityAllowed(finality) || nfeMvpCfopAllowed(finality, cfop, allowManual5411)) {
       return;
     }
 

@@ -88,6 +88,14 @@ function itemMetadata(metadata: JsonObject, detail: JsonObject, index: number) {
     }) ?? {};
 }
 
+function manualItemMetadata(metadata: JsonObject, detail: JsonObject, index: number) {
+  const itemNumber = Number(detail.nItem ?? index + 1);
+  return asArray(metadata.itens ?? metadata.items)
+    .map(asObject)
+    .find((item) => item && Number(item.nItem ?? item.item ?? item.indice) === itemNumber)
+    ?? itemMetadata(metadata, detail, index);
+}
+
 function destinationScope(
   document: JsonObject,
   issuerUf: string,
@@ -144,6 +152,9 @@ export function resolveReturnCfop(
     const product = asObject(detail.prod) ?? detail;
     const currentCfop = cfop(product.CFOP ?? product.cfop);
     const source = { ...metadata, ...itemMetadata(metadata, detail, itemIndex) };
+    const manualSource = bool(metadata.manualCfopOverrideV1)
+      ? { ...metadata, ...manualItemMetadata(metadata, detail, itemIndex) }
+      : source;
     const sourceCfop = cfop(source.cfopOrigem ?? source.sourceCfop ?? source.CFOP ?? source.cfop) || null;
     const scope = destinationScope(document, issuerUf, metadata, currentCfop, sourceCfop);
 
@@ -168,6 +179,31 @@ export function resolveReturnCfop(
         riskLevel: "high" as const,
         fallbackApplied: false,
         reason: "A finalidade de compra informada exige confirmacao fiscal especifica."
+      };
+    }
+
+    if (bool(metadata.manualCfopOverrideV1) && bool(manualSource.cfopManual)) {
+      const requestedCfop = cfop(manualSource.cfopDestino ?? product.CFOP ?? product.cfop);
+      const currentCfop = cfop(product.CFOP ?? product.cfop);
+      if (requestedCfop && requestedCfop === currentCfop && ["5202", "6202", "5411"].includes(requestedCfop)) {
+        return {
+          itemIndex,
+          sourceCfop,
+          outputCfop: requestedCfop,
+          profile: "client_manual_override_v1",
+          riskLevel: "medium",
+          fallbackApplied: false,
+          reason: "CFOP manual versionado informado pelo cliente."
+        };
+      }
+      return {
+        itemIndex,
+        sourceCfop,
+        outputCfop: null,
+        profile: "invalid_client_manual_override_v1",
+        riskLevel: "high",
+        fallbackApplied: false,
+        reason: "O CFOP manual versionado esta ausente, divergente ou fora da lista aceita."
       };
     }
 

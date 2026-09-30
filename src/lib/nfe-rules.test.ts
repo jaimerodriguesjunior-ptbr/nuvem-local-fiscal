@@ -192,3 +192,37 @@ test("NF-e sem ide continua compativel quando nao ha grupo RTC para validar", ()
   assert.equal(result.ok, true);
   assert.deepEqual(result.issues, []);
 });
+test("NF-e aceita CFOP 5411 so com opt-in manual correspondente", () => {
+  const input = {
+    ambiente: "homologacao",
+    metadados: {
+      devolucao: {
+        manualCfopOverrideV1: true,
+        itens: [{ nItem: 1, cProd: "P1", cfopManual: true, cfopDestino: "5411" }]
+      }
+    },
+    infNFe: {
+      ide: {
+        mod: 55,
+        tpImp: 1,
+        finNFe: 4,
+        NFref: [{ refNFe: "41260612345678000195550010000001231000001234" }]
+      },
+      det: [{ nItem: 1, prod: { cProd: "P1", CFOP: "5411" } }]
+    }
+  };
+
+  assert.equal(validateNfeEmissionPayload(input).ok, true);
+
+  const legacyPayload = structuredClone(input);
+  legacyPayload.metadados.devolucao.manualCfopOverrideV1 = false;
+  const legacyResult = validateNfeEmissionPayload(legacyPayload);
+  assert.equal(legacyResult.ok, false);
+  assert.equal(legacyResult.issues.some((issue) => issue.code === "unsupported_mvp_nfe_cfop"), true);
+
+  const mismatchedPayload = structuredClone(input);
+  mismatchedPayload.metadados.devolucao.itens[0].cfopDestino = "5202";
+  const mismatchedResult = validateNfeEmissionPayload(mismatchedPayload);
+  assert.equal(mismatchedResult.ok, false);
+  assert.equal(mismatchedResult.issues.some((issue) => issue.code === "unsupported_mvp_nfe_cfop"), true);
+});
