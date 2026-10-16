@@ -25,6 +25,7 @@ export type AutomaticProcessingResult = {
 };
 
 const documentsInProcessing = new Set<string>();
+export function isDocumentInProcessing(id: string) { return documentsInProcessing.has(id); }
 
 async function waitForNonBlockingPersistence(
   store: InMemoryStore,

@@ -6,6 +6,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
+import { prepareNfeXsdRetryPayload } from "../lib/nfe-xsd-retry.js";
 import {
   decryptSecretPayload,
   encryptSecretPayload,
@@ -13,6 +14,7 @@ import {
   parsePfx
 } from "../lib/certificates.js";
 import {
+  isDocumentInProcessing,
   processHomologationDocument,
   processHomologationNfce
 } from "../lib/document-processing.js";
@@ -48,6 +50,7 @@ import type { DocumentRecord, DocumentType, DistributionDocumentRecord, Distribu
 type EstadualDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 
 const runCancellationSingleFlight = createSingleFlight();
+const nfeXsdRetries = new Set<string>();
 
 type AuthenticatedRequest = FastifyRequest & {
   tokenRecord: {
@@ -632,6 +635,33 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
 
   app.get("/nfe/inutilizacoes/:id/resposta/xml", async (request, reply) => {
     return handleInutilizationXmlDownload(app, request, reply, "NFe", "response");
+  });
+
+  // Rota opt-in: reaproveita exclusivamente documento que falhou antes da SEFAZ.
+  app.post("/nfe/:id/retomar-xsd", async (request, reply) => {
+    const document = app.store.findDocument((request.params as { id: string }).id, "NFe");
+    if (!document) return reply.code(404).send({ message: "Documento nao encontrado." });
+    if (!ensureDocumentTokenAccess(request, reply, document)) return;
+    if (nfeXsdRetries.has(document.id) || isDocumentInProcessing(document.id)) return reply.code(409).send({ message: "Documento ja esta sendo retomado." });
+    if (document.ambiente === "producao" && !config.fiscalProductionEnabled) return reply.code(403).send({ message: "Transmissao em producao bloqueada." });
+    const service = app.store.findServiceConfigRecord(document.issuerCnpj, document.ambiente, "NFE");
+    if (service && (!service.active || service.settings.autoTransmit === false)) return reply.code(409).send({ message: "Transmissao NF-e desativada para esta empresa." });
+    nfeXsdRetries.add(document.id);
+    try {
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const payload = prepareNfeXsdRetryPayload(document, app.store.getDocumentEvents(document.id), body);
+      const validation = validateNfeEmissionPayload(payload);
+      if (!validation.ok) return reply.code(400).send({ message: "Payload invalido.", issues: validation.issues });
+      app.store.prepareNfeXsdRetry(document.id, payload, normalizePayload("NFe", payload));
+      app.store.addDocumentEvent(document.id, { eventType: "xsd_retry_prepared", message: "Unidades revisadas; mesmo documento, numero e serie preservados.", payload: { unidades: body.unidades } });
+      await app.store.waitForPersistence();
+      const processed = await processHomologationDocument(app.store, document.id);
+      return reply.code(processed.error ? 422 : 200).send({ ...mapDocumentResponse(processed.document, requestBaseUrl(request)), data_emissao: ((payload.infNFe as Record<string, unknown>).ide as Record<string, unknown>).dhEmi, message: processed.error || processed.document.motivo, transmitido: processed.transmitted });
+    } catch (error) {
+      return reply.code(409).send({ message: error instanceof Error ? error.message : "Falha ao retomar documento." });
+    } finally {
+      nfeXsdRetries.delete(document.id);
+    }
   });
 
   app.get("/nfe/:id", async (request, reply) => {

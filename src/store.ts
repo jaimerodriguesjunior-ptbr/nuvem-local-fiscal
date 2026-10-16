@@ -643,6 +643,27 @@ export class InMemoryStore {
     return document;
   }
 
+  prepareNfeXsdRetry(id: string, payload: Record<string, unknown>, normalized: unknown) {
+    const document = this.findDocument(id, "NFe");
+    if (!document) throw new Error("Documento nao encontrado.");
+    document.payloadOriginal = payload;
+    document.payloadNormalizado = normalized;
+    document.status = "processamento";
+    document.chave = null;
+    document.protocolo = null;
+    document.xml = "";
+    document.xmlGenerated = undefined;
+    document.xmlSigned = undefined;
+    document.signatureValid = false;
+    document.xsdValid = false;
+    document.xsdErrors = [];
+    document.motivo = null;
+    document.motivoStatus = null;
+    document.updatedAt = nowIso();
+    this.saveState({ documents: [document] });
+    return document;
+  }
+
   findDocument(id: string, tipoDocumento?: DocumentType) {
     return this.documents.find(
       (item) =>
