@@ -11,7 +11,7 @@ import {
 } from "@xmldom/xmldom";
 import { parseXml } from "libxmljs2";
 
-import { decryptCertificateBundle } from "./certificates.js";
+import { buildCertificateTlsOptions, decryptCertificateBundle } from "./certificates.js";
 import { nfeSchemaPackageDirectory } from "./nfe-schema-package.js";
 import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
@@ -284,8 +284,10 @@ export async function authorizeNfeAtSefaz(input: {
       endpoint,
       {
         method: "POST",
-        pfx: Buffer.from(certificate.pfxBase64, "base64"),
-        passphrase: certificate.password,
+        ...buildCertificateTlsOptions(
+          Buffer.from(certificate.pfxBase64, "base64"),
+          certificate.password
+        ),
         ca: [...tls.rootCertificates, rootCa],
         minVersion: "TLSv1.2",
         timeout: 30_000,
@@ -393,8 +395,10 @@ export async function querySefazDocumentStatus(input: {
       endpoint,
       {
         method: "POST",
-        pfx: Buffer.from(certificate.pfxBase64, "base64"),
-        passphrase: certificate.password,
+        ...buildCertificateTlsOptions(
+          Buffer.from(certificate.pfxBase64, "base64"),
+          certificate.password
+        ),
         ca: [...tls.rootCertificates, rootCa],
         minVersion: "TLSv1.2",
         timeout: 20_000,
