@@ -133,9 +133,9 @@ export async function processHomologationDocument(
     return { document, transmitted: false, error: null };
   }
   // This opt-in is restricted to a conclusive 704 in homologation. Validation
-  // happens before any writes; the payload changes only after SEFAZ returns 217.
+  // happens before writes; the payload changes only after a conclusive key lookup.
   if (options.refreshHomologationIssueTime) {
-    prepareHomologationNfceTimeRetry(document);
+    prepareHomologationNfceTimeRetry(document, new Date(), store.getDocumentEvents(document.id));
   }
   if (documentsInProcessing.has(document.id)) {
     const message = "Ja existe um processamento em andamento para este documento.";
@@ -297,7 +297,10 @@ export async function processHomologationDocument(
         error: null
       };
     }
-    if (currentStatus.cStat !== "217") {
+    const confirmed704 = options.refreshHomologationIssueTime && currentStatus.cStat === "704" &&
+      currentStatus.accessKey === accessKey && !currentStatus.protocol &&
+      (!currentStatus.protocolCStat || currentStatus.protocolCStat === "704");
+    if (currentStatus.cStat !== "217" && !confirmed704) {
       throw new Error(
         currentStatus.protocolReason ||
           currentStatus.xMotivo ||
@@ -306,7 +309,7 @@ export async function processHomologationDocument(
     }
 
     if (options.refreshHomologationIssueTime) {
-      const refreshed = prepareHomologationNfceTimeRetry(document);
+      const refreshed = prepareHomologationNfceTimeRetry(document, new Date(), store.getDocumentEvents(document.id));
       const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
       const signed = generateAndSignNfeXml(refreshed.payload, opened.privateKeyPem,
         opened.certificatePem, resolveQrCodeConfig(document), resolveResponsibleTechnicalCsrtConfig(document));
@@ -317,9 +320,9 @@ export async function processHomologationDocument(
       const hash = (payload: unknown) => createHash("sha256").update(JSON.stringify(payload)).digest("hex");
       store.addDocumentEvent(document.id, {
         eventType: "homologation_issue_time_refreshed",
-        message: "Horario renovado apos rejeicao 704 e consulta SEFAZ 217; mesma chave e numeracao.",
+        message: "Horario renovado apos rejeicao 704 e consulta SEFAZ conclusiva sem autorizacao; mesma chave e numeracao.",
         payload: { previousIssueTime: refreshed.previousIssueTime, issueTime: refreshed.issueTime,
-          previousPayloadHash: hash(document.payloadOriginal), payloadHash: hash(refreshed.payload), accessKey }
+          previousPayloadHash: hash(document.payloadOriginal), payloadHash: hash(refreshed.payload), accessKey, consultationCode: currentStatus.cStat }
       });
       document.payloadOriginal = refreshed.payload;
       document.payloadNormalizado = { ...(document.payloadNormalizado as Record<string, unknown>),
@@ -333,7 +336,7 @@ export async function processHomologationDocument(
 
     store.addDocumentEvent(document.id, {
       eventType: "sefaz_authorization_started",
-      message: "Chave inexistente na SEFAZ; transmissao iniciada.",
+      message: currentStatus.cStat === "217" ? "Chave inexistente na SEFAZ; transmissao iniciada." : "Rejeicao 704 confirmada sem autorizacao; XML com horario renovado sera transmitido.",
       payload: { attempt: attemptNumber, accessKey }
     });
     await waitForNonBlockingPersistence(store, document.id, "inicio da transmissao");

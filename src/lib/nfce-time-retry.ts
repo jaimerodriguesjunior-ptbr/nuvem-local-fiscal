@@ -1,8 +1,16 @@
-import type { DocumentRecord } from "../types.js";
+import type { DocumentRecord, DocumentEventRecord } from "../types.js";
 
-export function prepareHomologationNfceTimeRetry(document: DocumentRecord, now = new Date()) {
+export function prepareHomologationNfceTimeRetry(document: DocumentRecord, now = new Date(), events: DocumentEventRecord[] = []) {
+  const observation = [...events].filter(event => ["sefaz_preflight_completed", "sefaz_authorization_completed", "authorization_recovered"].includes(event.eventType))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  const rejectedObservation = observation &&
+    String(observation.payload.cStat ?? observation.payload.batchCStat) === "704" && !observation.payload.protocol &&
+    (!observation.payload.protocolCStat || observation.payload.protocolCStat === "704") &&
+    events.some(event => ["sefaz_preflight_started", "sefaz_authorization_started"].includes(event.eventType) &&
+      event.payload.attempt === observation.payload.attempt && event.payload.accessKey === document.chave);
+  const has704 = document.motivoStatus === "704" || (document.motivoStatus === "PROCESSAMENTO_AUTOMATICO" && rejectedObservation);
   if (document.ambiente !== "homologacao" || document.tipoDocumento !== "NFCe" ||
-      !["erro", "rejeitado"].includes(document.status) || document.motivoStatus !== "704" ||
+      !["erro", "rejeitado"].includes(document.status) || !has704 ||
       document.protocolo || document.sefazReceipt || !/^\d{44}$/.test(document.chave ?? "")) {
     throw new Error("Renovacao de horario exige NFC-e de homologacao rejeitada com codigo 704 e sem protocolo/recibo pendente.");
   }

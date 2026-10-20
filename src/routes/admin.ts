@@ -1553,7 +1553,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     }
 
     if (body.refreshHomologationIssueTime === true) {
-      try { prepareHomologationNfceTimeRetry(document); }
+      try { prepareHomologationNfceTimeRetry(document, new Date(), app.store.getDocumentEvents(document.id)); }
       catch (error) { return reply.code(409).send({ message: error instanceof Error ? error.message : "Retomada indisponivel." }); }
     }
     const result =

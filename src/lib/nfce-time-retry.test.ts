@@ -42,7 +42,21 @@ test("blocks production, finals, pending receipts, other failures and month chan
   assert.throws(() => prepareHomologationNfceTimeRetry(fixture(), new Date("2026-11-01T12:00:00Z")), /mes/);
 });
 
-for (const scenario of ["absent", "authorized", "unavailable", "persistence_failure", "default", "key_change"] as const) {
+test("generic failures require a confirmed 704 observation bound to the same key", () => {
+  const document = fixture(); document.motivoStatus = "PROCESSAMENTO_AUTOMATICO";
+  const events = [
+    { id:"start",documentId:document.id,level:"info",message:"synthetic",eventType:"sefaz_preflight_started",createdAt:"2026-10-20T22:00:00Z",payload:{attempt:0,accessKey:key} },
+    { id:"end",documentId:document.id,level:"info",message:"synthetic",eventType:"sefaz_preflight_completed",createdAt:"2026-10-20T22:00:01Z",payload:{attempt:0,cStat:"704",protocol:null} }
+  ] as DocumentEventRecord[];
+  assert.throws(() => prepareHomologationNfceTimeRetry(document, now));
+  assert.equal(prepareHomologationNfceTimeRetry(document, now, events).issueTime, "2026-10-20T20:00:00-03:00");
+  const foreign = structuredClone(events); foreign[0].payload.accessKey = key.slice(0,-1) + "1";
+  assert.throws(() => prepareHomologationNfceTimeRetry(document, now, foreign));
+  const authorized = structuredClone(events); authorized[1].payload.protocol = "123";
+  assert.throws(() => prepareHomologationNfceTimeRetry(document, now, authorized));
+});
+
+for (const scenario of ["absent", "authorized", "unavailable", "persistence_failure", "default", "key_change", "confirmed704", "history704", "contradictory704"] as const) {
   test(`time retry preserves the preflight fence: ${scenario}`, async (t) => {
     // tsx exposes non-configurable getters; exercise these integration cases on the deployed CommonJS build.
     if (!Object.getOwnPropertyDescriptor(rules, "assertValidNfceEmissionPayload")?.configurable) {
@@ -51,7 +65,11 @@ for (const scenario of ["absent", "authorized", "unavailable", "persistence_fail
     t.mock.timers.enable({ apis: ["Date"], now });
     const document = fixture();
     const oldPayload = structuredClone(document.payloadOriginal);
-    const events: DocumentEventRecord[] = [];
+    const events: DocumentEventRecord[] = scenario === "history704" ? [
+      {id:"start",documentId:document.id,level:"info",message:"synthetic",eventType:"sefaz_preflight_started",createdAt:"2026-10-20T22:00:00Z",payload:{attempt:0,accessKey:key}},
+      {id:"end",documentId:document.id,level:"info",message:"synthetic",eventType:"sefaz_preflight_completed",createdAt:"2026-10-20T22:00:01Z",payload:{attempt:0,cStat:"704",protocol:null}}
+    ] as DocumentEventRecord[] : [];
+    if (scenario === "history704") document.motivoStatus = "PROCESSAMENTO_AUTOMATICO";
     const order: string[] = [];
     let transmissions = 0;
     t.mock.method(rules, "assertValidNfceEmissionPayload", () => undefined);
@@ -62,8 +80,8 @@ for (const scenario of ["absent", "authorized", "unavailable", "persistence_fail
     t.mock.method(sefaz, "querySefazDocumentStatus", async () => {
       order.push("preflight");
       assert.deepEqual(document.payloadOriginal, oldPayload);
-      return { cStat: scenario === "authorized" ? "100" : scenario === "unavailable" ? "108" : "217",
-        protocolCStat: scenario === "authorized" ? "100" : "", protocol: scenario === "authorized" ? "123" : "",
+      return { cStat: scenario === "authorized" ? "100" : scenario === "unavailable" ? "108" : ["confirmed704", "history704", "contradictory704"].includes(scenario) ? "704" : "217",
+        protocolCStat: scenario === "authorized" ? "100" : scenario === "contradictory704" ? "999" : "", protocol: scenario === "authorized" ? "123" : "",
         accessKey: key, xMotivo: "synthetic" } as any;
     });
     t.mock.method(sefaz, "authorizeNfeAtSefaz", async (input: any) => {
@@ -88,9 +106,9 @@ for (const scenario of ["absent", "authorized", "unavailable", "persistence_fail
       }
     } as unknown as InMemoryStore;
     const result = await processHomologationNfce(store, document.id, { refreshHomologationIssueTime: scenario !== "default" });
-    assert.equal(transmissions, ["absent", "default"].includes(scenario) ? 1 : 0);
+    assert.equal(transmissions, ["absent", "default", "confirmed704", "history704"].includes(scenario) ? 1 : 0);
     assert.equal(document.numero, 1); assert.equal(document.serie, 1); assert.equal(document.chave, key);
-    if (["authorized", "unavailable", "default", "key_change"].includes(scenario)) {
+    if (["authorized", "unavailable", "default", "key_change", "contradictory704"].includes(scenario)) {
       assert.deepEqual(document.payloadOriginal, oldPayload);
       assert.equal(events.some(e => e.eventType === "homologation_issue_time_refreshed"), false);
     }
