@@ -23,6 +23,7 @@ import {
 import { isUncertainAuthorizationFailure } from "../lib/retry-rules.js";
 import { querySefazStatus } from "../lib/sefaz-status.js";
 import { validateNfeXml } from "../lib/xsd-validator.js";
+import { prepareHomologationNfceTimeRetry } from "../lib/nfce-time-retry.js";
 import type { ApiClient } from "../types.js";
 
 const legacyAdminHtml = `<!doctype html>
@@ -1551,10 +1552,14 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       });
     }
 
+    if (body.refreshHomologationIssueTime === true) {
+      try { prepareHomologationNfceTimeRetry(document); }
+      catch (error) { return reply.code(409).send({ message: error instanceof Error ? error.message : "Retomada indisponivel." }); }
+    }
     const result =
       document.tipoDocumento === "NFCe"
-        ? await processHomologationNfce(app.store, document.id)
-        : await processHomologationDocument(app.store, document.id);
+        ? await processHomologationNfce(app.store, document.id, { refreshHomologationIssueTime: body.refreshHomologationIssueTime === true })
+        : await processHomologationDocument(app.store, document.id, { refreshHomologationIssueTime: body.refreshHomologationIssueTime === true });
     return reply.code(result.error ? 422 : 200).send({
       message:
         result.error ??

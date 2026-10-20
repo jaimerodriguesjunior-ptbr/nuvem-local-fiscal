@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { config } from "../config.js";
+import { prepareHomologationNfceTimeRetry } from "./nfce-time-retry.js";
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
@@ -103,7 +105,8 @@ function resolveResponsibleTechnicalCsrtConfig(document: DocumentRecord) {
 
 export async function processHomologationDocument(
   store: InMemoryStore,
-  documentId: string
+  documentId: string,
+  options: { refreshHomologationIssueTime?: boolean } = {}
 ): Promise<AutomaticProcessingResult> {
   const document = store.findDocument(documentId);
   if (!document) {
@@ -128,6 +131,11 @@ export async function processHomologationDocument(
   }
   if (["autorizado", "cancelado"].includes(document.status)) {
     return { document, transmitted: false, error: null };
+  }
+  // This opt-in is restricted to a conclusive 704 in homologation. Validation
+  // happens before any writes; the payload changes only after SEFAZ returns 217.
+  if (options.refreshHomologationIssueTime) {
+    prepareHomologationNfceTimeRetry(document);
   }
   if (documentsInProcessing.has(document.id)) {
     const message = "Ja existe um processamento em andamento para este documento.";
@@ -297,6 +305,32 @@ export async function processHomologationDocument(
       );
     }
 
+    if (options.refreshHomologationIssueTime) {
+      const refreshed = prepareHomologationNfceTimeRetry(document);
+      const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
+      const signed = generateAndSignNfeXml(refreshed.payload, opened.privateKeyPem,
+        opened.certificatePem, resolveQrCodeConfig(document), resolveResponsibleTechnicalCsrtConfig(document));
+      const xsd = validateNfeXml(signed.signedXml);
+      if (signed.accessKey !== accessKey || !signed.signatureValid || !xsd.valid) {
+        throw new Error("Novo horario nao preservou chave, assinatura e XSD; transmissao bloqueada.");
+      }
+      const hash = (payload: unknown) => createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+      store.addDocumentEvent(document.id, {
+        eventType: "homologation_issue_time_refreshed",
+        message: "Horario renovado apos rejeicao 704 e consulta SEFAZ 217; mesma chave e numeracao.",
+        payload: { previousIssueTime: refreshed.previousIssueTime, issueTime: refreshed.issueTime,
+          previousPayloadHash: hash(document.payloadOriginal), payloadHash: hash(refreshed.payload), accessKey }
+      });
+      document.payloadOriginal = refreshed.payload;
+      document.payloadNormalizado = { ...(document.payloadNormalizado as Record<string, unknown>),
+        ide: structuredClone(refreshed.payload.infNFe.ide) };
+      store.saveSignedXml(document.id, { ...signed, xsdValid: true, xsdErrors: [], certificateId: certificate.id });
+      // Unlike ordinary diagnostic persistence, this preparation must be durable
+      // before sending the revised XML.
+      await store.waitForPersistence();
+      signedXml = signed.signedXml;
+    }
+
     store.addDocumentEvent(document.id, {
       eventType: "sefaz_authorization_started",
       message: "Chave inexistente na SEFAZ; transmissao iniciada.",
@@ -374,7 +408,8 @@ export async function processHomologationDocument(
 
 export async function processHomologationNfce(
   store: InMemoryStore,
-  documentId: string
+  documentId: string,
+  options: { refreshHomologationIssueTime?: boolean } = {}
 ): Promise<AutomaticProcessingResult> {
   const document = store.findDocument(documentId);
   if (!document) {
@@ -383,5 +418,5 @@ export async function processHomologationNfce(
   if (document.tipoDocumento !== "NFCe") {
     return { document, transmitted: false, error: null };
   }
-  return processHomologationDocument(store, documentId);
+  return processHomologationDocument(store, documentId, options);
 }
