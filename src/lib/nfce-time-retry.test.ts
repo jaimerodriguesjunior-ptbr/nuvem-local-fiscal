@@ -54,6 +54,13 @@ test("generic failures require a confirmed 704 observation bound to the same key
   assert.throws(() => prepareHomologationNfceTimeRetry(document, now, foreign));
   const authorized = structuredClone(events); authorized[1].payload.protocol = "123";
   assert.throws(() => prepareHomologationNfceTimeRetry(document, now, authorized));
+  for (const event of [
+    {eventType:"sefaz_authorization_started",payload:{}},
+    {eventType:"authorization_attempt_failed",payload:{uncertainExternalState:true}}
+  ]) {
+    const uncertain = [...events, {id:"later",documentId:document.id,level:"error",message:"synthetic",createdAt:"2026-10-20T22:00:02Z",...event}] as DocumentEventRecord[];
+    assert.throws(() => prepareHomologationNfceTimeRetry(document, now, uncertain));
+  }
 });
 
 for (const scenario of ["absent", "authorized", "unavailable", "persistence_failure", "default", "key_change", "confirmed704", "history704", "contradictory704"] as const) {

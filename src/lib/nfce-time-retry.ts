@@ -6,6 +6,9 @@ export function prepareHomologationNfceTimeRetry(document: DocumentRecord, now =
   const rejectedObservation = observation &&
     String(observation.payload.cStat ?? observation.payload.batchCStat) === "704" && !observation.payload.protocol &&
     (!observation.payload.protocolCStat || observation.payload.protocolCStat === "704") &&
+    !events.some(event => Date.parse(event.createdAt) >= Date.parse(observation.createdAt) &&
+      (event.eventType === "sefaz_authorization_started" ||
+       (event.eventType === "authorization_attempt_failed" && event.payload.uncertainExternalState === true))) &&
     events.some(event => ["sefaz_preflight_started", "sefaz_authorization_started"].includes(event.eventType) &&
       event.payload.attempt === observation.payload.attempt && event.payload.accessKey === document.chave);
   const has704 = document.motivoStatus === "704" || (document.motivoStatus === "PROCESSAMENTO_AUTOMATICO" && rejectedObservation);
