@@ -39,7 +39,12 @@ test('historical query queue: idempotency, bounded retries, lease CAS, source CA
     await q("update fiscal_recovery.legacy_checks set owner_until=clock_timestamp()-interval '1 second' where request_id=$1",[request]);
     assert.equal(await finish(lease.token),false);const replacement=(await claim()).lease;
     assert.notEqual(replacement.token,lease.token);assert.equal(await finish(lease.token),false);
+    await assert.rejects(()=>q("update public.fiscal_documents set reason='snapshot overwrite' where id=$1",[old]),/LEGACY_DOCUMENT_OWNED/);
+    assert.deepEqual((await q('select public.fiscal_recovery_legacy_owned_v1($1) as r',[[old]]))[0].r,[old]);
+    // Simulate an out-of-band superuser bypass, not a normal application path.
+    await db.exec('set session_replication_role=replica');
     await q("update public.fiscal_documents set reason='external change' where id=$1",[old]);
+    await db.exec('set session_replication_role=origin');
     assert.equal(await finish(replacement.token),true);
     assert.equal((await reserve()).state,'manual_review');assert.equal((await claim()).nextWakeAt,null);
     assert.equal((await q('select status from public.fiscal_documents where id=$1',[old]))[0].status,'autorizado');

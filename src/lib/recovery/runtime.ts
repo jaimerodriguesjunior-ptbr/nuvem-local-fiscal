@@ -74,6 +74,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   };
   const controller=new RecoveryController(repository,{
     async prepare(document) {
+      if(process.env.RECOVERY_V1_FIRST_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
       const {cert}=certificate(document);
       const opened=openEncryptedCertificate(cert.encryptedBundle,config.certificateEncryptionKey);
       const signed=generateAndSignNfeXml(document.payloadOriginal as Record<string,unknown>,opened.privateKeyPem,
@@ -95,6 +96,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   const cancellationRepository=new SupabaseCancellationRepository(client);
   const cancellation=new CancellationController(cancellationRepository,{
     async prepare(record,justification){
+      if(process.env.RECOVERY_V1_CANCELLATION_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
       const {issuer,cert}=certificate(record.document);
       const opened=openEncryptedCertificate(cert.encryptedBundle,config.certificateEncryptionKey);
       const signed=buildSignedCancellationXml({uf:issuer.uf,ambiente:'producao',cnpj:record.scope.cnpj,

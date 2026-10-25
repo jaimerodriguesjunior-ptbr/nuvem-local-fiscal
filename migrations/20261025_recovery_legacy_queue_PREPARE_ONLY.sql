@@ -20,15 +20,39 @@ revoke all on fiscal_recovery.legacy_checks from public,anon,authenticated,servi
 create trigger legacy_check_wake after insert or update of next_at on fiscal_recovery.legacy_checks
   for each row execute function fiscal_recovery.notify_job();
 
+-- Freeze the historical source as soon as its check is reserved. Otherwise a
+-- normal snapshot upsert changes updated_at during the network consultation
+-- and invalidates its full-row CAS. No old writer may change this source while
+-- adoption is pending or awaiting manual review either.
+create or replace function fiscal_recovery.guard_legacy_association() returns trigger
+language plpgsql security definer set search_path=pg_catalog as $$
+begin
+  if exists(select 1 from fiscal_recovery.legacy_links where legacy_id=old.id) or
+    exists(select 1 from fiscal_recovery.legacy_checks where legacy_id=old.id) then
+    raise exception 'RECOVERY_LEGACY_DOCUMENT_OWNED' using errcode='55000';end if;
+  return case when tg_op='DELETE' then old else new end;
+end $$;
+create or replace function public.fiscal_recovery_legacy_owned_v1(p_ids text[]) returns jsonb
+language plpgsql security definer set search_path=pg_catalog as $$
+begin
+  if coalesce(cardinality(p_ids),0)>250 then raise exception 'RECOVERY_LEGACY_BATCH_INVALID';end if;
+  return (select coalesce(jsonb_agg(legacy_id),'[]'::jsonb) from (
+    select legacy_id from fiscal_recovery.legacy_links where legacy_id=any(p_ids)
+    union select legacy_id from fiscal_recovery.legacy_checks where legacy_id=any(p_ids)) owned);
+end $$;
+
 create function public.fiscal_recovery_legacy_check_v1(p_legacy text,p_scope uuid,p_client text,p_request uuid,p_origin text)
 returns jsonb language plpgsql security definer set search_path=pg_catalog as $$
 declare c fiscal_recovery.legacy_checks;src jsonb;
 begin
   if p_request is null or p_origin is null or length(p_origin) not between 1 and 200 or
     p_legacy is null or p_legacy like 'rv1_%' then raise exception 'RECOVERY_LEGACY_CHECK_INVALID';end if;
-  src:=public.fiscal_recovery_legacy_source_v1(p_legacy,p_scope,p_client);
   perform pg_advisory_xact_lock(hashtextextended('recovery-legacy-check:'||p_legacy,0));
   select * into c from fiscal_recovery.legacy_checks where legacy_id=p_legacy for update;
+  if c.request_id is null then
+    perform 1 from public.fiscal_documents where id=p_legacy for update;
+  end if;
+  src:=public.fiscal_recovery_legacy_source_v1(p_legacy,p_scope,p_client);
   if c.request_id is null then
     insert into fiscal_recovery.legacy_checks(request_id,legacy_id,scope_id,origin_id,source_sha256,source_snapshot)
       values(p_request,p_legacy,p_scope,p_origin,src->>'sourceSha256',src->'source') returning * into c;
