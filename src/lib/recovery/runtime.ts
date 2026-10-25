@@ -17,7 +17,7 @@ import { PostgresRecoveryWakeSource, type RecoveryNotificationConnection } from 
 import { RecoveryWorker } from "./worker.js";
 import { configureTransmissionFence } from "./transmission-fence.js";
 import {RecoveryOutboxWorker,createSyncDelivery} from './outbox.js';
-import {recoveryListenUrl} from './listen-url.js';
+import {recoveryListenerUrl} from './listen-url.js';
 import {RecoveryGopDrainPump,RecoveryDemandPump,createGopDrain} from './gop-drain.js';
 import {recoveryDatabaseTls} from './database-tls.js';
 import {drainCancellation} from './cancellation-drain.js';
@@ -58,9 +58,9 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   const databaseUrl=process.env.RECOVERY_V1_DATABASE_URL;
   if (!databaseUrl || !Array.isArray(scopeIds) || scopeIds.length<1 || scopeIds.length>2 ||
       scopeIds.some(id=>typeof id!=='string'||!/^[a-f0-9-]{36}$/i.test(id))) throw new Error('RECOVERY_SCOPE_CONFIG_REQUIRED');
-  const database=recoveryListenUrl(databaseUrl,config.supabaseUrl);
+  const database=recoveryListenerUrl(databaseUrl,config.supabaseUrl);
   const gopProject=process.env.RECOVERY_V1_GOP_SUPABASE_URL??'';
-  const gopDatabase=recoveryListenUrl(process.env.RECOVERY_V1_GOP_DATABASE_URL??'',gopProject);
+  const gopDatabase=recoveryListenerUrl(process.env.RECOVERY_V1_GOP_DATABASE_URL??'',gopProject);
   const databaseTls=recoveryDatabaseTls();
   if(new URL(gopProject).hostname===new URL(config.supabaseUrl).hostname)throw new Error('RECOVERY_GOP_DATABASE_PROJECT_MISMATCH');
   const client=createClient(config.supabaseUrl,config.supabaseServiceRoleKey,{auth:{persistSession:false,autoRefreshToken:false}});
