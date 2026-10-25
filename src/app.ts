@@ -10,7 +10,10 @@ import { InMemoryStore } from "./store.js";
 import { createRecoveryRuntime, type RecoveryRuntime } from "./lib/recovery/runtime.js";
 
 export function buildApp(options: {recovery?:RecoveryRuntime|null} = {}) {
-  const app = Fastify({ logger: true });
+  // Recovery boot includes verified database sessions and a bounded GOP drain.
+  // Keep readiness closed during boot without the legacy 10s hook timeout
+  // repeatedly restarting an otherwise healthy recovery composition.
+  const app = Fastify({ logger: true, pluginTimeout: process.env.RECOVERY_V1_ENABLED === 'true' ? 120_000 : 10_000 });
   const persistence =
     config.supabaseUrl && config.supabaseServiceRoleKey
       ? new SupabasePersistence(config.supabaseUrl, config.supabaseServiceRoleKey)
