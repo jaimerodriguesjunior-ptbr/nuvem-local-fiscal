@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { createAdminHtml } from "../admin-page.js";
 import { config } from "../config.js";
+import { isRecoveryNamespace } from "../lib/recovery/transmission-fence.js";
 import {
   encryptSecretPayload,
   decryptSecretPayload,
@@ -23,6 +24,7 @@ import {
 import { isUncertainAuthorizationFailure } from "../lib/retry-rules.js";
 import { querySefazStatus } from "../lib/sefaz-status.js";
 import { validateNfeXml } from "../lib/xsd-validator.js";
+import { prepareHomologationNfceTimeRetry } from "../lib/nfce-time-retry.js";
 import type { ApiClient } from "../types.js";
 
 const legacyAdminHtml = `<!doctype html>
@@ -767,6 +769,16 @@ function parseIntegrationDraft(
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
+  app.addHook('preHandler',async(request,reply)=>{
+    if(request.method!=='GET'&&request.url.startsWith('/admin/api/documents/')) {
+      const id=(request.params as {id?:string;documentId?:string}|undefined)?.id??
+        (request.params as {documentId?:string}|undefined)?.documentId;
+      const doc=id?app.store.findDocument(id):null;
+      if(id?.startsWith('rv1_')||(doc&&isRecoveryNamespace(doc.issuerCnpj,doc.ambiente,doc.tipoDocumento,doc.serie))) {
+        return reply.code(409).send({message:'RECOVERY_COMMON_CONTROLLER_REQUIRED'});
+      }
+    }
+  });
   // O Nginx protege a pagina /admin com Basic Auth. As APIs abaixo continuam
   // validando as credenciais da aplicacao, enviadas pelo painel depois da carga.
   app.get("/admin", async (_request, reply) => {
@@ -1551,10 +1563,14 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       });
     }
 
+    if (body.refreshHomologationIssueTime === true) {
+      try { prepareHomologationNfceTimeRetry(document, new Date(), app.store.getDocumentEvents(document.id)); }
+      catch (error) { return reply.code(409).send({ message: error instanceof Error ? error.message : "Retomada indisponivel." }); }
+    }
     const result =
       document.tipoDocumento === "NFCe"
-        ? await processHomologationNfce(app.store, document.id)
-        : await processHomologationDocument(app.store, document.id);
+        ? await processHomologationNfce(app.store, document.id, { refreshHomologationIssueTime: body.refreshHomologationIssueTime === true })
+        : await processHomologationDocument(app.store, document.id, { refreshHomologationIssueTime: body.refreshHomologationIssueTime === true });
     return reply.code(result.error ? 422 : 200).send({
       message:
         result.error ??

@@ -15,7 +15,8 @@ export type CancellationState =
   | "pendente_transmissao"
   | "pendente_confirmacao"
   | "confirmado"
-  | "rejeitado";
+  | "rejeitado"
+  | "bloqueado_local";
 
 export type ApiClient = {
   id: string;
@@ -132,6 +133,7 @@ export type MessageItem = {
 };
 
 export type DocumentRecord = {
+  recovery?: import("./lib/recovery/runtime.js").RecoveryDocumentMetadata;
   id: string;
   providerLikeId: string;
   tipoDocumento: DocumentType;

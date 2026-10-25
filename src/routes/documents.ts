@@ -6,6 +6,9 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
+import { isRecoveryNamespace } from "../lib/recovery/transmission-fence.js";
+import { publicManagedDocument } from "../lib/recovery/runtime.js";
+import { prepareNfeXsdRetryPayload } from "../lib/nfe-xsd-retry.js";
 import {
   decryptSecretPayload,
   encryptSecretPayload,
@@ -13,6 +16,7 @@ import {
   parsePfx
 } from "../lib/certificates.js";
 import {
+  isDocumentInProcessing,
   processHomologationDocument,
   processHomologationNfce
 } from "../lib/document-processing.js";
@@ -48,6 +52,7 @@ import type { DocumentRecord, DocumentType, DistributionDocumentRecord, Distribu
 type EstadualDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 
 const runCancellationSingleFlight = createSingleFlight();
+const nfeXsdRetries = new Set<string>();
 
 type AuthenticatedRequest = FastifyRequest & {
   tokenRecord: {
@@ -111,6 +116,7 @@ function mapDocumentResponse(document: DocumentRecord, baseUrl: string) {
     document.status === "autorizado" || document.status === "cancelado";
   return {
     id: document.providerLikeId,
+    ...(document.recovery ? {recovery:document.recovery} : {}),
     status: document.status,
     numero: document.numero,
     serie: document.serie,
@@ -634,6 +640,36 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handleInutilizationXmlDownload(app, request, reply, "NFe", "response");
   });
 
+  // Rota opt-in: reaproveita exclusivamente documento que falhou antes da SEFAZ.
+  app.post("/nfe/:id/retomar-xsd", async (request, reply) => {
+    const document = app.store.findDocument((request.params as { id: string }).id, "NFe");
+    if (!document) return reply.code(404).send({ message: "Documento nao encontrado." });
+    if (!ensureDocumentTokenAccess(request, reply, document)) return;
+    if(isRecoveryNamespace(document.issuerCnpj,document.ambiente,document.tipoDocumento,document.serie)) {
+      return reply.code(409).send({message:'RECOVERY_LEGACY_REVISION_BLOCKED'});
+    }
+    if (nfeXsdRetries.has(document.id) || isDocumentInProcessing(document.id)) return reply.code(409).send({ message: "Documento ja esta sendo retomado." });
+    if (document.ambiente === "producao" && !config.fiscalProductionEnabled) return reply.code(403).send({ message: "Transmissao em producao bloqueada." });
+    const service = app.store.findServiceConfigRecord(document.issuerCnpj, document.ambiente, "NFE");
+    if (service && (!service.active || service.settings.autoTransmit === false)) return reply.code(409).send({ message: "Transmissao NF-e desativada para esta empresa." });
+    nfeXsdRetries.add(document.id);
+    try {
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const payload = prepareNfeXsdRetryPayload(document, app.store.getDocumentEvents(document.id), body);
+      const validation = validateNfeEmissionPayload(payload);
+      if (!validation.ok) return reply.code(400).send({ message: "Payload invalido.", issues: validation.issues });
+      app.store.prepareNfeXsdRetry(document.id, payload, normalizePayload("NFe", payload));
+      app.store.addDocumentEvent(document.id, { eventType: "xsd_retry_prepared", message: "Unidades revisadas; mesmo documento, numero e serie preservados.", payload: { unidades: body.unidades } });
+      await app.store.waitForPersistence();
+      const processed = await processHomologationDocument(app.store, document.id);
+      return reply.code(processed.error ? 422 : 200).send({ ...mapDocumentResponse(processed.document, requestBaseUrl(request)), data_emissao: ((payload.infNFe as Record<string, unknown>).ide as Record<string, unknown>).dhEmi, message: processed.error || processed.document.motivo, transmitido: processed.transmitted });
+    } catch (error) {
+      return reply.code(409).send({ message: error instanceof Error ? error.message : "Falha ao retomar documento." });
+    } finally {
+      nfeXsdRetries.delete(document.id);
+    }
+  });
+
   app.get("/nfe/:id", async (request, reply) => {
     return handleGetDocument(app, request, reply, "NFe");
   });
@@ -649,6 +685,36 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   app.post("/nfe/:id/cancelar", async (request, reply) => {
     return handleCancelDocument(app, request, reply, "NFe");
   });
+
+  for(const [prefix,model] of [['nfe','NFe'],['nfce','NFCe']] as const){
+    app.post(`/${prefix}/:id/associar-recuperacao`,async(request,reply)=>{
+      const id=(request.params as {id:string}).id;
+      const source=app.store.findDocument(id,model);
+      if(!source||id.startsWith('rv1_'))return reply.code(404).send({message:'Documento historico nao encontrado.'});
+      if(!ensureDocumentTokenAccess(request,reply,source))return;
+      if(!app.recovery?.ready)return reply.code(503).send({message:'RECOVERY_RUNTIME_NOT_READY'});
+      const clientId=(request as AuthenticatedRequest).tokenRecord.clientId;
+      try{
+        const result=await app.recovery.associateLegacy(id,String(request.headers['x-recovery-request-id']??''),
+          String(request.headers['x-recovery-origin-id']??''),clientId,model);
+        if(result.document)return mapDocumentResponse(result.document,requestBaseUrl(request));
+        return reply.code(202).send({associacao:result.check,cancelamento_enviado:false});
+      }catch{return reply.code(409).send({message:'RECOVERY_LEGACY_ASSOCIATION_UNAVAILABLE',cancelamento_enviado:false});}
+    });
+    app.post(`/${prefix}/:id/consultar`,async(request,reply)=>{
+      const id=(request.params as {id:string}).id;
+      const document=await findManagedDocument(app,id,model);
+      if(!document)return reply.code(404).send({message:'Documento do controlador nao encontrado.'});
+      if(!ensureDocumentTokenAccess(request,reply,document))return;
+      if(!app.recovery?.ready)return reply.code(503).send({message:'RECOVERY_RUNTIME_NOT_READY'});
+      const clientId=(request as AuthenticatedRequest).tokenRecord.clientId;
+      try{
+        const query=await app.recovery.requestQuery(document.id,clientId);
+        const current=await app.recovery.findDocument(id)??document;
+        return reply.code(202).send({...mapDocumentResponse(current,requestBaseUrl(request)),consulta:query});
+      }catch{return reply.code(503).send({message:'RECOVERY_QUERY_UNAVAILABLE'});}
+    });
+  }
 
   app.post("/nfce/:id/cancelar", async (request, reply) => {
     return handleCancelDocument(app, request, reply, "NFCe");
@@ -2034,6 +2100,27 @@ async function handleCreateDocument(
       ? encryptSecretPayload({ cscId, csc }, config.certificateEncryptionKey)
       : null;
 
+  const recoverySeries=Number((payloadNormalizado.ide as Record<string,unknown>|undefined)?.serie);
+  if (isRecoveryNamespace(issuerCnpj,ambiente,tipoDocumento,recoverySeries)) {
+    const runtime=app.recovery;
+    const token=(request as AuthenticatedRequest).tokenRecord;
+    const scope=runtime?.scopes.find(scope=>scope.clientId===token.clientId&&scope.cnpj===issuerCnpj&&scope.model===tipoDocumento&&
+      scope.environment===ambiente&&scope.series===recoverySeries&&String(scope.storeId)===request.headers['x-recovery-store-id']&&
+      scope.organizationId===request.headers['x-recovery-organization-id']);
+    if (!runtime?.ready || !shouldTransmitNow || !scope || body.mockStatus!==undefined) {
+      return reply.code(409).send({message:'RECOVERY_COMMON_CONTROLLER_REQUIRED'});
+    }
+    try {
+      const record=await runtime.controller.submit(scope,String(request.headers['x-recovery-request-id']??''),
+        String(request.headers['x-recovery-origin-id']??''),payloadOriginal,payloadNormalizado,nfceConfigEncrypted,
+        request.headers['x-recovery-resume-local']==='true');
+      return reply.code(202).send(mapDocumentResponse(publicManagedDocument(record),requestBaseUrl(request)));
+    } catch(error) {
+      const code=error instanceof Error&&error.message.startsWith('RECOVERY_')?error.message:'RECOVERY_STORAGE_UNAVAILABLE';
+      return reply.code(code.includes('CONFLICT')?409:503).send({message:code});
+    }
+  }
+
   const document = app.store.createDocument({
     tipoDocumento,
     issuerCnpj,
@@ -2266,6 +2353,16 @@ async function handleCreateNfseDps(
   });
 }
 
+async function findManagedDocument(app:FastifyInstance,id:string,model:DocumentType,allowNfeAlias=false):Promise<DocumentRecord|null> {
+  if (!id.startsWith('rv1_')){
+    const legacy=app.store.findDocument(id);
+    if(!legacy||!isRecoveryNamespace(legacy.issuerCnpj,legacy.ambiente,legacy.tipoDocumento,legacy.serie))return null;
+  }
+  const doc=await app.recovery?.findDocument(id);
+  if (!doc || (doc.tipoDocumento!==model && !(allowNfeAlias&&model==='NFCe'&&doc.tipoDocumento==='NFe')))return null;
+  return doc;
+}
+
 async function handleGetDocument(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -2274,6 +2371,7 @@ async function handleGetDocument(
 ) {
   const params = request.params as { id: string };
   let storedDocument =
+    await findManagedDocument(app,params.id,tipoDocumento,true) ??
     app.store.findDocument(params.id, tipoDocumento) ??
     app.store.findDocument(params.id);
   if (!storedDocument) {
@@ -2318,13 +2416,29 @@ async function handleCancelDocument(
   tipoDocumento: EstadualDocumentType
 ) {
   const params = request.params as { id: string };
-  const document = app.store.findDocument(params.id, tipoDocumento);
+  const document = await findManagedDocument(app,params.id,tipoDocumento) ?? app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({
       message: "Documento nao encontrado para cancelamento."
     });
   }
   if (!ensureDocumentTokenAccess(request, reply, document)) return;
+  if(document.recovery){
+    if(document.status==='cancelado')return mapDocumentResponse(document,requestBaseUrl(request));
+    const body=(request.body as Record<string,unknown>|undefined)??{};
+    const justification=String(body.justificativa??body.justification??body.motivo??'').trim();
+    const intentId=request.headers['x-recovery-cancel-id'];
+    if(typeof intentId!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(intentId)||
+      justification.length<15||justification.length>255)return reply.code(400).send({message:'RECOVERY_CANCEL_REQUEST_INVALID'});
+    if(!app.recovery?.ready)return reply.code(503).send({message:'RECOVERY_RUNTIME_NOT_READY'});
+    try{
+      const current=await app.recovery.cancel(document.id,intentId,(request as AuthenticatedRequest).tokenRecord.clientId,justification);
+      return reply.code(['cancel_started','cancel_pending'].includes(current.recovery.phase)?202:200).send(mapDocumentResponse(current,requestBaseUrl(request)));
+    }catch(error){
+      const conflict=error instanceof Error&&/RECOVERY_(?:CANCEL_INTENT_CONFLICT|CANCELLATION_NOT_AVAILABLE|CANCELLATION_ALREADY_PENDING|CANCELLATION_SERVICE_PAUSED)/.test(error.message);
+      return reply.code(conflict?409:503).send({message:conflict?'RECOVERY_CANCELLATION_CONFLICT':'RECOVERY_CANCELLATION_UNAVAILABLE'});
+    }
+  }
   if (document.status === "cancelado") {
     return mapDocumentResponse(document, requestBaseUrl(request));
   }
@@ -2593,6 +2707,10 @@ function ensureDocumentTokenAccess(
 ) {
   if (isSignedArtifactRequest(request)) return true;
   const token = (request as AuthenticatedRequest).tokenRecord;
+  if(document.recovery&&token?.clientId!==document.recovery.clientId) {
+    reply.code(403).send({message:'RECOVERY_DOCUMENT_CLIENT_MISMATCH'});
+    return false;
+  }
   const scope = fiscalScopeForPath(`/${document.tipoDocumento.toLowerCase()}`);
   if (!token || !scope || !token.scopes.includes(scope)) {
     reply.code(403).send({ message: "Token sem escopo para acessar este documento fiscal." });
@@ -2661,7 +2779,7 @@ async function handleXmlDownload(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const document = app.store.findDocument(params.id, tipoDocumento);
+  const document = await findManagedDocument(app,params.id,tipoDocumento) ?? app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }
@@ -2689,7 +2807,7 @@ async function handleCancellationXmlDownload(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const document = app.store.findDocument(params.id, tipoDocumento);
+  const document = await findManagedDocument(app,params.id,tipoDocumento) ?? app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }
@@ -2711,7 +2829,7 @@ async function handlePdfDownload(
   tipoDocumento: DocumentType
 ) {
   const params = request.params as { id: string };
-  const document = app.store.findDocument(params.id, tipoDocumento);
+  const document = await findManagedDocument(app,params.id,tipoDocumento) ?? app.store.findDocument(params.id, tipoDocumento);
   if (!document) {
     return reply.code(404).send({ message: "Documento nao encontrado." });
   }

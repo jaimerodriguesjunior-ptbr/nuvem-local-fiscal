@@ -3250,9 +3250,13 @@ const page = String.raw`<!doctype html>
     async function processDocumentAutomatically(id) {
       const doc = state.snapshot.documents.find(function(item) { return item.id === id; });
       const environment = doc ? doc.ambiente : 'homologacao';
+      const observations = (state.snapshot.documentEvents || []).filter(function(event) { return event.documentId === id && ['sefaz_preflight_completed', 'sefaz_authorization_completed', 'authorization_recovered'].includes(event.eventType); }).sort(function(a, b) { return Date.parse(b.createdAt) - Date.parse(a.createdAt); });
+      const observation704 = observations[0] && String(observations[0].payload.cStat || observations[0].payload.batchCStat) === '704' && !observations[0].payload.protocol;
+      const refreshIssueTime = Boolean(doc && doc.tipoDocumento === 'NFCe' && environment === 'homologacao' && (doc.motivoStatus === '704' || (doc.motivoStatus === 'PROCESSAMENTO_AUTOMATICO' && observation704)) && ['erro', 'rejeitado'].includes(doc.status));
       const confirmation = prompt(
         'Esta acao assina, valida e transmite o documento fiscal em ' +
         String(environment).toUpperCase() +
+        (refreshIssueTime ? '. O horario sera renovado apos consulta da chave, preservando numero e serie' : '') +
         '. Digite PROCESSAR FISCAL para continuar:'
       );
       if (confirmation !== 'PROCESSAR FISCAL') {
@@ -3266,7 +3270,7 @@ const page = String.raw`<!doctype html>
           'content-type': 'application/json',
           Authorization: 'Basic ' + runtimeConfig.adminToken
         },
-        body: JSON.stringify({ confirmation: confirmation })
+        body: JSON.stringify({ confirmation: confirmation, refreshHomologationIssueTime: refreshIssueTime })
       });
       setResponse(await response.json());
       await refreshSnapshot();

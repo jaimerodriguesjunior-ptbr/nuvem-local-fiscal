@@ -199,6 +199,15 @@ const elementOrder: Record<string, string[]> = {
     "IS",
     "IBSCBS"
   ],
+  // JSON/jsonb nao garante ordem das propriedades. O XML segue o XSD PL_010c.
+  IBSCBS: ["CST", "cClassTrib", "indDoacao", "gIBSCBS", "gIBSCBSMono", "gTransfCred", "gAjusteCompet", "gEstornoCred", "gCredPresOper", "gCredPresIBSZFM"],
+  gIBSCBS: ["vBC", "gIBSUF", "gIBSMun", "vIBS", "gCBS", "gTribRegular", "gTribCompraGov"],
+  gIBSUF: ["pIBSUF", "gDif", "gDevTrib", "gRed", "vDif", "vDevTrib", "vIBSUF"],
+  gIBSMun: ["pIBSMun", "gDif", "gDevTrib", "gRed", "vDif", "vDevTrib", "vIBSMun"],
+  gCBS: ["pCBS", "gDif", "gDevTrib", "gRed", "vDif", "vDevTrib", "vCBS", "vCredPres", "vCredPresCondSus"],
+  gDif: ["pDif", "vDif"],
+  gDevTrib: ["vDevTrib"],
+  gRed: ["pRedAliq", "pAliqEfet"],
   ICMSTot: [
     "vBC",
     "vICMS",

@@ -7,8 +7,9 @@ import { registerDocumentRoutes } from "./routes/documents.js";
 import { registerOAuthRoutes } from "./routes/oauth.js";
 import { SupabasePersistence } from "./lib/supabase-persistence.js";
 import { InMemoryStore } from "./store.js";
+import { createRecoveryRuntime, type RecoveryRuntime } from "./lib/recovery/runtime.js";
 
-export function buildApp() {
+export function buildApp(options: {recovery?:RecoveryRuntime|null} = {}) {
   const app = Fastify({ logger: true });
   const persistence =
     config.supabaseUrl && config.supabaseServiceRoleKey
@@ -23,10 +24,13 @@ export function buildApp() {
   );
 
   app.decorate("store", store);
+  app.decorate("recovery", options.recovery === undefined ? createRecoveryRuntime(store) : options.recovery);
   app.register(formbody);
   app.addHook("onReady", async () => {
     await store.loadExternalState();
+    await app.recovery?.start();
   });
+  app.addHook("onClose",async()=>{await app.recovery?.stop();});
 
   app.get("/health", async () => ({
     status: "ok",
@@ -35,13 +39,16 @@ export function buildApp() {
     timestamp: new Date().toISOString()
   }));
 
-  app.get("/ready", async () => ({
-    status: "ready",
+  app.get("/ready", async (_request,reply) => {
+    const ready=!app.recovery||app.recovery.ready;
+    return reply.code(ready?200:503).send({
+    status: ready ? "ready" : "recovery_unavailable",
     persistence:
       config.supabaseUrl && config.supabaseServiceRoleKey ? "supabase" : "local",
     fiscalProductionBlocked: !config.fiscalProductionEnabled,
-    timestamp: new Date().toISOString()
-  }));
+    timestamp: new Date().toISOString(),
+    recovery:app.recovery?{enabled:true,ready:app.recovery.ready}: {enabled:false},
+  });});
 
   app.register(registerOAuthRoutes);
   app.register(registerDocumentRoutes);
@@ -53,5 +60,6 @@ export function buildApp() {
 declare module "fastify" {
   interface FastifyInstance {
     store: InMemoryStore;
+    recovery: RecoveryRuntime | null;
   }
 }

@@ -5,6 +5,8 @@ import {
   randomBytes
 } from "node:crypto";
 
+import { createSecureContext } from "node:tls";
+
 import forge from "node-forge";
 
 type CertificateBundle = {
@@ -111,6 +113,25 @@ export function parsePfx(pfx: Buffer, password: string): ParsedCertificate {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Nao foi possivel abrir o certificado PFX: ${message}`);
+  }
+}
+
+// Keep the PFX path unchanged unless OpenSSL reports this specific compatibility error.
+export function buildCertificateTlsOptions(pfx: Buffer, password: string) {
+  try {
+    createSecureContext({ pfx, passphrase: password });
+    return { pfx, passphrase: password };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/Unsupported PKCS12 PFX data/i.test(message)) {
+      throw error;
+    }
+
+    const certificate = parsePfx(pfx, password);
+    return {
+      key: certificate.privateKeyPem,
+      cert: certificate.certificateChainPem
+    };
   }
 }
 

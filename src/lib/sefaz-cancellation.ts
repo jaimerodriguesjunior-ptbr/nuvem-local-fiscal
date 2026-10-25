@@ -9,6 +9,7 @@ import { SignedXml } from "xml-crypto";
 import { decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
 import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
+import {assertCancellationTransmissionPermit} from './recovery/transmission-fence.js';
 
 type SefazDocumentType = Extract<DocumentType, "NFe" | "NFCe">;
 
@@ -286,10 +287,6 @@ export async function cancelDocumentAtSefaz(
     throw new Error("Cancelamento em producao permanece bloqueado nesta etapa.");
   }
 
-  const certificate = decryptCertificateBundle(
-    input.encryptedCertificateBundle,
-    input.encryptionSecret
-  );
   const openedCertificate = openEncryptedCertificate(
     input.encryptedCertificateBundle,
     input.encryptionSecret
@@ -299,6 +296,18 @@ export async function cancelDocumentAtSefaz(
     privateKeyPem: openedCertificate.privateKeyPem,
     certificatePem: openedCertificate.certificatePem
   });
+  return transmitSignedCancellationAtSefaz(input,signed);
+}
+
+/** Recovery prepares and persists the event separately. This transport never
+ * generates another event date, signature or batch when called with a snapshot.
+ */
+export async function transmitSignedCancellationAtSefaz(input:CancellationInput,signed:SignedCancellationXml):Promise<SefazCancellationResult> {
+  const uf=input.uf.toUpperCase(),endpoint=endpoints[uf]?.[input.documentType]?.[input.ambiente];
+  if(!endpoint)throw new Error('Cancelamento nao configurado para esta UF/modelo.');
+  if(input.ambiente==='producao'&&!config.fiscalProductionEnabled)throw new Error('Cancelamento em producao permanece bloqueado nesta etapa.');
+  assertCancellationTransmissionPermit(signed.batchXml,input.ambiente,input.documentType,input.accessKey);
+  const certificate=decryptCertificateBundle(input.encryptedCertificateBundle,input.encryptionSecret);
   const soapEnvelope =
     `<?xml version="1.0" encoding="utf-8"?>` +
     `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +

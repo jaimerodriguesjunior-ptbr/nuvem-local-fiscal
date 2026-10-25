@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {excludeAdoptedLegacyDocuments} from './recovery/legacy-writer.js';
 
 import type {
   ApiClient,
@@ -758,6 +759,9 @@ export class SupabasePersistence {
     companyIds: Map<string, string>,
     environmentIds: Map<string, string>
   ) {
+    documents=await excludeAdoptedLegacyDocuments(documents,process.env.RECOVERY_V1_ENABLED==='true',
+      async(name,args)=>{const {data,error}=await this.client.rpc(name,args);return {data,error};});
+    if(!documents.length)return;
     const cnpjs = [...new Set(documents.map((document) => document.issuerCnpj))];
     const certificateIdsByCnpj = new Map<string, string>();
     if (cnpjs.length) {

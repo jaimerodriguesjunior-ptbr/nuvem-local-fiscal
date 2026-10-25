@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
+import { isRecoveryNamespace } from "./recovery/transmission-fence.js";
 import { config } from "../config.js";
+import { prepareHomologationNfceTimeRetry } from "./nfce-time-retry.js";
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
@@ -25,6 +28,7 @@ export type AutomaticProcessingResult = {
 };
 
 const documentsInProcessing = new Set<string>();
+export function isDocumentInProcessing(id: string) { return documentsInProcessing.has(id); }
 
 async function waitForNonBlockingPersistence(
   store: InMemoryStore,
@@ -47,7 +51,7 @@ async function waitForNonBlockingPersistence(
   }
 }
 
-function resolveQrCodeConfig(document: DocumentRecord) {
+export function resolveQrCodeConfig(document: DocumentRecord) {
   if (document.tipoDocumento !== "NFCe") {
     return undefined;
   }
@@ -69,7 +73,7 @@ function resolveQrCodeConfig(document: DocumentRecord) {
   };
 }
 
-function resolveResponsibleTechnicalCsrtConfig(document: DocumentRecord) {
+export function resolveResponsibleTechnicalCsrtConfig(document: DocumentRecord) {
   const idCSRT =
     document.ambiente === "producao"
       ? config.nfeResponsibleTechnicalCsrtIdProduction
@@ -102,11 +106,15 @@ function resolveResponsibleTechnicalCsrtConfig(document: DocumentRecord) {
 
 export async function processHomologationDocument(
   store: InMemoryStore,
-  documentId: string
+  documentId: string,
+  options: { refreshHomologationIssueTime?: boolean } = {}
 ): Promise<AutomaticProcessingResult> {
   const document = store.findDocument(documentId);
   if (!document) {
     throw new Error("Documento nao encontrado para processamento.");
+  }
+  if (isRecoveryNamespace(document.issuerCnpj,document.ambiente,document.tipoDocumento,document.serie)) {
+    return {document,transmitted:false,error:"RECOVERY_COMMON_CONTROLLER_REQUIRED"};
   }
   if (document.tipoDocumento === "NFSe") {
     return {
@@ -127,6 +135,11 @@ export async function processHomologationDocument(
   }
   if (["autorizado", "cancelado"].includes(document.status)) {
     return { document, transmitted: false, error: null };
+  }
+  // This opt-in is restricted to a conclusive 704 in homologation. Validation
+  // happens before writes; the payload changes only after a conclusive key lookup.
+  if (options.refreshHomologationIssueTime) {
+    prepareHomologationNfceTimeRetry(document, new Date(), store.getDocumentEvents(document.id));
   }
   if (documentsInProcessing.has(document.id)) {
     const message = "Ja existe um processamento em andamento para este documento.";
@@ -288,7 +301,10 @@ export async function processHomologationDocument(
         error: null
       };
     }
-    if (currentStatus.cStat !== "217") {
+    const confirmed704 = options.refreshHomologationIssueTime && currentStatus.cStat === "704" &&
+      currentStatus.accessKey === accessKey && !currentStatus.protocol &&
+      (!currentStatus.protocolCStat || currentStatus.protocolCStat === "704");
+    if (currentStatus.cStat !== "217" && !confirmed704) {
       throw new Error(
         currentStatus.protocolReason ||
           currentStatus.xMotivo ||
@@ -296,9 +312,35 @@ export async function processHomologationDocument(
       );
     }
 
+    if (options.refreshHomologationIssueTime) {
+      const refreshed = prepareHomologationNfceTimeRetry(document, new Date(), store.getDocumentEvents(document.id));
+      const opened = openEncryptedCertificate(certificate.encryptedBundle, config.certificateEncryptionKey);
+      const signed = generateAndSignNfeXml(refreshed.payload, opened.privateKeyPem,
+        opened.certificatePem, resolveQrCodeConfig(document), resolveResponsibleTechnicalCsrtConfig(document));
+      const xsd = validateNfeXml(signed.signedXml);
+      if (signed.accessKey !== accessKey || !signed.signatureValid || !xsd.valid) {
+        throw new Error("Novo horario nao preservou chave, assinatura e XSD; transmissao bloqueada.");
+      }
+      const hash = (payload: unknown) => createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+      store.addDocumentEvent(document.id, {
+        eventType: "homologation_issue_time_refreshed",
+        message: "Horario renovado apos rejeicao 704 e consulta SEFAZ conclusiva sem autorizacao; mesma chave e numeracao.",
+        payload: { previousIssueTime: refreshed.previousIssueTime, issueTime: refreshed.issueTime,
+          previousPayloadHash: hash(document.payloadOriginal), payloadHash: hash(refreshed.payload), accessKey, consultationCode: currentStatus.cStat }
+      });
+      document.payloadOriginal = refreshed.payload;
+      document.payloadNormalizado = { ...(document.payloadNormalizado as Record<string, unknown>),
+        ide: structuredClone(refreshed.payload.infNFe.ide) };
+      store.saveSignedXml(document.id, { ...signed, xsdValid: true, xsdErrors: [], certificateId: certificate.id });
+      // Unlike ordinary diagnostic persistence, this preparation must be durable
+      // before sending the revised XML.
+      await store.waitForPersistence();
+      signedXml = signed.signedXml;
+    }
+
     store.addDocumentEvent(document.id, {
       eventType: "sefaz_authorization_started",
-      message: "Chave inexistente na SEFAZ; transmissao iniciada.",
+      message: currentStatus.cStat === "217" ? "Chave inexistente na SEFAZ; transmissao iniciada." : "Rejeicao 704 confirmada sem autorizacao; XML com horario renovado sera transmitido.",
       payload: { attempt: attemptNumber, accessKey }
     });
     await waitForNonBlockingPersistence(store, document.id, "inicio da transmissao");
@@ -373,7 +415,8 @@ export async function processHomologationDocument(
 
 export async function processHomologationNfce(
   store: InMemoryStore,
-  documentId: string
+  documentId: string,
+  options: { refreshHomologationIssueTime?: boolean } = {}
 ): Promise<AutomaticProcessingResult> {
   const document = store.findDocument(documentId);
   if (!document) {
@@ -382,5 +425,5 @@ export async function processHomologationNfce(
   if (document.tipoDocumento !== "NFCe") {
     return { document, transmitted: false, error: null };
   }
-  return processHomologationDocument(store, documentId);
+  return processHomologationDocument(store, documentId, options);
 }

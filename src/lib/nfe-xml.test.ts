@@ -813,7 +813,12 @@ test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local
 
   for (const scenario of cases) {
     const result = generateAndSignNfeXml(
-      { infNFe: scenario.payload },
+      { infNFe: JSON.parse(JSON.stringify(scenario.payload, (_key, value) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.length - b.length || a.localeCompare(b)));
+        }
+        return value;
+      })) },
       opened.privateKeyPem,
       opened.certificatePem,
       scenario.qrCodeConfig
