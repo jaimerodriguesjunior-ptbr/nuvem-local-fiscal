@@ -15,6 +15,12 @@ export function isRecoveryNamespace(cnpj: string, environment: string, model: st
   return environment === "producao" && protectedNamespaces.some(scope =>
     scope.cnpj === cnpj && scope.model === model && scope.series === series);
 }
+/** Managed callers must never silently fall through to a legacy transmitter
+ * when a new store's central scope has not yet been registered/enabled. */
+export function hasManagedSubmissionHeaders(headers:Record<string,unknown>):boolean {
+  return ['x-recovery-request-id','x-recovery-origin-id','x-recovery-store-id','x-recovery-organization-id','x-recovery-resume-local']
+    .some(name=>headers[name]!==undefined);
+}
 
 export async function withInitialTransmissionPermit<T>(key: string, xml: string, operation: () => Promise<T>): Promise<T> {
   return permits.run({ key, hash: createHash("sha256").update(xml).digest("hex"), consumed: false }, operation);

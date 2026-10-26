@@ -8,7 +8,7 @@ test('snapshot filtering is bounded, cohort-specific, fails closed and leaves ot
   const rows=[note('old'),note('other',{issuerCnpj:'12345678000195'}),note('hom',{ambiente:'homologacao'}),note('rv1_new')];
   let calls=0;
   const rpc=async(name:string,args:Record<string,unknown>)=>{calls++;assert.equal(name,'fiscal_recovery_legacy_owned_v1');
-    assert.deepEqual(args.p_ids,['old']);return {data:['old'],error:null};};
+    assert.deepEqual(args.p_ids,['old','other']);return {data:['old'],error:null};};
   assert.deepEqual(await excludeAdoptedLegacyDocuments(rows,false,rpc),rows);assert.equal(calls,0);
   assert.deepEqual(await excludeAdoptedLegacyDocuments(rows,true,rpc),rows.slice(1));assert.equal(calls,1);
   for(const response of [{data:[],error:'offline'},{data:null,error:null},{data:['unknown'],error:null},{data:['old','old'],error:null}])

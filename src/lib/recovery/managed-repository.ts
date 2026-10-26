@@ -6,7 +6,7 @@ export function decodeManagedDocument(value: unknown): ManagedDocument {
   if (!value || typeof value!=='object' || Array.isArray(value)) throw new Error('RECOVERY_AGGREGATE_INVALID');
   const r=value as ManagedDocument;
   if (!Number.isSafeInteger(r.version) || r.version<1 || !r.scope?.id || !r.requestId ||
-      (r.provenance!==undefined&&!['recovery-v1','legacy_authorized_consultation_v1'].includes(r.provenance)) ||
+      (r.provenance!==undefined&&!['recovery-v1','legacy_authorized_consultation_v1','legacy_pending_consultation_v1'].includes(r.provenance)) ||
       r.document?.id!==`rv1_${r.requestId}` || r.document.issuerCnpj!==r.scope.cnpj ||
       r.document.ambiente!==r.scope.environment || r.document.tipoDocumento!==r.scope.model ||
       r.document.serie!==r.scope.series) throw new Error('RECOVERY_AGGREGATE_INVALID');

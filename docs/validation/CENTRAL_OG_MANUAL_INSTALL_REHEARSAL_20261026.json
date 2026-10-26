@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-26T21:28:27.146Z",
+  "offline": true,
+  "image": "public.ecr.aws/supabase/postgres:17.6.1.048",
+  "backupName": "backup_2026-10-26 (1).sql.gz",
+  "backupBytes": 5639370,
+  "backupSha256": "c523e767b9ae75fb4d9a3203e0aa4d97d8ee2860ccb18ea0ec1e9a7bcedb43aa",
+  "installerSha256": "0b8535f77613d76d565342dba5a3990ecae0895ad13014e0e7b5e1ad8700432e",
+  "fullBackupRestored": true,
+  "schemas": [
+    "public",
+    "fiscal_recovery"
+  ],
+  "manualInstallerCommitted": true,
+  "originalRowsPreservedByTransactionalFingerprints": true,
+  "newPublicRpcExecutionBlocked": true,
+  "duplicateInstallerRejected": true,
+  "readOnlyVerifierPassed": true,
+  "baseline": {
+    "jobs": 0,
+    "scopes": 2,
+    "requests": 1,
+    "legacy_links": 0,
+    "fiscal_documents": 1356
+  },
+  "verification": {
+    "schema": "central-og-recovery-installation-v1",
+    "bindings": 0,
+    "binding_rls": true,
+    "enabled_bindings": 0,
+    "service_rpc_count": 2,
+    "new_rpc_public_execute": 0,
+    "legacy_pending_requests": 0
+  },
+  "hostedWrites": false,
+  "fiscalNetwork": false,
+  "backupMountedReadOnly": true,
+  "limits": [
+    "Global role memberships and authentication are not reproduced.",
+    "No emission, SEFAZ request, callback or production activation."
+  ]
+}

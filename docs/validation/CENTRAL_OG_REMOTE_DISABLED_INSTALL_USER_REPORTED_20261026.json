@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-26",
+  "project": "kfebaoocbgmcvveumlem",
+  "source": "user_supplied_SQL_Editor_results_in_chat",
+  "independentLiveConnectionVerification": false,
+  "installation": {"result": "CENTRAL_OG_DISABLED_INSTALLED", "bindings": 0},
+  "verification": {
+    "schema": "central-og-recovery-installation-v1",
+    "bindings": 0,
+    "binding_rls": true,
+    "enabled_bindings": 0,
+    "service_rpc_count": 2,
+    "new_rpc_public_execute": 0,
+    "legacy_pending_requests": 0
+  }
+}

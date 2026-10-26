@@ -16,7 +16,7 @@ export type ManagedDocument = {
   code: string;
   sendStartedAt: string | null;
   ownerToken: string | null;
-  provenance?: 'recovery-v1'|'legacy_authorized_consultation_v1';
+  provenance?: 'recovery-v1'|'legacy_authorized_consultation_v1'|'legacy_pending_consultation_v1';
 };
 export interface ManagedRepository {
   accept(scope: ManagedScope, requestId: string, originId: string, hash: string, document: DocumentRecord,

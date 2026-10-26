@@ -7,7 +7,7 @@ import type {DocumentRecord} from '../../types.js';
 export async function excludeAdoptedLegacyDocuments(documents:DocumentRecord[],enabled:boolean,
   rpc:(name:string,args:Record<string,unknown>)=>Promise<{data:unknown;error:unknown}>) {
   if(!enabled)return documents;
-  const ids=documents.filter(d=>d.issuerCnpj==='01997929000108'&&d.ambiente==='producao'&&d.serie===2&&
+  const ids=documents.filter(d=>d.ambiente==='producao'&&
     ['NFe','NFCe'].includes(d.tipoDocumento)&&!d.id.startsWith('rv1_')).map(d=>d.id);
   if(ids.length===0)return documents;
   const owned=new Set<string>();

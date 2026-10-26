@@ -6,7 +6,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
-import { isRecoveryNamespace } from "../lib/recovery/transmission-fence.js";
+import { isRecoveryNamespace,hasManagedSubmissionHeaders } from "../lib/recovery/transmission-fence.js";
 import { publicManagedDocument } from "../lib/recovery/runtime.js";
 import { prepareNfeXsdRetryPayload } from "../lib/nfe-xsd-retry.js";
 import {
@@ -687,6 +687,19 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   });
 
   for(const [prefix,model] of [['nfe','NFe'],['nfce','NFCe']] as const){
+    app.post(`/${prefix}/:id/associar-recuperacao-pendente`,async(request,reply)=>{
+      const id=(request.params as {id:string}).id;
+      const source=app.store.findDocument(id,model);
+      if(!source||id.startsWith('rv1_'))return reply.code(404).send({message:'Documento historico nao encontrado.'});
+      if(!ensureDocumentTokenAccess(request,reply,source))return;
+      if(!app.recovery?.ready||!app.recovery.associateLegacyPending)return reply.code(503).send({message:'RECOVERY_RUNTIME_NOT_READY'});
+      try{
+        const current=await app.recovery.associateLegacyPending(id,String(request.headers['x-recovery-request-id']??''),
+          String(request.headers['x-recovery-origin-id']??''),(request as AuthenticatedRequest).tokenRecord.clientId,model,
+          String(request.headers['x-recovery-organization-id']??''),Number(request.headers['x-recovery-store-id']));
+        return mapDocumentResponse(current,requestBaseUrl(request));
+      }catch{return reply.code(409).send({message:'RECOVERY_LEGACY_PENDING_NOT_ADMITTED'});}
+    });
     app.post(`/${prefix}/:id/associar-recuperacao`,async(request,reply)=>{
       const id=(request.params as {id:string}).id;
       const source=app.store.findDocument(id,model);
@@ -1754,6 +1767,7 @@ async function handleCreateInutilization(
     });
   }
   if (!ensureTokenRecordAccess(request, reply, issuerCnpj, ambiente)) return;
+
   if (ambiente === "producao" && !config.fiscalProductionEnabled) {
     return reply.code(403).send({
       message: "Inutilizacao em producao permanece bloqueada nesta etapa."
@@ -1938,6 +1952,10 @@ async function handleCreateDocument(
   }
   if (!ensureTokenRecordAccess(request, reply, issuerCnpj, ambiente)) return;
 
+  const recoverySeries=Number((payloadNormalizado.ide as Record<string,unknown>|undefined)?.serie);
+  const managedSubmission=hasManagedSubmissionHeaders(request.headers);
+  if(managedSubmission&&!isRecoveryNamespace(issuerCnpj,ambiente,tipoDocumento,recoverySeries))
+    return reply.code(409).send({message:'RECOVERY_SCOPE_NOT_ENABLED'});
   const emitente = payloadNormalizado.emitente as Record<string, unknown> | null;
   const issuer = app.store.findIssuerByCnpj(issuerCnpj, ambiente);
   if (!issuer) {
@@ -1961,6 +1979,7 @@ async function handleCreateDocument(
     );
 
     if (returnCfopResolution.shouldBlock) {
+      if(managedSubmission)return reply.code(422).send({message:'RECOVERY_CFOP_REVIEW_REQUIRED'});
       const supportDocument = app.store.createDocument({
         tipoDocumento,
         issuerCnpj,
@@ -2100,7 +2119,6 @@ async function handleCreateDocument(
       ? encryptSecretPayload({ cscId, csc }, config.certificateEncryptionKey)
       : null;
 
-  const recoverySeries=Number((payloadNormalizado.ide as Record<string,unknown>|undefined)?.serie);
   if (isRecoveryNamespace(issuerCnpj,ambiente,tipoDocumento,recoverySeries)) {
     const runtime=app.recovery;
     const token=(request as AuthenticatedRequest).tokenRecord;

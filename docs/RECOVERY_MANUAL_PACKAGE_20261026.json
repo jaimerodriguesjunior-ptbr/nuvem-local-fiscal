@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "generatedBy": "scripts/recovery-pilot/prepare-og-manual-package.mjs",
+  "sources": [
+    {
+      "repository": "og",
+      "file": "supabase/migrations/20261026160000_prepare_fiscal_observation_recovery.sql",
+      "sha256": "13cbe64e4dd11ad06295fa612ecae94e54ad6ec6394bd7da33aff0f6a0ce3b74"
+    },
+    {
+      "repository": "og",
+      "file": "supabase/migrations/20261026170000_prepare_managed_fiscal_recovery.sql",
+      "sha256": "f1c70929f03225f2be6974b40a6fc551947e0473ade465f678a88589eebc95c6"
+    },
+    {
+      "repository": "central",
+      "file": "migrations/20261026_recovery_og_scopes_PREPARE_ONLY.sql",
+      "sha256": "d3d32504aff552af6282728952340c9a7ad6c1dff258c007406901da3299479e"
+    },
+    {
+      "repository": "central",
+      "file": "migrations/20261026_recovery_legacy_pending_PREPARE_ONLY.sql",
+      "sha256": "3cded11832dedf39cc9c55e9e06aabb157e6693fb6eff7419ee1b052c26e1726"
+    }
+  ],
+  "outputs": [
+    {
+      "repository": "og",
+      "file": "supabase/manual/INSTALL_RECOVERY_DISABLED_OG_20261026.sql",
+      "sha256": "a57e826b78689b628bab0104d6f3703c2c1075b20ce77189254670a4d0059d70",
+      "bytes": 52001
+    },
+    {
+      "repository": "central",
+      "file": "migrations/manual/INSTALL_RECOVERY_DISABLED_CENTRAL_OG_20261026.sql",
+      "sha256": "0b8535f77613d76d565342dba5a3990ecae0895ad13014e0e7b5e1ad8700432e",
+      "bytes": 15560
+    },
+    {
+      "repository": "og",
+      "file": "supabase/manual/VERIFY_RECOVERY_DISABLED_OG_20261026.sql",
+      "sha256": "b42ce2c4493a13e2294251751ed0ceac46115220bd1acaf0cc4fea694cff7725",
+      "bytes": 1020
+    },
+    {
+      "repository": "central",
+      "file": "migrations/manual/VERIFY_RECOVERY_DISABLED_CENTRAL_OG_20261026.sql",
+      "sha256": "1dcfe49325212c3d06e6b8659bb44fddad9b70a31e9b75229674f6fa7e05896a",
+      "bytes": 1253
+    }
+  ]
+}

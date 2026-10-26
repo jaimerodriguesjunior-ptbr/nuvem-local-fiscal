@@ -25,6 +25,8 @@ import {drainLegacy,associateLegacy} from './legacy-drain.js';
 import {CancellationController} from './cancellation-controller.js';
 import {SupabaseCancellationRepository} from './cancellation-repository.js';
 import {buildSignedCancellationXml,transmitSignedCancellationAtSefaz} from '../sefaz-cancellation.js';
+import {decodeOgScopeIds,validateOgScopes,routeRecoveryDelivery} from './consumer-routing.js';
+import {verifyLegacyPendingSnapshot} from './legacy-pending.js';
 
 export type RecoveryDocumentMetadata = {
   schema: 'recovery-v1'; requestId:string; originId:string; version:number; phase:ManagedDocument['phase'];
@@ -43,18 +45,21 @@ export interface RecoveryRuntime {
   requestQuery(id:string,clientId:string):Promise<{scheduled:boolean;nextAt:string|null;reason:string}>;
   cancel(id:string,intentId:string,clientId:string,justification:string):Promise<ManagedPublicDocument>;
   associateLegacy(id:string,requestId:string,originId:string,clientId:string,model:'NFe'|'NFCe'):Promise<{document:ManagedPublicDocument|null;check:unknown}>;
+  associateLegacyPending?(id:string,requestId:string,originId:string,clientId:string,model:'NFe'|'NFCe',organizationId:string,storeId:number):Promise<ManagedPublicDocument>;
 }
 export function publicManagedDocument(record:ManagedDocument):ManagedPublicDocument {
   return {...record.document,recovery:{schema:'recovery-v1',requestId:record.requestId,originId:record.originId,
     version:record.version,phase:record.phase,organizationId:record.scope.organizationId,storeId:record.scope.storeId,
     clientId:record.scope.clientId,errorOrigin:record.errorOrigin,code:record.code,
-    sendState:record.sendStartedAt||record.provenance==='legacy_authorized_consultation_v1'?'possibly_sent':'not_started_proven',cancellationIntentId:record.document.cancellationAttemptId??null}};
+    sendState:record.sendStartedAt||record.provenance?.startsWith('legacy_')?'possibly_sent':'not_started_proven',cancellationIntentId:record.document.cancellationAttemptId??null}};
 }
 
 export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null {
   if (process.env.RECOVERY_V1_ENABLED!=='true') return null;
   if (!config.supabaseUrl || !config.supabaseServiceRoleKey || !config.fiscalProductionEnabled) throw new Error('RECOVERY_CONFIG_INCOMPLETE');
   const scopeIds:unknown=JSON.parse(process.env.RECOVERY_V1_SCOPE_IDS ?? '[]');
+  const ogScopeIds=decodeOgScopeIds(process.env.RECOVERY_V1_OG_SCOPE_IDS);
+  if(ogScopeIds.length&&process.env.RECOVERY_OG_OBSERVER_ENABLED!=='true')throw Error('RECOVERY_OG_OBSERVER_REQUIRED');
   const databaseUrl=process.env.RECOVERY_V1_DATABASE_URL;
   if (!databaseUrl || !Array.isArray(scopeIds) || scopeIds.length<1 || scopeIds.length>2 ||
       scopeIds.some(id=>typeof id!=='string'||!/^[a-f0-9-]{36}$/i.test(id))) throw new Error('RECOVERY_SCOPE_CONFIG_REQUIRED');
@@ -65,7 +70,13 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   if(new URL(gopProject).hostname===new URL(config.supabaseUrl).hostname)throw new Error('RECOVERY_GOP_DATABASE_PROJECT_MISMATCH');
   const client=createClient(config.supabaseUrl,config.supabaseServiceRoleKey,{auth:{persistSession:false,autoRefreshToken:false}});
   const repository=new SupabaseManagedRepository(client);
-  const deliver=createSyncDelivery(process.env.RECOVERY_V1_GOP_EVENT_URL??'',process.env.RECOVERY_V1_SYNC_SECRET??'');
+  const gopDeliver=createSyncDelivery(process.env.RECOVERY_V1_GOP_EVENT_URL??'',process.env.RECOVERY_V1_SYNC_SECRET??'');
+  const ogDeliver=ogScopeIds.length?createSyncDelivery(process.env.RECOVERY_OG_EVENT_URL??'',process.env.RECOVERY_OG_SYNC_SECRET??''):null;
+  let ogScopes:ManagedScope[]=[];
+  const assertOgFirstSend=(document:DocumentRecord)=>{
+    if(ogScopes.some(s=>s.cnpj===document.issuerCnpj&&s.environment===document.ambiente&&s.model===document.tipoDocumento&&s.series===document.serie)&&
+      process.env.RECOVERY_OG_FIRST_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
+  };
   const certificate=(document:DocumentRecord)=>{
     const issuer=store.findIssuerByCnpj(document.issuerCnpj,document.ambiente);
     const cert=store.findActiveCertificate(document.issuerCnpj);
@@ -75,6 +86,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   const controller=new RecoveryController(repository,{
     async prepare(document) {
       if(process.env.RECOVERY_V1_FIRST_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
+      assertOgFirstSend(document);
       const {cert}=certificate(document);
       const opened=openEncryptedCertificate(cert.encryptedBundle,config.certificateEncryptionKey);
       const signed=generateAndSignNfeXml(document.payloadOriginal as Record<string,unknown>,opened.privateKeyPem,
@@ -97,6 +109,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   const cancellation=new CancellationController(cancellationRepository,{
     async prepare(record,justification){
       if(process.env.RECOVERY_V1_CANCELLATION_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
+      if(ogScopes.some(s=>s.id===record.scope.id)&&process.env.RECOVERY_OG_CANCELLATION_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
       const {issuer,cert}=certificate(record.document);
       const opened=openEncryptedCertificate(cert.encryptedBundle,config.certificateEncryptionKey);
       const signed=buildSignedCancellationXml({uf:issuer.uf,ambiente:'producao',cnpj:record.scope.cnpj,
@@ -133,8 +146,17 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
         if (!scopeIds.includes(s.id)||s.cnpj!=='01997929000108'||s.environment!=='producao'||s.storeId!==1||s.series!==2||
           s.organizationId!=='40b34e90-4c9d-4446-b775-770a3e77d6c0'||!['NFe','NFCe'].includes(s.model)||!s.clientId) throw new Error('RECOVERY_PILOT_SCOPE_MISMATCH');
       }
-      runtime.scopes=data as ManagedScope[];
-      if(new Set(runtime.scopes.map(s=>s.clientId)).size!==1)throw new Error('RECOVERY_GOP_CLIENT_MISMATCH');
+      const gopScopes=data as ManagedScope[];
+      if(new Set(gopScopes.map(s=>s.clientId)).size!==1)throw new Error('RECOVERY_GOP_CLIENT_MISMATCH');
+      if(ogScopeIds.some(id=>(scopeIds as string[]).includes(id)))throw Error('RECOVERY_CONSUMER_SCOPE_OVERLAP');
+      if(ogScopeIds.length){
+        const result=await client.rpc('fiscal_recovery_og_scopes_v1',{p_scopes:ogScopeIds,p_client:process.env.RECOVERY_OG_CLIENT_ID??''});
+        if(result.error)throw Error('RECOVERY_OG_SCOPE_NOT_READY');
+        ogScopes=validateOgScopes(result.data,ogScopeIds,process.env.RECOVERY_OG_CLIENT_ID??'');
+      }
+      runtime.scopes=[...gopScopes,...ogScopes];
+      const allScopeIds=[...(scopeIds as string[]),...ogScopeIds];
+      const deliver=routeRecoveryDelivery([{scopes:gopScopes,deliver:gopDeliver},...(ogDeliver?[{scopes:ogScopes,deliver:ogDeliver}]:[])]);
       const legacyOwnership=await client.rpc('fiscal_recovery_legacy_owned_v1',{p_ids:[]});
       if(legacyOwnership.error||!Array.isArray(legacyOwnership.data)||legacyOwnership.data.length!==0)
         throw Error('RECOVERY_LEGACY_SCHEMA_NOT_READY');
@@ -147,12 +169,12 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
         ssl:databaseTls,connectionTimeoutMillis:10_000,query_timeout:15_000,application_name:'recovery-v1'})});
       const outboxSource=new PostgresRecoveryWakeSource({createConnection:()=>new pg.Client({connectionString:database,
         ssl:databaseTls,connectionTimeoutMillis:10_000,query_timeout:15_000,application_name:'recovery-v1-outbox'})});
-      outbox=new RecoveryOutboxWorker({database:client,scopeIds:scopeIds as string[],source:outboxSource,deliver,
+      outbox=new RecoveryOutboxWorker({database:client,scopeIds:allScopeIds,source:outboxSource,deliver,
         report(code){console.error(`[Recovery] ${code}`);}});
       const gopSource=new PostgresRecoveryWakeSource({createConnection:()=>new pg.Client({connectionString:gopDatabase,
         ssl:databaseTls,connectionTimeoutMillis:10_000,query_timeout:15_000,application_name:'recovery-v1-gop'})});
       gopDrain=new RecoveryGopDrainPump({source:gopSource,drain:createGopDrain(process.env.RECOVERY_V1_GOP_EVENT_URL??'',
-        process.env.RECOVERY_V1_SYNC_SECRET??'',runtime.scopes[0].clientId),report(code){console.error(`[Recovery] ${code}`);}});
+        process.env.RECOVERY_V1_SYNC_SECRET??'',gopScopes[0].clientId),report(code){console.error(`[Recovery] ${code}`);}});
       const cancellationSource=new PostgresRecoveryWakeSource({createConnection:()=>new pg.Client({connectionString:database,
         ssl:databaseTls,connectionTimeoutMillis:10_000,query_timeout:15_000,application_name:'recovery-v1-cancellation'})});
       cancellationActive=true;
@@ -169,7 +191,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
           const times=[legacyNext,cancelNext].filter((x):x is number=>x!==null);
           return times.length?Math.min(...times):null;
         },report(code){console.error(`[Recovery] ${code}`);}});
-      worker=new RecoveryWorker({enabled:true,scopes:runtime.scopes,repository:new SupabaseRecoveryRepository(client,randomUUID(),scopeIds as string[],true),
+      worker=new RecoveryWorker({enabled:true,scopes:runtime.scopes,repository:new SupabaseRecoveryRepository(client,randomUUID(),allScopeIds,true),
         wakeSource:source,async consult(document) {
           const record=await repository.get(document.documentId.slice(4));
           if (!record||record.document.chave!==document.accessKey||record.document.xmlSigned!==document.signedXml) throw new Error('RECOVERY_DOCUMENT_CHANGED');
@@ -187,7 +209,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
         const legacy=store.findDocument(id);
         if(!legacy||!runtime.scopes.some(s=>s.cnpj===legacy.issuerCnpj&&s.environment===legacy.ambiente&&
           s.model===legacy.tipoDocumento&&s.series===legacy.serie))return null;
-        const {data,error}=await client.rpc('fiscal_recovery_legacy_lookup_v1',{p_legacy:id,p_scopes:scopeIds});
+        const {data,error}=await client.rpc('fiscal_recovery_legacy_lookup_v1',{p_legacy:id,p_scopes:runtime.scopes.map(s=>s.id)});
         if(error)throw Error('RECOVERY_LEGACY_LOOKUP_UNAVAILABLE');
         return data===null?null:publicManagedDocument(decodeManagedDocument(data));
       }
@@ -196,14 +218,14 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
     },
     async requestQuery(id,clientId){
       if(!/^rv1_[a-f0-9-]{36}$/i.test(id))throw new Error('RECOVERY_QUERY_ID_INVALID');
-      const {data,error}=await client.rpc('fiscal_recovery_request_query_v1',{p_request:id.slice(4),p_client:clientId,p_scopes:scopeIds});
+      const {data,error}=await client.rpc('fiscal_recovery_request_query_v1',{p_request:id.slice(4),p_client:clientId,p_scopes:runtime.scopes.map(s=>s.id)});
       if(error||!data||typeof data.scheduled!=='boolean'||typeof data.reason!=='string'||
         (data.nextAt!==null&&(typeof data.nextAt!=='string'||!Number.isFinite(Date.parse(data.nextAt)))))throw new Error('RECOVERY_QUERY_UNAVAILABLE');
       return data as {scheduled:boolean;nextAt:string|null;reason:string};
     },
     async cancel(id,intentId,clientId,justification){
       if(!/^rv1_[a-f0-9-]{36}$/i.test(id))throw new Error('RECOVERY_CANCEL_ID_INVALID');
-      return publicManagedDocument(await cancellation.cancel(id.slice(4),intentId,clientId,scopeIds as string[],justification));
+      return publicManagedDocument(await cancellation.cancel(id.slice(4),intentId,clientId,runtime.scopes.map(s=>s.id),justification));
     },
     async associateLegacy(id,requestId,originId,clientId,model){
       if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestId)||
@@ -214,6 +236,24 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
       if(!scope)throw Error('RECOVERY_LEGACY_SCOPE_INVALID');
       const result=await associateLegacy({database:client,scope,legacyId:id,requestId,originId,consult:consultLegacy,active:()=>runtime.ready});
       return {document:result.record?publicManagedDocument(result.record):null,check:result.check};
+    },
+    async associateLegacyPending(id,requestId,originId,clientId,model,organizationId,storeId){
+      if(!runtime.ready||!/^[a-f0-9-]{36}$/i.test(requestId)||!originId||originId.length>200)throw Error('RECOVERY_LEGACY_REQUEST_INVALID');
+      const source=store.findDocument(id,model);
+      const scope=source&&ogScopes.find(s=>s.clientId===clientId&&s.organizationId===organizationId&&s.storeId===storeId&&
+        s.cnpj===source.issuerCnpj&&s.model===model&&s.environment===source.ambiente&&s.series===source.serie);
+      if(!scope)throw Error('RECOVERY_LEGACY_SCOPE_INVALID');
+      const linked=await client.rpc('fiscal_recovery_legacy_lookup_v1',{p_legacy:id,p_scopes:[scope.id]});
+      if(linked.error)throw Error('RECOVERY_LEGACY_STORAGE_UNAVAILABLE');
+      if(linked.data){const record=decodeManagedDocument(linked.data);if(record.requestId!==requestId||record.originId!==originId)throw Error('RECOVERY_LEGACY_ASSOCIATION_CONFLICT');return publicManagedDocument(record);}
+      const snapshot=await client.rpc('fiscal_recovery_legacy_source_v1',{p_legacy:id,p_scope:scope.id,p_client:clientId});
+      if(snapshot.error||!snapshot.data?.source||!snapshot.data?.sourceSha256)throw Error('RECOVERY_LEGACY_STORAGE_UNAVAILABLE');
+      const proof=verifyLegacyPendingSnapshot(scope,snapshot.data.source);
+      if(!validateNfeXml(snapshot.data.source.signed_xml).valid)throw Error('RECOVERY_LEGACY_XSD_INVALID');
+      const result=await client.rpc('fiscal_recovery_legacy_pending_admit_v1',{p_legacy:id,p_scope:scope.id,p_client:clientId,
+        p_request:requestId,p_origin:originId,p_source_sha256:snapshot.data.sourceSha256,p_proof:proof});
+      if(result.error)throw Error('RECOVERY_LEGACY_ADMISSION_UNAVAILABLE');
+      return publicManagedDocument(decodeManagedDocument(result.data));
     }
   };
   return runtime;

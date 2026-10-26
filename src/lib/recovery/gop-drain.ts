@@ -28,7 +28,7 @@ export class RecoveryDemandPump {
   private running:Promise<void>|null=null;private unsubscribe:(()=>Promise<void>)|undefined;
   private timer:ReturnType<typeof setTimeout>|undefined;
   constructor(private readonly options:{source:RecoveryWakeSource;drain:()=>Promise<number|null>;report:(code:string)=>void;
-    codePrefix?:'RECOVERY_GOP'|'RECOVERY_CANCEL';now?:()=>number;setTimer?:typeof setTimeout;clearTimer?:typeof clearTimeout}){}
+    codePrefix?:'RECOVERY_GOP'|'RECOVERY_CANCEL'|'RECOVERY_OG';now?:()=>number;setTimer?:typeof setTimeout;clearTimer?:typeof clearTimeout}){}
   get ready(){return !this.stopped&&this.connected&&this.healthy;}
   get acceptingWork(){return !this.stopped&&this.connected;}
   async start(){
