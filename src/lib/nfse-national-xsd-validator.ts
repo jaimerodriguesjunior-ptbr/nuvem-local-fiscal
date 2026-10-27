@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { Environment } from "../types.js";
 
 import { parseXml } from "libxmljs2";
 
@@ -43,8 +44,8 @@ function validateNationalXml(
   }
 }
 
-export function validateNationalDpsXml(xml: string): NationalNfseXsdValidationResult {
-  return validateNationalXml(xml, nfseNationalDpsSchemaPath(), "DPS_v1.01");
+export function validateNationalDpsXml(xml: string, environment: Environment = "homologacao"): NationalNfseXsdValidationResult {
+  return validateNationalXml(xml, nfseNationalDpsSchemaPath(environment), "DPS_v1.01");
 }
 
 export function validateNationalCancellationEventXml(xml: string): NationalNfseXsdValidationResult {

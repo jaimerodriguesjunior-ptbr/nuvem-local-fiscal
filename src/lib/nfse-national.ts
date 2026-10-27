@@ -24,7 +24,8 @@ import {
 } from "./nfse-national-xsd-validator.js";
 
 export const NFSE_NATIONAL_LAYOUT_VERSION = "1.01";
-export const NFSE_NATIONAL_SCHEMA_RELEASE = "20260727";
+export const NFSE_NATIONAL_SCHEMA_RELEASE = "20261020";
+export const NFSE_NATIONAL_PRODUCTION_SCHEMA_RELEASE = "20260727";
 export const NFSE_NATIONAL_NAMESPACE =
   "http://www.sped.fazenda.gov.br/nfse";
 export const NFSE_NATIONAL_RESTRICTED_ENDPOINT =
@@ -597,6 +598,11 @@ export function buildNationalDpsXml(
   const municipalRegistration = optionalTag("IM", draft.municipalRegistration);
   const nbsCode = optionalTag("cNBS", draft.nbsCode);
   const internalServiceCode = optionalTag("cIntContrib", draft.internalServiceCode);
+  const description = `<xDescServ>${escapeXml(draft.description)}</xDescServ>`;
+  // O pacote de homologação reposicionou NBS e código interno antes da descrição.
+  const serviceDetails = config.environment === "homologacao"
+    ? `${nbsCode}${internalServiceCode}${description}`
+    : `${description}${nbsCode}${internalServiceCode}`;
   // O SIMEI nao informa aliquota de ISS na DPS. A SEFIN rejeita o campo
   // pAliq para opSimpNac=2 (E0600), mesmo quando o cliente legado o envia.
   const issRate =
@@ -618,10 +624,13 @@ export function buildNationalDpsXml(
     `<nDPS>${draft.number}</nDPS>`,
     `<dCompet>${draft.competenceDate}</dCompet>`,
     "<tpEmit>1</tpEmit>",
+    // NT 009: finalidade regular obrigatória no cabeçalho da produção restrita.
+    // A produção mantém o leiaute vigente, sem esta tag em infDPS.
+    ...(config.environment === "homologacao" ? ["<finNFSe>0</finNFSe>"] : []),
     `<cLocEmi>${draft.municipalityCode}</cLocEmi>`,
     `<prest><CNPJ>${draft.issuerCnpj}</CNPJ>${municipalRegistration}<regTrib><opSimpNac>${draft.simpleOption}</opSimpNac>${simpleTaxRegime}<regEspTrib>${draft.specialTaxRegime}</regEspTrib></regTrib></prest>`,
     buildCustomerXml(draft),
-    `<serv><locPrest><cLocPrestacao>${draft.serviceMunicipalityCode}</cLocPrestacao></locPrest><cServ><cTribNac>${draft.nationalTaxCode}</cTribNac>${municipalTaxCode}<xDescServ>${escapeXml(draft.description)}</xDescServ>${nbsCode}${internalServiceCode}</cServ></serv>`,
+    `<serv><locPrest><cLocPrestacao>${draft.serviceMunicipalityCode}</cLocPrestacao></locPrest><cServ><cTribNac>${draft.nationalTaxCode}</cTribNac>${municipalTaxCode}${serviceDetails}</cServ></serv>`,
     `<valores><vServPrest><vServ>${draft.serviceValue.toFixed(2)}</vServ></vServPrest><trib><tribMun><tribISSQN>${draft.issTaxation}</tribISSQN><tpRetISSQN>${draft.issRetention}</tpRetISSQN>${issRate}</tribMun>${totalTaxes}</trib></valores>`,
     "</infDPS>",
     "</DPS>"
@@ -941,7 +950,7 @@ export async function processNationalNfse(
       privateKeyPem: openedCertificate.privateKeyPem,
       certificatePem: openedCertificate.certificatePem
     });
-    const xsd = validateNationalDpsXml(signed.signedXml);
+    const xsd = validateNationalDpsXml(signed.signedXml, document.ambiente);
     store.saveSignedXml(document.id, {
       providerReference: draft.id,
       unsignedXml: signed.unsignedXml,
@@ -1099,7 +1108,9 @@ export async function processNationalNfse(
       payload: {
         provider: "nfse-nacional",
         layoutVersion: nationalConfig.layoutVersion,
-        schemaRelease: NFSE_NATIONAL_SCHEMA_RELEASE,
+        schemaRelease: document.ambiente === "homologacao"
+          ? NFSE_NATIONAL_SCHEMA_RELEASE
+          : NFSE_NATIONAL_PRODUCTION_SCHEMA_RELEASE,
         municipalityCode: draft.municipalityCode,
         nationalTaxCode: draft.nationalTaxCode,
         nbsCode: draft.nbsCode || null,
