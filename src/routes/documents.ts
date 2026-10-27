@@ -6,6 +6,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
+import { registerCompanyEnrollmentRoute } from "./company-enrollment.js";
 import { prepareNfeXsdRetryPayload } from "../lib/nfe-xsd-retry.js";
 import {
   decryptSecretPayload,
@@ -563,6 +564,8 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
   app.post("/nfe", async (request, reply) => {
     return handleCreateDocument(app, request, reply, "NFe");
   });
+
+  await registerCompanyEnrollmentRoute(app);
 
   app.post("/nfce", async (request, reply) => {
     return handleCreateDocument(app, request, reply, "NFCe");
