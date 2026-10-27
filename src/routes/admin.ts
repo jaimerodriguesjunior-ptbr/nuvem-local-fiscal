@@ -718,7 +718,7 @@ function fiscalCheck(name: string, ok: boolean, message: string, details?: Recor
   };
 }
 
-const integrationScopes = ["empresa", "nfe", "nfce", "nfse", "distribuicao-nfe"];
+const integrationScopes = ["empresa", "empresa-cadastro", "nfe", "nfce", "nfse", "distribuicao-nfe"];
 
 function integrationSnapshot(client: ApiClient) {
   const { clientSecretHash: _clientSecretHash, ...safe } = client;
@@ -753,7 +753,7 @@ function parseIntegrationDraft(
   ) {
     throw new Error("Selecione ao menos um ambiente valido.");
   }
-  if (!cnpjs.length || cnpjs.some((cnpj) => cnpj.length !== 14 || !knownCnpjs.has(cnpj))) {
+  if ((!cnpjs.length && !scopes.includes("empresa-cadastro")) || cnpjs.some((cnpj) => cnpj.length !== 14 || !knownCnpjs.has(cnpj))) {
     if (!(allowWildcard && body.allowedCnpjs instanceof Array && body.allowedCnpjs.includes("*"))) {
       throw new Error("Selecione ao menos uma empresa cadastrada para a integracao.");
     }

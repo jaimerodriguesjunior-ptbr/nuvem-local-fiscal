@@ -1219,6 +1219,7 @@ const page = String.raw`<!doctype html>
         '<div class="section-head"><div><h3>Escopos</h3></div></div>' +
         integrationChoices('allowedScopes', [
           { value: 'empresa', label: 'Cadastro/configuração de empresa' },
+          { value: 'empresa-cadastro', label: 'Novas empresas mediante certificado do próprio CNPJ' },
           { value: 'nfe', label: 'NF-e' },
           { value: 'nfce', label: 'NFC-e' },
           { value: 'nfse', label: 'NFS-e' },
