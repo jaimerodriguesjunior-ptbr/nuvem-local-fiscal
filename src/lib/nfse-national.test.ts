@@ -13,6 +13,7 @@ import { InMemoryStore } from "../store.js";
 import { encryptCertificateBundle } from "./certificates.js";
 import {
   buildNationalDpsXml,
+  signNationalDpsXml,
   buildNationalCancellationEventXml,
   isNationalNfseConfig,
   mapNationalProcessingError,
@@ -31,7 +32,7 @@ import {
   processConfiguredNfse
 } from "./nfse-provider.js";
 import { parseNationalSefinEventResponse } from "./nfse-national-sefin.js";
-import { validateNationalCancellationEventXml } from "./nfse-national-xsd-validator.js";
+import { validateNationalDpsXml, validateNationalCancellationEventXml } from "./nfse-national-xsd-validator.js";
 
 function createTestPfx(password: string) {
   const keys = forge.pki.rsa.generateKeyPair(1024);
@@ -668,4 +669,57 @@ test("nao confirma cancelamento Nacional com HTTP 2xx sem cStat", () => {
   const parsed = parseNationalSefinEventResponse(200, JSON.stringify({}));
   assert.equal(parsed.accepted, false);
   assert.equal(parsed.errors[0]?.code, "SEFIN_EVENTO_STATUS_AUSENTE");
+});
+
+// Regressão E1235: o pacote oficial de 20/10/2026 exige finNFSe em infDPS.
+function signedSchemaFixture(environment: "homologacao" | "producao") {
+  const nationalConfig = { ...resolveNationalNfseConfig(issuer, serviceConfig), environment };
+  const draft = normalizeNationalNfseDraft({
+    ...document({ infDPS: {
+      dhEmi: "2026-10-27T10:15:00-03:00", dCompet: "2026-10-27",
+      toma: { CPF: "52998224725", xNome: "Teste de esquema" },
+      serv: { cServ: { cTribNac: "140101", xDescServ: "Servico de teste" } },
+      valores: { vServPrest: { vServ: 10 } }
+    } }), ambiente: environment
+  }, nationalConfig);
+  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const certificate = forge.pki.createCertificate();
+  certificate.publicKey = keys.publicKey;
+  certificate.serialNumber = "03";
+  certificate.validity.notBefore = new Date(Date.now() - 60_000);
+  certificate.validity.notAfter = new Date(Date.now() + 86_400_000);
+  certificate.setSubject([{ name: "commonName", value: "Regressao de esquema" }]);
+  certificate.setIssuer(certificate.subject.attributes);
+  certificate.sign(keys.privateKey, forge.md.sha256.create());
+  const xml = buildNationalDpsXml(nationalConfig, draft);
+  return signNationalDpsXml({
+    unsignedXml: xml,
+    privateKeyPem: forge.pki.privateKeyToPem(keys.privateKey),
+    certificatePem: forge.pki.certificateToPem(certificate)
+  }).signedXml;
+}
+
+test("homologacao inclui finNFSe antes de cLocEmi e valida no XSD oficial de 20/10", () => {
+  const xml = signedSchemaFixture("homologacao");
+  assert.match(xml, /<tpEmit>1<\/tpEmit><finNFSe>0<\/finNFSe><cLocEmi>/);
+  assert.ok(xml.indexOf("<cNBS>") < xml.indexOf("<xDescServ>"));
+  const result = validateNationalDpsXml(xml, "homologacao");
+  assert.equal(result.valid, true, result.errors.join(" | "));
+});
+
+test("XSD atualizado detecta o XML antigo que causou E1235 antes da transmissao", () => {
+  const xml = signedSchemaFixture("homologacao").replace("<finNFSe>0</finNFSe>", "");
+  const result = validateNationalDpsXml(xml, "homologacao");
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(" | "), /finNFSe/);
+});
+
+test("producao conserva o cabecalho vigente e usa seu proprio XSD", () => {
+  const xml = signedSchemaFixture("producao");
+  assert.doesNotMatch(xml, /<finNFSe>/);
+  assert.ok(xml.indexOf("<xDescServ>") < xml.indexOf("<cNBS>"));
+  const result = validateNationalDpsXml(xml, "producao");
+  assert.equal(result.valid, true, result.errors.join(" | "));
+  const crossEnvironment = validateNationalDpsXml(xml, "homologacao");
+  assert.equal(crossEnvironment.valid, false);
 });
