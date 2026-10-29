@@ -568,7 +568,7 @@ export async function registerDocumentRoutes(app: FastifyInstance) {
     return handleCreateDocument(app, request, reply, "NFe");
   });
 
-  app.get('/nfe/capacidades', async (_request, reply) => reply.send({profiles:{consumer_sales_return_entry_v1:2}}));
+  app.get('/nfe/capacidades', async (_request, reply) => reply.send({profiles:{consumer_sales_return_entry_v1:3}}));
 
   await registerCompanyEnrollmentRoute(app);
 

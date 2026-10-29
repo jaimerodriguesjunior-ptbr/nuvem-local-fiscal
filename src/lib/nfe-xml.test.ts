@@ -780,6 +780,23 @@ function buildRtcInfNFe(model: 55 | 65, number: number) {
   };
 }
 
+test("assina devolucao com referencia por item e sem NFref e valida XML/lote no XSD", () => {
+  const password='senha-item-reference';
+  const opened=openEncryptedCertificate(encryptCertificateBundle({pfxBase64:createTestPfx(password).toString('base64'),password},'segredo-item-reference'),'segredo-item-reference');
+  const infNFe=buildRtcInfNFe(55,9100);
+  infNFe.ide.finNFe=4;infNFe.ide.tpNF=0;infNFe.ide.natOp='DEVOLUCAO DE VENDA';
+  infNFe.det[0].prod.CFOP='1202';
+  const key='41261008214081000134650010000000041678948455';
+  (infNFe.det[0] as any).DFeReferenciado={chaveAcesso:key,nItem:8};
+  const result=generateAndSignNfeXml({ambiente:'homologacao',infNFe},opened.privateKeyPem,opened.certificatePem);
+  assert.equal(result.signatureValid,true);
+  assert.match(result.signedXml,new RegExp(`<DFeReferenciado><chaveAcesso>${key}</chaveAcesso><nItem>8</nItem></DFeReferenciado>`));
+  assert.doesNotMatch(result.signedXml,/<NFref>|<refNFe>/);
+  const xmlValidation=validateNfeXml(result.signedXml);assert.deepEqual(xmlValidation.errors,[]);assert.equal(xmlValidation.valid,true);
+  const batch=buildAuthorizationBatch(result.signedXml,'000000000009004');
+  const batchValidation=validateAuthorizationBatchXml(batch.batchXml);assert.deepEqual(batchValidation.errors,[]);assert.equal(batchValidation.valid,true);
+});
+
 test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local", () => {
   const password = "senha-rtc";
   const opened = openEncryptedCertificate(

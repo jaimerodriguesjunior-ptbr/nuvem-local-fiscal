@@ -1,3 +1,4 @@
+import { requestsSalesReturnEntry, validSalesReturnEntry } from './sales-return-entry-profile.js';
 type JsonObject = Record<string, unknown>;
 
 export type DocumentReferenceValidationIssue = {
@@ -154,7 +155,7 @@ export function validateDocumentReferences(payload: JsonObject): DocumentReferen
 
   const finality = text(ide.finNFe);
   const references = asArray(ide.NFref);
-  if (REFERENCED_FINALITIES.has(finality) && references.length === 0) {
+  if (REFERENCED_FINALITIES.has(finality) && references.length === 0 && !(requestsSalesReturnEntry(payload) && validSalesReturnEntry(payload))) {
     pushIssue(
       issues,
       "missing_document_reference",

@@ -7,9 +7,9 @@ import {resolveReturnCfop} from './return-cfop-resolver.js';
 function fixture(model='55'):any {
   const key=`41261008214081000134${model}0010000000421000000001`;
   return {operacao:'sales_return_entry',sales_return_entry:{profile:'consumer_sales_return_entry_v1',sourceInvoiceId:80,sourceFingerprint:'a'.repeat(32),sourceKey:key,sourceModel:model==='55'?'NFe':'NFCe',reason:'Mercadoria devolvida pelo consumidor'},
-    metadados:{operacao:'sales_return_entry',devolucao:{salesReturnEntryV1:true}},
-    infNFe:{ide:{mod:55,tpImp:1,tpNF:0,finNFe:4,idDest:1,natOp:'DEVOLUCAO DE VENDA',NFref:[{refNFe:key}]},emit:{CNPJ:'08214081000134',CRT:1,enderEmit:{UF:'PR'}},dest:{CPF:'52998224725',indIEDest:9,enderDest:{UF:'PR'}},
-      det:[{nItem:1,prod:{CFOP:'1202',qCom:1,qTrib:1,uCom:'UN',uTrib:'UN',vUnCom:100,vUnTrib:100,vProd:100},imposto:{ICMS:{ICMSSN900:{orig:0,CSOSN:'900',modBC:3,vBC:0,pICMS:0,vICMS:0}},PIS:{PISOutr:{CST:'99',vBC:0,pPIS:0,vPIS:0}},COFINS:{COFINSOutr:{CST:'99',vBC:0,pCOFINS:0,vCOFINS:0}}}}],total:{ICMSTot:{vNF:100,vProd:100}},pag:{detPag:[{tPag:'90',vPag:0}]},transp:{modFrete:9}}};
+    metadados:{itens_origem:[{line_number:1,quantidade:1}],operacao:'sales_return_entry',devolucao:{salesReturnEntryV1:true}},
+    infNFe:{ide:{mod:55,tpImp:1,tpNF:0,finNFe:4,idDest:1,natOp:'DEVOLUCAO DE VENDA'},emit:{CNPJ:'08214081000134',CRT:1,enderEmit:{UF:'PR'}},dest:{CPF:'52998224725',indIEDest:9,enderDest:{UF:'PR'}},
+      det:[{nItem:1,DFeReferenciado:{chaveAcesso:key,nItem:1},prod:{CFOP:'1202',qCom:1,qTrib:1,uCom:'UN',uTrib:'UN',vUnCom:100,vUnTrib:100,vProd:100},imposto:{ICMS:{ICMSSN900:{orig:0,CSOSN:'900',modBC:3,vBC:0,pICMS:0,vICMS:0}},PIS:{PISOutr:{CST:'99',vBC:0,pPIS:0,vPIS:0}},COFINS:{COFINSOutr:{CST:'99',vBC:0,pCOFINS:0,vCOFINS:0}}}}],total:{ICMSTot:{vNF:100,vProd:100}},pag:{detPag:[{tPag:'90',vPag:0}]},transp:{modFrete:9}}};
 }
 for(const model of ['55','65'])test(`entry referencing model ${model} passes rules and keeps CFOP 1202`,()=>{
   const p=fixture(model);assert.equal(validSalesReturnEntry(p),true);assert.equal(validateNfeEmissionPayload(p).ok,true);
@@ -18,7 +18,7 @@ for(const model of ['55','65'])test(`entry referencing model ${model} passes rul
 test('same profile supports another issuer and UF while binding the original key to its emitter',()=>{
   for(const [cnpj,uf]of [['35181069000143','PR'],['11222333000181','SP']]){
     const p=fixture(),key=(uf==='SP'?'35':'41')+p.sales_return_entry.sourceKey.slice(2,6)+cnpj+p.sales_return_entry.sourceKey.slice(20);
-    p.sales_return_entry.sourceKey=key;p.infNFe.ide.NFref=[{refNFe:key}];
+    p.sales_return_entry.sourceKey=key;p.infNFe.det[0].DFeReferenciado.chaveAcesso=key;
     p.infNFe.emit.CNPJ=cnpj;p.infNFe.emit.enderEmit.UF=uf;p.infNFe.dest.enderDest.UF=uf;
     assert.equal(validSalesReturnEntry(p),true);assert.equal(validateNfeEmissionPayload(p).ok,true);
     assert.equal(resolveReturnCfop(p,uf,[]).items[0].outputCfop,'1202');
@@ -26,8 +26,19 @@ test('same profile supports another issuer and UF while binding the original key
   }
 });
 test('unsupported entry variants are blocked before any supplier CFOP fallback',()=>{
-  for(const mutate of [(p:any)=>p.infNFe.emit.CRT=3,(p:any)=>p.infNFe.dest.enderDest.UF='SP',(p:any)=>p.infNFe.det[0].prod.CFOP='5202',(p:any)=>p.infNFe.det[0].imposto.ICMS.ICMSSN900.vICMS=1,(p:any)=>p.infNFe.det[0].prod.qCom=.5,(p:any)=>p.infNFe.total.ICMSTot.vNF=1,(p:any)=>p.infNFe.ide.NFref=[],(p:any)=>p.sales_return_entry.profile='unknown']){
+  for(const mutate of [(p:any)=>p.infNFe.emit.CRT=3,(p:any)=>p.infNFe.dest.enderDest.UF='SP',(p:any)=>p.infNFe.det[0].prod.CFOP='5202',(p:any)=>p.infNFe.det[0].imposto.ICMS.ICMSSN900.vICMS=1,(p:any)=>p.infNFe.det[0].prod.qCom=.5,(p:any)=>p.infNFe.total.ICMSTot.vNF=1,(p:any)=>delete p.infNFe.det[0].DFeReferenciado,(p:any)=>p.sales_return_entry.profile='unknown']){
     const p=fixture();mutate(p);assert.equal(validSalesReturnEntry(p),false);assert.equal(validateNfeEmissionPayload(p).ok,false);assert.equal(resolveReturnCfop(p,'PR',[]).shouldBlock,true);
+  }
+});
+test('entry references source lines rather than output numbering and rejects missing forged duplicate or mixed references',()=>{
+  const p=fixture();p.metadados.itens_origem[0].line_number=8;p.infNFe.det[0].DFeReferenciado.nItem=8;
+  assert.equal(validateNfeEmissionPayload(p).ok,true);
+  for(const mutate of [(v:any)=>v.infNFe.det[0].DFeReferenciado.nItem=1,
+    (v:any)=>v.infNFe.det[0].DFeReferenciado.chaveAcesso='1'.repeat(44),
+    (v:any)=>v.infNFe.ide.NFref=[{refNFe:v.sales_return_entry.sourceKey}],
+    (v:any)=>v.metadados.itens_origem[0].line_number=991,
+    (v:any)=>{v.infNFe.det.push(structuredClone(v.infNFe.det[0]));v.metadados.itens_origem.push(structuredClone(v.metadados.itens_origem[0]));}]){
+    const v=structuredClone(p);mutate(v);assert.equal(validateNfeEmissionPayload(v).ok,false);assert.equal(resolveReturnCfop(v,'PR',[]).shouldBlock,true);
   }
 });
 test('ordinary entries without opt-in preserve the existing validation and CFOP path',()=>{

@@ -14,20 +14,23 @@ export function requestsSalesReturnEntry(payload:Json):boolean {
 /** Versioned inbound sales return. Never run the supplier-return CFOP fallback. */
 export function validSalesReturnEntry(payload:Json):boolean {
   const n=object(payload.infNFe),ide=object(n.ide),emit=object(n.emit),dest=object(n.dest),metadata=object(payload.metadados),profile=object(payload.sales_return_entry);
-  const refs=ide.NFref,key=text(profile.sourceKey);
+  const key=text(profile.sourceKey),items=object(metadata).itens_origem;
   if(profile.profile!==SALES_RETURN_ENTRY_PROFILE||object(metadata.devolucao).salesReturnEntryV1!==true||
     metadata.operacao!=='sales_return_entry'||payload.operacao!=='sales_return_entry'||
     !Number.isSafeInteger(profile.sourceInvoiceId)||profile.sourceInvoiceId<1||!/^[a-f0-9]{32}$/.test(text(profile.sourceFingerprint))||
     !/^\d{44}$/.test(key)||key.slice(6,20)!==text(emit.CNPJ)||!['55','65'].includes(key.slice(20,22))||
     !['NFe','NFCe'].includes(profile.sourceModel)||(profile.sourceModel==='NFe'?'55':'65')!==key.slice(20,22)||
-    !Array.isArray(refs)||refs.length!==1||refs[0]?.refNFe!==key||
+    ide.NFref!=null||!Array.isArray(items)||items.length!==n.det?.length||
     Number(ide.mod)!==55||Number(ide.tpNF)!==0||Number(ide.finNFe)!==4||Number(ide.idDest)!==1||ide.natOp!=='DEVOLUCAO DE VENDA'||
     !/^\d{14}$/.test(text(emit.CNPJ))||Number(emit.CRT)!==1||
     !/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(text(object(emit.enderEmit).UF))||
     Number(dest.indIEDest)!==9||object(dest.enderDest).UF!==object(emit.enderEmit).UF||
     !Array.isArray(n.det)||!n.det.length||n.det.length>100||text(profile.reason).length<15||text(profile.reason).length>500)return false;
-  let total=0;
-  for(const d of n.det){
+  let total=0;const seen=new Set<number>();
+  for(const [index,d] of n.det.entries()){
+    const ref=object(d?.DFeReferenciado),line=Number(items[index]?.line_number);
+    if(ref.chaveAcesso!==key||!Number.isSafeInteger(line)||line<1||line>990||Number(ref.nItem)!==line||seen.has(line))return false;
+    seen.add(line);
     const p=object(d?.prod),tax=object(d?.imposto),icms=object(tax.ICMS),sn=object(icms.ICMSSN900),q=Number(p.qCom),u=Number(p.vUnCom);
     if(p.CFOP!=='1202'||Number(sn.orig)!==0||text(sn.CSOSN)!=='900'||Object.keys(icms).length!==1||
       Object.entries(sn).some(([k,v])=>!['orig','CSOSN','modBC'].includes(k)&&!zero(v))||
