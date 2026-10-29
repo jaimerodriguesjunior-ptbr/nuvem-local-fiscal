@@ -1,4 +1,5 @@
 import type { ReturnCfopRiskLevel, ReturnCfopRule } from "../types.js";
+import {requestsSalesReturnEntry,validSalesReturnEntry,SALES_RETURN_ENTRY_PROFILE} from './sales-return-entry-profile.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -142,6 +143,13 @@ export function resolveReturnCfop(
 ): ReturnCfopResolution {
   const document = root(payload);
   const ide = asObject(document.ide) ?? {};
+  if(requestsSalesReturnEntry(payload)){
+    const valid=validSalesReturnEntry(payload);
+    return {isReturn:true,shouldBlock:!valid,clientMessage:valid?null:'Entrada de devolucao fora do perfil suportado.',needsReview:!valid,
+      items:asArray(document.det).map((_,itemIndex)=>({itemIndex,sourceCfop:'5102',outputCfop:valid?'1202':null,
+        profile:SALES_RETURN_ENTRY_PROFILE,riskLevel:valid?'low' as const:'high' as const,fallbackApplied:false,
+        reason:valid?'Entrada por devolucao de venda interna no perfil versionado.':'Perfil de entrada invalido; sem fallback de devolucao ao fornecedor.'}))};
+  }
   if (text(ide.finNFe || "1") !== "4") {
     return { isReturn: false, shouldBlock: false, clientMessage: null, needsReview: false, items: [] };
   }

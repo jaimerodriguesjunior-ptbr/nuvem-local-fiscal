@@ -1,5 +1,6 @@
 import { validateDocumentReferences } from "./document-reference-rules.js";
 import { validateRtcPayload } from "./rtc-rules.js";
+import {requestsSalesReturnEntry,validSalesReturnEntry} from './sales-return-entry-profile.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -190,6 +191,10 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
 
   const finality = text(ide.finNFe || "1");
   const returnMeta = returnMetadata(payload, infNFe);
+  const entryRequested=requestsSalesReturnEntry(payload);
+  const validEntry=entryRequested&&validSalesReturnEntry(payload);
+  if(entryRequested&&!validEntry)pushIssue(issues,'unsupported_sales_return_entry_profile','infNFe',
+    'Entrada por devolucao de venda fora do perfil versionado interno 1.202/CSOSN 900.');
   const details = asArray(infNFe.det);
   details.forEach((detail, index) => {
     const item = asObject(detail);
@@ -201,7 +206,7 @@ export function validateNfeEmissionPayload(payload: JsonObject): NfeValidationRe
     const allowManual5411 = returnMeta.manualCfopOverrideV1 === true
       && itemMeta.cfopManual === true
       && text(itemMeta.cfopDestino) === cfop;
-    if (!cfop || !nfeMvpFinalityAllowed(finality) || nfeMvpCfopAllowed(finality, cfop, allowManual5411)) {
+    if (!cfop || !nfeMvpFinalityAllowed(finality) || (validEntry&&cfop==='1202') || nfeMvpCfopAllowed(finality, cfop, allowManual5411)) {
       return;
     }
 
