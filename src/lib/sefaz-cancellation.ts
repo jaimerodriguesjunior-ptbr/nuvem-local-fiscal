@@ -6,7 +6,7 @@ import tls from "node:tls";
 import { DOMParser, XMLSerializer, type Element } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
 
-import { decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
+import { buildCertificateTlsOptions, decryptCertificateBundle, openEncryptedCertificate } from "./certificates.js";
 import { config } from "../config.js";
 import type { DocumentType, Environment } from "../types.js";
 import {assertCancellationTransmissionPermit} from './recovery/transmission-fence.js';
@@ -308,6 +308,7 @@ export async function transmitSignedCancellationAtSefaz(input:CancellationInput,
   if(input.ambiente==='producao'&&!config.fiscalProductionEnabled)throw new Error('Cancelamento em producao permanece bloqueado nesta etapa.');
   assertCancellationTransmissionPermit(signed.batchXml,input.ambiente,input.documentType,input.accessKey);
   const certificate=decryptCertificateBundle(input.encryptedCertificateBundle,input.encryptionSecret);
+  const certificateTlsOptions=buildCertificateTlsOptions(Buffer.from(certificate.pfxBase64,"base64"),certificate.password);
   const soapEnvelope =
     `<?xml version="1.0" encoding="utf-8"?>` +
     `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
@@ -326,8 +327,7 @@ export async function transmitSignedCancellationAtSefaz(input:CancellationInput,
       endpoint,
       {
         method: "POST",
-        pfx: Buffer.from(certificate.pfxBase64, "base64"),
-        passphrase: certificate.password,
+        ...certificateTlsOptions,
         ca: [...tls.rootCertificates, rootCa],
         minVersion: "TLSv1.2",
         timeout: 30_000,
