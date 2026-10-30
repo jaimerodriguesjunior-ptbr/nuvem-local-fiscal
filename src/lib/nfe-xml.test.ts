@@ -18,6 +18,8 @@ import {
   validateAuthorizationBatchXml
 } from "./sefaz-authorization.js";
 import { validateNfeXml } from "./xsd-validator.js";
+import { RecoveryController } from './recovery/controller.js';
+import type { ManagedDocument, ManagedRepository, ManagedPhase } from './recovery/controller-types.js';
 
 function createTestPfx(
   password: string,
@@ -795,6 +797,110 @@ test("assina devolucao com referencia por item e sem NFref e valida XML/lote no 
   const xmlValidation=validateNfeXml(result.signedXml);assert.deepEqual(xmlValidation.errors,[]);assert.equal(xmlValidation.valid,true);
   const batch=buildAuthorizationBatch(result.signedXml,'000000000009004');
   const batchValidation=validateAuthorizationBatchXml(batch.batchXml);assert.deepEqual(batchValidation.errors,[]);assert.equal(batchValidation.valid,true);
+});
+
+function salesReturnXmlFixture(environment: 1 | 2) {
+  const n: any = buildRtcInfNFe(55, 2499);
+  Object.assign(n.ide, { tpAmb: environment, cNF: '03636707', finNFe: 4, tpNF: 0, natOp: 'DEVOLUCAO DE VENDA' });
+  delete n.det[0].imposto.IBSCBS;
+  delete n.total.IBSCBSTot;
+  Object.assign(n.det[0].prod, { CFOP: '1202' });
+  n.det[0].imposto.ICMS = { ICMSSN900: { orig: 0, CSOSN: '900', modBC: 3, vBC: 0, pICMS: 0, vICMS: 0 } };
+  n.det[0].DFeReferenciado = { chaveAcesso: '41261008214081000134650010000033821222308395', nItem: 1 };
+  n.det.push(structuredClone(n.det[0]));
+  n.det[1].nItem = 2;
+  n.det[1].DFeReferenciado.nItem = 2;
+  n.total.ICMSTot.vNF = n.total.ICMSTot.vProd = 20;
+  n.pag.detPag = [{ tPag: '90', vPag: 0 }];
+  return { operacao: 'sales_return_entry', ambiente: environment === 1 ? 'producao' : 'homologacao', infNFe: n };
+}
+
+function reorderedJson<T>(value: T, mode: 'jsonb' | 'reverse'): T {
+  return JSON.parse(JSON.stringify(value, (_key, v) => v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => mode === 'jsonb' ? Buffer.byteLength(a) - Buffer.byteLength(b) || Buffer.compare(Buffer.from(a), Buffer.from(b)) : b.localeCompare(a))) : v));
+}
+
+const returnCsrt = { idCSRT: '2', csrt: 'LOCAL-TEST-CSRT' };
+
+test('devolucao propria gera o mesmo XML em memoria e apos JSONB nos dois ambientes', () => {
+  const password = 'return-order';
+  const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');
+  for (const environment of [1, 2] as const) {
+    const payload = salesReturnXmlFixture(environment), original = structuredClone(payload);
+    const sign = (p: typeof payload) => generateAndSignNfeXml(p, opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
+    const direct = sign(payload);
+    for (const mode of ['jsonb', 'reverse'] as const) {
+      const saved = sign(reorderedJson(payload, mode));
+      assert.equal(saved.unsignedXml, direct.unsignedXml, `${environment}/${mode}`);
+      assert.equal(saved.signedXml, direct.signedXml);
+      assert.equal(saved.signatureValid, true);
+      assert.deepEqual(validateNfeXml(saved.signedXml).errors, []);
+      assert.deepEqual(validateAuthorizationBatchXml(buildAuthorizationBatch(saved.signedXml, '000000000009005').batchXml).errors, []);
+    }
+    assert.deepEqual(payload, original, 'preparation does not change the frozen payload');
+  }
+});
+
+test('ordenacao de devolucao preserva campos invalidos para o XSD rejeitar', () => {
+  const password = 'return-unknown';
+  const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');
+  const p = salesReturnXmlFixture(1);
+  p.infNFe.det[0].DFeReferenciado.campoInvalido = 'keep';
+  p.infNFe.det[0].imposto.ICMS.ICMSSN900.outroInvalido = 'keep';
+  const result = generateAndSignNfeXml(reorderedJson(p, 'jsonb'), opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
+  assert.match(result.unsignedXml, /<campoInvalido>keep<\/campoInvalido>/);
+  assert.match(result.unsignedXml, /<outroInvalido>keep<\/outroInvalido>/);
+  assert.equal(validateNfeXml(result.signedXml).valid, false);
+});
+
+test('tpNF entrada e finalidade devolucao sem opt-in conservam serializacao existente', () => {
+  const password = 'other-clients';
+  const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');
+  const p: any = reorderedJson(salesReturnXmlFixture(1), 'jsonb');
+  delete p.operacao;
+  const result = generateAndSignNfeXml(p, opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
+  assert.match(result.unsignedXml, /<ICMSSN900><vBC>/);
+  assert.match(result.unsignedXml, /<DFeReferenciado><nItem>/);
+});
+
+test('controlador gerenciado prepara devolucao recuperada de JSONB sem transmitir no ensaio', async () => {
+  const password = 'managed-return';
+  const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');
+  let current: ManagedDocument | null = null;
+  const phases: ManagedPhase[] = [];
+  const repository: ManagedRepository = {
+    async accept(scope, requestId, originId, requestHash, document, ownerToken) {
+      current = { scope, requestId, originId, requestHash, document: reorderedJson(document, 'jsonb'), ownerToken,
+        phase: 'accepted', version: 1, errorOrigin: 'central', code: 'ACCEPTED', sendStartedAt: null };
+      return { created: true, record: current };
+    },
+    async get() { return current; },
+    async transition(record, phase, document, errorOrigin, code) {
+      phases.push(phase);
+      current = { ...record, phase, document, errorOrigin, code, version: record.version + 1 };
+      return current;
+    }
+  };
+  let authorizations = 0, consultations = 0;
+  const controller = new RecoveryController(repository, {
+    async prepare(document) {
+      const signed = generateAndSignNfeXml(document.payloadOriginal as Record<string, unknown>, opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
+      const xsd = validateNfeXml(signed.signedXml);
+      assert.deepEqual(xsd.errors, []);
+      return { ...signed, xsdValid: xsd.valid, xsdErrors: xsd.errors, certificateId: 'synthetic' };
+    },
+    async consult() { consultations++; throw new Error('OFFLINE_TEST_NO_SEFAZ'); },
+    async authorize() { authorizations++; throw new Error('UNEXPECTED_TRANSMISSION'); }
+  });
+  const p = salesReturnXmlFixture(1);
+  const result = await controller.submit({ id: 'scope', clientId: 'test', organizationId: 'test', storeId: 7,
+    cnpj: p.infNFe.emit.CNPJ, environment: 'producao', model: 'NFe', series: 1 },
+    'ec628a46-a17d-44e2-8922-3044c06b9c69', 'test-return', p, {}, null);
+  assert.deepEqual(phases, ['prepared', 'pending']);
+  assert.equal(result.document.xsdValid, true);
+  assert.equal(consultations, 1);
+  assert.equal(authorizations, 0);
+  assert.equal(result.sendStartedAt, null);
 });
 
 test("preserva campos minimos RTC em NF-e e NFC-e e valida XML/lote no XSD local", () => {

@@ -4,6 +4,7 @@ import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
 
 import { assertNumericCnpj } from "./fiscal-identity.js";
+import { requestsSalesReturnEntry } from "./sales-return-entry-profile.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -740,6 +741,32 @@ function applyResponsibleTechnicalCsrt(
     .digest("base64");
 }
 
+function orderSalesReturnItemGroups(infNFe: JsonObject) {
+  const reorder = (parent: JsonObject, name: string, order: string[]) => {
+    const value = parent[name];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const object = value as JsonObject;
+    // Retain unknown fields: ordering must never hide data from XSD validation.
+    parent[name] = Object.fromEntries([
+      ...order.filter(key => Object.hasOwn(object, key)).map(key => [key, object[key]]),
+      ...Object.entries(object).filter(([key]) => !order.includes(key))
+    ]);
+  };
+  if (!Array.isArray(infNFe.det)) return;
+  for (const detail of infNFe.det as JsonObject[]) {
+    if (!detail || typeof detail !== 'object') continue;
+    reorder(detail, 'DFeReferenciado', ['chaveAcesso', 'nItem']);
+    const tax = detail.imposto as Record<string, JsonObject> | undefined;
+    if (tax?.ICMS) reorder(tax.ICMS, 'ICMSSN900', [
+      'orig', 'CSOSN', 'modBC', 'vBC', 'pRedBC', 'pICMS', 'vICMS',
+      'modBCST', 'pMVAST', 'pRedBCST', 'vBCST', 'pICMSST', 'vICMSST',
+      'vBCFCPST', 'pFCPST', 'vFCPST', 'pCredSN', 'vCredICMSSN'
+    ]);
+    if (tax?.PIS) reorder(tax.PIS, 'PISOutr', ['CST', 'vBC', 'pPIS', 'qBCProd', 'vAliqProd', 'vPIS']);
+    if (tax?.COFINS) reorder(tax.COFINS, 'COFINSOutr', ['CST', 'vBC', 'pCOFINS', 'qBCProd', 'vAliqProd', 'vCOFINS']);
+  }
+}
+
 export function generateAndSignNfeXml(
   payload: JsonObject,
   privateKeyPem: string,
@@ -762,6 +789,12 @@ export function generateAndSignNfeXml(
   }
 
   applyHomologationRequiredText(infNFe);
+  // Managed issuance reads JSONB before preparing XML. Property insertion order
+  // is not a fiscal contract. Keep this repair scoped to explicit sales returns;
+  // other clients (including generic tpNF=0 documents) retain their serializer.
+  if (requestsSalesReturnEntry(payload) && Number((infNFe.ide as JsonObject).mod) === 55) {
+    orderSalesReturnItemGroups(infNFe);
+  }
   applyPaymentCompatibility(infNFe);
   applyRtcTotalCompatibility(infNFe);
   const accessKey = accessKeyFromInfNFe(infNFe);
