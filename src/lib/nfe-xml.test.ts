@@ -863,6 +863,37 @@ test('tpNF entrada e finalidade devolucao sem opt-in conservam serializacao exis
   assert.match(result.unsignedXml, /<DFeReferenciado><nItem>/);
 });
 
+test('garantia Luxottica ordena impostos apos JSONB sem alterar outras notas', () => {
+  const password = 'luxottica-order';
+  const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');
+  const p: any = salesReturnXmlFixture(1);
+  delete p.operacao;
+  p.luxottica = { profile: 'luxottica_warranty_return' };
+  Object.assign(p.infNFe.ide, { tpNF: 1, finNFe: 4, idDest: 2, natOp: 'DEVOLUCAO', NFref: [{ refNFe: '41261008214081000134650010000033821222308395' }] });
+  p.infNFe.det = [p.infNFe.det[0]];
+  delete p.infNFe.det[0].DFeReferenciado;
+  p.infNFe.det[0].prod.CFOP = '6202';
+  p.infNFe.det[0].impostoDevol = { pDevol: 100, IPI: { vIPIDevol: 0.33 } };
+  p.infNFe.total.ICMSTot.vIPIDevol = 0.33;
+  p.infNFe.total.ICMSTot.vProd = 10;
+  p.infNFe.total.ICMSTot.vNF = 10.33;
+  const saved = reorderedJson(p, 'jsonb');
+  const before = structuredClone(saved);
+  const sign = (payload: any) => generateAndSignNfeXml(payload, opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
+  const fixed = sign(saved);
+  assert.equal(fixed.signatureValid, true);
+  assert.match(fixed.unsignedXml, /<ICMSSN900><orig>/);
+  assert.match(fixed.unsignedXml, /<impostoDevol><pDevol>100/);
+  assert.deepEqual(validateNfeXml(fixed.signedXml).errors, []);
+  assert.deepEqual(validateAuthorizationBatchXml(buildAuthorizationBatch(fixed.signedXml, '000000000009006').batchXml).errors, []);
+  assert.deepEqual(saved, before);
+  delete saved.luxottica;
+  const unrelated = sign(saved);
+  assert.match(unrelated.unsignedXml, /<ICMSSN900><vBC>/);
+  assert.match(unrelated.unsignedXml, /<impostoDevol><IPI>/);
+  assert.equal(validateNfeXml(unrelated.signedXml).valid, false);
+});
+
 test('controlador gerenciado prepara devolucao recuperada de JSONB sem transmitir no ensaio', async () => {
   const password = 'managed-return';
   const opened = openEncryptedCertificate(encryptCertificateBundle({ pfxBase64: createTestPfx(password).toString('base64'), password }, 'order'), 'order');

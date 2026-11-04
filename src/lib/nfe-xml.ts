@@ -767,6 +767,22 @@ function orderSalesReturnItemGroups(infNFe: JsonObject) {
   }
 }
 
+function orderLuxotticaReturnGroups(infNFe: JsonObject) {
+  orderSalesReturnItemGroups(infNFe);
+  if (!Array.isArray(infNFe.det)) return;
+  for (const detail of infNFe.det as JsonObject[]) {
+    if (!detail || typeof detail !== 'object') continue;
+    const value = detail.impostoDevol;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const fields = value as JsonObject;
+    const order = ['pDevol', 'IPI'];
+    detail.impostoDevol = Object.fromEntries([
+      ...order.filter(key => Object.hasOwn(fields, key)).map(key => [key, fields[key]]),
+      ...Object.entries(fields).filter(([key]) => !order.includes(key))
+    ]);
+  }
+}
+
 export function generateAndSignNfeXml(
   payload: JsonObject,
   privateKeyPem: string,
@@ -794,6 +810,13 @@ export function generateAndSignNfeXml(
   // other clients (including generic tpNF=0 documents) retain their serializer.
   if (requestsSalesReturnEntry(payload) && Number((infNFe.ide as JsonObject).mod) === 55) {
     orderSalesReturnItemGroups(infNFe);
+  }
+  const luxottica = payload.luxottica;
+  if (luxottica && typeof luxottica === 'object' && !Array.isArray(luxottica) &&
+      (luxottica as JsonObject).profile === 'luxottica_warranty_return' &&
+      Number((infNFe.ide as JsonObject).mod) === 55 && Number((infNFe.ide as JsonObject).finNFe) === 4 &&
+      Number((infNFe.ide as JsonObject).tpNF) === 1) {
+    orderLuxotticaReturnGroups(infNFe);
   }
   applyPaymentCompatibility(infNFe);
   applyRtcTotalCompatibility(infNFe);
