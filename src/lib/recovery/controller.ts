@@ -4,6 +4,7 @@ import type { ManagedDocument, ManagedPhase, ManagedRepository, ManagedScope } f
 import type { RecoveryDecision, RecoveryDocument } from "./model.js";
 import { reconcileConsultation, reconcileInitialAuthorization, validateRecoveryDocument } from "./evidence.js";
 import { withInitialTransmissionPermit } from "./transmission-fence.js";
+import {refreshNfceIssueTime} from '../nfce-issue-time.js';
 
 export type PreparedXml = { accessKey: string; signedXml: string; unsignedXml: string;
   signatureValid: boolean; xsdValid: boolean; xsdErrors: string[]; certificateId: string };
@@ -27,7 +28,7 @@ export function managedRecoveryDocument(record: ManagedDocument): RecoveryDocume
 }
 
 export class RecoveryController {
-  constructor(readonly repository: ManagedRepository, private readonly transport: ManagedTransports) {}
+  constructor(readonly repository: ManagedRepository, private readonly transport: ManagedTransports, private readonly now:()=>Date=()=>new Date()) {}
 
   async submit(scope: ManagedScope, requestId: string, originId: string, payload: Record<string,unknown>,
     normalized: unknown, nfceConfigEncrypted: string | null,resumeLocal=false): Promise<ManagedDocument> {
@@ -55,9 +56,12 @@ export class RecoveryController {
     if (!accepted.created) return accepted.record; // never resubmit a prior request
     let current=accepted.record;
     try {
-      const xml=await this.transport.prepare(current.document);
+      if(current.phase!=='accepted'||current.sendStartedAt!==null)throw Error('RECOVERY_FIRST_SEND_UNPROVEN');
+      const candidate=refreshNfceIssueTime(current.document,this.now(),'never_sent');
+      const xml=await this.transport.prepare(candidate);
+      if(current.document.chave&&xml.accessKey!==current.document.chave)throw Error('RECOVERY_TIME_KEY_CHANGED');
       if (!xml.signatureValid || !xml.xsdValid) throw new Error('RECOVERY_LOCAL_XML_INVALID');
-      const prepared={...current.document,xmlGenerated:xml.unsignedXml,xmlSigned:xml.signedXml,chave:xml.accessKey,
+      const prepared={...candidate,xmlGenerated:xml.unsignedXml,xmlSigned:xml.signedXml,chave:xml.accessKey,
         signatureValid:true,xsdValid:true,xsdErrors:[],certificateId:xml.certificateId};
       validateRecoveryDocument(managedRecoveryDocument({...current,document:prepared}));
       const saved=await this.repository.transition(current,'prepared',prepared,'central','PREPARED',token);

@@ -875,8 +875,17 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(401).send(unauthorized());
     }
 
+    const snapshot=app.store.getSnapshot();
+    const managed=(request.query as {managed?:string}).managed;
+    if(managed!==undefined){
+      if(typeof managed!=='string'||!/^rv1_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(managed))return reply.code(400).send({message:'Identificador gerenciado invalido.'});
+      const record=await app.recovery?.findDocument(managed);
+      if(!record)return reply.code(404).send({message:'Documento gerenciado nao encontrado.'});
+      snapshot.documents=[...snapshot.documents.filter(d=>d.id!==record.id),app.store.getDocumentSnapshot(record)];
+      snapshot.summary.documents=snapshot.documents.length;
+    }
     return {
-      ...app.store.getSnapshot(),
+      ...snapshot,
       runtime: {
         fiscalProductionBlocked: !config.fiscalProductionEnabled
       }

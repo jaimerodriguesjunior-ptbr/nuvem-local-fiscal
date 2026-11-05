@@ -2395,6 +2395,13 @@ const page = String.raw`<!doctype html>
     }
 
     function compactDocumentsTabRowFixed(doc) {
+      if(doc.recovery){
+        return '<article class="document recent-document"><div class="document-summary"><strong>' + escapeHtml(doc.tipoDocumento) + ' #' + doc.numero + '</strong>' +
+          '<p>Status: ' + escapeHtml(doc.status) + ' · Série ' + doc.serie + ' · ' + escapeHtml(doc.ambiente) + '</p>' +
+          '<p>' + escapeHtml(doc.motivoStatus || '') + ' ' + escapeHtml(doc.motivo || '') + '</p>' +
+          '<p class="small">Emissão gerenciada pela integração. Consulta e retomada devem ser feitas no sistema de origem.</p>' +
+          '<p class="small">ID: ' + escapeHtml(doc.id) + '</p></div></article>';
+      }
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
@@ -2485,6 +2492,7 @@ const page = String.raw`<!doctype html>
         ? '<button type="button" class="btn ghost" onclick="clearCompanyFilter()">Limpar filtro</button>'
         : '';
       return pageHead('Operação', 'Documentos', subtitle, clear) +
+        '<button type="button" class="btn secondary" onclick="locateManagedDocument()">Localizar nota gerenciada por ID</button>' +
         renderListFiltersFixed() +
         (docs.length ? '<div class="recent-list">' + docs.map(compactDocumentsTabRowFixed).join('') + '</div>' :
           '<div class="empty">Nenhum documento encontrado para este filtro.</div>') +
@@ -2850,11 +2858,21 @@ const page = String.raw`<!doctype html>
     }
 
     async function fetchSnapshot() {
-      const response = await fetch('/admin/api/snapshot', {
+      const managed=new URLSearchParams(window.location.search).get('managed');
+      const response = await fetch('/admin/api/snapshot' + (managed ? '?managed=' + encodeURIComponent(managed) : ''), {
         headers: { Authorization: 'Basic ' + runtimeConfig.adminToken }
       });
       if (!response.ok) throw new Error('Não foi possível carregar o painel administrativo.');
       state.snapshot = await response.json();
+    }
+
+    async function locateManagedDocument() {
+      const id=prompt('Informe o ID da nota gerenciada (rv1_...).');
+      if(id===null)return;
+      const url=new URL(window.location.href);
+      if(id.trim())url.searchParams.set('managed',id.trim());else url.searchParams.delete('managed');
+      history.replaceState(null,'',url);
+      try{await refreshSnapshot();}catch(error){alert(error.message);}
     }
 
     async function refreshSnapshot() {

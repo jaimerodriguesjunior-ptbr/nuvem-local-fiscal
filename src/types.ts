@@ -133,6 +133,7 @@ export type MessageItem = {
 };
 
 export type DocumentRecord = {
+  issueTimeHistory?:Array<{previousIssueTime:string;issueTime:string;proof:'never_sent'|'sefaz_704';previousPayloadHash:string;at:string}>;
   recovery?: import("./lib/recovery/runtime.js").RecoveryDocumentMetadata;
   id: string;
   providerLikeId: string;

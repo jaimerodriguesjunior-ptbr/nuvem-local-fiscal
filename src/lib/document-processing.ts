@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isRecoveryNamespace } from "./recovery/transmission-fence.js";
 import { config } from "../config.js";
 import { prepareHomologationNfceTimeRetry } from "./nfce-time-retry.js";
+import {refreshNfceIssueTime} from './nfce-issue-time.js';
 import type { InMemoryStore } from "../store.js";
 import type { DocumentRecord } from "../types.js";
 import {
@@ -165,6 +166,17 @@ export async function processHomologationDocument(
   }
 
   try {
+    // A brand-new legacy NFC-e has no signed snapshot or transmission history.
+    // Existing signed/uncertain documents keep the original recovery protocol.
+    const firstSendTimeRefresh=document.tipoDocumento==='NFCe'&&document.ambiente==='producao'&&
+      !document.xmlSigned&&!document.chave&&!store.getDocumentEvents(document.id).some(event=>
+        ['sefaz_authorization_started','sefaz_authorization_completed','authorization_recovered'].includes(event.eventType));
+    if(firstSendTimeRefresh){
+      Object.assign(document,refreshNfceIssueTime(document,new Date(),'never_sent'));
+      store.addDocumentEvent(document.id,{eventType:'first_send_issue_time_refreshed',
+        message:'Horario preparado para o primeiro envio da NFC-e, sem transmissao anterior.',
+        payload:{issueTimeHistory:document.issueTimeHistory??[]}});
+    }
     attemptNumber =
       store
         .getDocumentEvents(document.id)
@@ -219,7 +231,8 @@ export async function processHomologationDocument(
         xsdErrors: xsd.errors,
         certificateId: certificate.id
       });
-      await waitForNonBlockingPersistence(store, document.id, "XML assinado");
+      if(firstSendTimeRefresh)await store.waitForPersistence();
+      else await waitForNonBlockingPersistence(store, document.id, "XML assinado");
 
       if (!signed.signatureValid) {
         throw new Error("A assinatura digital do XML nao foi validada.");
