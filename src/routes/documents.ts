@@ -6,6 +6,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
+import { danfeTextWidth, wrapDanfeText } from "../lib/danfe-text.js";
 import { isRecoveryNamespace,hasManagedSubmissionHeaders } from "../lib/recovery/transmission-fence.js";
 import { publicManagedDocument } from "../lib/recovery/runtime.js";
 import { registerCompanyEnrollmentRoute } from "./company-enrollment.js";
@@ -2889,6 +2890,7 @@ type LocalPdfPage = {
   height: number;
   content: string;
   images?: LocalPdfImage[];
+  continuationPages?: LocalPdfPage[];
 };
 
 const ARIAL_BOLD_ASCII_WIDTHS = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,750];
@@ -2946,7 +2948,7 @@ function createLocalPdf(document: DocumentRecord, issuer: Issuer | null = null) 
         ? nationalDanfseContentStream(document, issuer)
         : nfseContentStream(document, issuer)
       : document.tipoDocumento === "NFe"
-        ? nfeDanfeContentStream(parseDanfeData(document))
+        ? nfeDanfeContentStreams(parseDanfeData(document))
         : nfceDanfeContentStream(parseDanfeData(document));
   const imageObjects = page.images ?? [];
   const nationalDanfse = document.tipoDocumento === "NFSe" && document.providerName === "nfse-nacional";
@@ -2997,6 +2999,19 @@ function createLocalPdf(document: DocumentRecord, issuer: Issuer | null = null) 
       image.data,
       Buffer.from("\nendstream", "latin1")
     ]));
+  }
+
+  if (page.continuationPages?.length) {
+    const pageObjects = [3];
+    for (const continuation of page.continuationPages) {
+      const pageObject = objects.length + 1;
+      pageObjects.push(pageObject);
+      objects.push(
+        Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${continuation.width} ${continuation.height}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents ${pageObject + 1} 0 R >>`, 'latin1'),
+        Buffer.from(`<< /Length ${Buffer.byteLength(continuation.content, 'latin1')} >>\nstream\n${continuation.content}\nendstream`, 'latin1')
+      );
+    }
+    objects[1] = Buffer.from(`<< /Type /Pages /Kids [${pageObjects.map(id => `${id} 0 R`).join(' ')}] /Count ${pageObjects.length} >>`, 'latin1');
   }
 
   const chunks: Buffer[] = [Buffer.from("%PDF-1.4\n", "latin1")];
@@ -4173,7 +4188,41 @@ function formatAccessKey(value: string) {
   return value.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ").trim();
 }
 
-function nfeDanfeContentStream(data: DanfeData) {
+const danfeColumns = [
+  ['CODIGO', 55], ['DESCRICAO DO PRODUTO / SERVICO', 148], ['NCM/SH', 35], ['CST', 22],
+  ['CFOP', 27], ['UN', 18], ['QUANT.', 32], ['VALOR UNIT.', 40], ['VALOR TOTAL', 40],
+  ['B.CALC. ICMS', 38], ['VALOR ICMS', 35], ['VALOR IPI', 30], ['ALIQ. ICMS', 32], ['ALIQ. IPI', 27]
+] as const;
+
+type DanfeRow = { cells: string[][]; height: number };
+type DanfePageContent = { rows: DanfeRow[]; infoLines: string[] };
+
+function nfeDanfeContentStreams(data: DanfeData): LocalPdfPage {
+  const pages: DanfePageContent[] = [{ rows: [], infoLines: [] }];
+  let used = 0;
+  for (const item of data.itens) {
+    const values = [item.codigo, item.descricao, item.ncm, item.cst, item.cfop, item.unidade,
+      formatQuantity(item.quantidade), formatMoney(item.valorUnitario), formatMoney(item.valorTotal),
+      formatMoney(item.baseIcms), formatMoney(item.valorIcms), formatMoney(item.valorIpi),
+      formatQuantity(item.aliquotaIcms), formatQuantity(item.aliquotaIpi)];
+    const cells = values.map((value, index) => wrapDanfeText(value, danfeColumns[index][1] - 5, index < 2 ? 5.5 : 4.5));
+    const row = { cells, height: Math.max(16, Math.max(...cells.map(cell => cell.length)) * 7 + 6) };
+    if (used + row.height > 234 && pages.at(-1)!.rows.length) {
+      pages.push({ rows: [], infoLines: [] }); used = 0;
+    }
+    pages.at(-1)!.rows.push(row); used += row.height;
+  }
+  const info = wrapDanfeText(data.informacoesComplementares ||
+    `Documento emitido por Nuvem Local Fiscal. Protocolo: ${data.protocolo || '-'}.`, 382, 5.5, 'F2');
+  for (let offset = 0, index = 0; offset < info.length; offset += 8, index++) {
+    if (!pages[index]) pages.push({ rows: [], infoLines: [] });
+    pages[index].infoLines = info.slice(offset, offset + 8);
+  }
+  const rendered = pages.map((page, index) => nfeDanfeContentStream(data, page, index + 1, pages.length));
+  return { ...rendered[0], continuationPages: rendered.slice(1) };
+}
+
+function nfeDanfeContentStream(data: DanfeData, page: DanfePageContent, pageNumber: number, pageCount: number) {
   const width = 595;
   const height = 842;
   const margin = 8;
@@ -4217,8 +4266,7 @@ function nfeDanfeContentStream(data: DanfeData) {
       ].join(" ")
     );
   };
-  const textWidth = (value: string, size: number, font = "F1") =>
-    estimatePdfTextWidth(value, size, font === "F2");
+  const textWidth = danfeTextWidth;
   const rightText = (xRight: number, yPos: number, size: number, value: string, font = "F1") => {
     text(Math.max(margin, xRight - textWidth(value, size, font)), yPos, size, value, font);
   };
@@ -4240,7 +4288,7 @@ function nfeDanfeContentStream(data: DanfeData) {
       rect(x, yPos, boxWidth, boxHeight);
     }
     text(x + 2, yPos + boxHeight - 6, 4.5, label, "F2");
-    const values = wrapPdfTextByWidth(value || "-", boxWidth - 5, valueSize).slice(
+    const values = wrapDanfeText(value || "-", boxWidth - 8, valueSize, 'F2').slice(
       0,
       Math.max(1, Math.floor((boxHeight - 9) / (valueSize + 1)))
     );
@@ -4264,18 +4312,12 @@ function nfeDanfeContentStream(data: DanfeData) {
   roundedRect(margin, receiptY, contentWidth, 44);
   line(margin + 468, receiptY, margin + 468, receiptY + 44);
   line(margin, receiptY + 15, margin + 468, receiptY + 15);
-  text(
-    margin + 3,
-    receiptY + 33,
-    5.5,
-    `RECEBEMOS DE ${data.emitenteNome || data.emitenteFantasia} OS PRODUTOS E/OU SERVICOS CONSTANTES DA NOTA FISCAL ELETRONICA INDICADA ABAIXO.`
-  );
-  text(
-    margin + 3,
-    receiptY + 24,
-    5.5,
-    `EMISSAO: ${formatShortDateTime(data.emitidaEm) || "-"}  DESTINATARIO: ${data.destinatarioNome || "-"}  VALOR TOTAL: R$ ${formatMoney(data.valorTotal)}`
-  );
+  const receiptText = (value: string, y: number) => {
+    const size = Math.min(5.5, 462 / Math.max(1, textWidth(value, 1)));
+    text(margin + 3, y, size, value);
+  };
+  receiptText(`RECEBEMOS DE ${data.emitenteNome || data.emitenteFantasia} OS PRODUTOS E/OU SERVICOS CONSTANTES DA NOTA FISCAL ELETRONICA INDICADA ABAIXO.`, receiptY + 33);
+  receiptText(`EMISSAO: ${formatShortDateTime(data.emitidaEm) || "-"}  DESTINATARIO: ${data.destinatarioNome || "-"}  VALOR TOTAL: R$ ${formatMoney(data.valorTotal)}`, receiptY + 24);
   text(margin + 3, receiptY + 4, 4.5, "DATA DE RECEBIMENTO");
   text(margin + 150, receiptY + 4, 4.5, "IDENTIFICACAO E ASSINATURA DO RECEBEDOR");
   centered(margin + 468, contentWidth - 468, receiptY + 31, 11, "NF-e", "F2");
@@ -4309,18 +4351,17 @@ function nfeDanfeContentStream(data: DanfeData) {
   roundedRect(margin, headerY, contentWidth, headerHeight);
   line(margin + issuerWidth, headerY, margin + issuerWidth, headerY + headerHeight);
   line(accessX, headerY, accessX, headerY + headerHeight);
-  centered(
-    margin,
-    issuerWidth,
-    headerY + 82,
-    10,
-    data.emitenteNome || data.emitenteFantasia,
-    "F2"
-  );
-  wrapPdfTextByWidth(data.emitenteEndereco, issuerWidth - 12, 6.5)
+  const issuerName = data.emitenteNome || data.emitenteFantasia;
+  let issuerNameSize = 9;
+  while (wrapDanfeText(issuerName, issuerWidth - 12, issuerNameSize, 'F2').length > 2 && issuerNameSize > 6) issuerNameSize -= 0.5;
+  wrapDanfeText(issuerName, issuerWidth - 12, issuerNameSize, 'F2')
+    .forEach((value, index) => {
+      centered(margin + 4, issuerWidth - 8, headerY + 85 - index * 11, issuerNameSize, value, 'F2');
+    });
+  wrapDanfeText(data.emitenteEndereco, issuerWidth - 12, 6.5)
     .slice(0, 3)
     .forEach((value, index) => {
-      centered(margin + 4, issuerWidth - 8, headerY + 68 - index * 8, 6.5, value);
+      centered(margin + 4, issuerWidth - 8, headerY + 61 - index * 8, 6.5, value);
     });
   centered(
     margin + 4,
@@ -4367,7 +4408,7 @@ function nfeDanfeContentStream(data: DanfeData) {
     danfeWidth,
     headerY + 7,
     7,
-    `Serie ${data.serie.padStart(3, "0")}  Folha 1/1`,
+    `Serie ${data.serie.padStart(3, "0")}  Folha ${pageNumber}/${pageCount}`,
     "F2"
   );
 
@@ -4458,85 +4499,39 @@ function nfeDanfeContentStream(data: DanfeData) {
   section("DADOS DOS PRODUTOS / SERVICOS", 362);
   const tableTop = 356;
   const tableBottom = 104;
-  const columns = [
-    ["CODIGO", 38],
-    ["DESCRICAO DO PRODUTO / SERVICO", 165],
-    ["NCM/SH", 35],
-    ["CST", 22],
-    ["CFOP", 27],
-    ["UN", 18],
-    ["QUANT.", 32],
-    ["VALOR UNIT.", 40],
-    ["VALOR TOTAL", 40],
-    ["B.CALC. ICMS", 38],
-    ["VALOR ICMS", 35],
-    ["VALOR IPI", 30],
-    ["ALIQ. ICMS", 32],
-    ["ALIQ. IPI", 27]
-  ] as const;
+  const columns = danfeColumns;
   roundedRect(margin, tableBottom, contentWidth, tableTop - tableBottom);
   let columnX = margin;
   for (const [label, columnWidth] of columns) {
     if (columnX > margin) line(columnX, tableBottom, columnX, tableTop);
-    wrapPdfTextByWidth(label, columnWidth - 2, 4.2).slice(0, 2).forEach((value, index) => {
+    wrapDanfeText(label, columnWidth - 4, 4.2, 'F2').slice(0, 2).forEach((value, index) => {
       centered(columnX, columnWidth, tableTop - 7 - index * 5, 4.2, value, "F2");
     });
     columnX += columnWidth;
   }
   line(margin, tableTop - 14, right, tableTop - 14);
-  const itemValues = (item: DanfeItem) => [
-    item.codigo,
-    item.descricao,
-    item.ncm,
-    item.cst,
-    item.cfop,
-    item.unidade,
-    formatQuantity(item.quantidade),
-    formatMoney(item.valorUnitario),
-    formatMoney(item.valorTotal),
-    formatMoney(item.baseIcms),
-    formatMoney(item.valorIcms),
-    formatMoney(item.valorIpi),
-    formatQuantity(item.aliquotaIcms),
-    formatQuantity(item.aliquotaIpi)
-  ];
-  let itemY = tableTop - 24;
-  for (const item of data.itens.slice(0, 18)) {
+  let rowTop = tableTop - 14;
+  for (const row of page.rows) {
     columnX = margin;
-    itemValues(item).forEach((value, index) => {
+    row.cells.forEach((values, index) => {
       const columnWidth = columns[index][1];
-      const fontSize = index === 1 ? 4.2 : 4.5;
-      const horizontalPadding = index === 1 ? 9 : 3;
-      const shown =
-        wrapPdfTextByWidth(value, columnWidth - horizontalPadding, fontSize)[0] ?? "";
-      if (index >= 6) {
-        rightText(columnX + columnWidth - 2, itemY, fontSize, shown);
-      } else {
-        text(columnX + 2, itemY, fontSize, shown);
-      }
+      const fontSize = index < 2 ? 5.5 : 4.5;
+      values.forEach((value, lineIndex) => {
+        const itemY = rowTop - 9 - lineIndex * 7;
+        if (index >= 6) rightText(columnX + columnWidth - 2, itemY, fontSize, value);
+        else text(columnX + 2, itemY, fontSize, value);
+      });
       columnX += columnWidth;
     });
-    itemY -= 13;
-  }
-  if (data.itens.length > 18) {
-    text(margin + 2, itemY, 5, `Demais ${data.itens.length - 18} item(ns) disponiveis no XML autorizado.`);
+    rowTop -= row.height;
+    line(margin, rowTop, right, rowTop);
   }
 
   section("DADOS ADICIONAIS", 96);
   roundedRect(margin, 24, contentWidth, 68);
   line(margin + 390, 24, margin + 390, 92);
-  field(
-    "INFORMACOES COMPLEMENTARES",
-    data.informacoesComplementares ||
-      `Documento emitido por Nuvem Local Fiscal. Protocolo: ${data.protocolo || "-"}.`,
-    margin,
-    24,
-    390,
-    68,
-    5.5,
-    "left",
-    false
-  );
+  text(margin + 2, 86, 4.5, 'INFORMACOES COMPLEMENTARES', 'F2');
+  page.infoLines.forEach((value, index) => text(margin + 3, 77 - index * 6.5, 5.5, value, 'F2'));
   field(
     "RESERVADO AO FISCO",
     "",
