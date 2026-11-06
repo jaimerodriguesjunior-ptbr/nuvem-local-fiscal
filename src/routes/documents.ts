@@ -7,6 +7,7 @@ import * as QRCode from "qrcode";
 
 import { config } from "../config.js";
 import { danfeTextWidth, wrapDanfeText } from "../lib/danfe-text.js";
+import { nfceRecipientLines } from "../lib/nfce-recipient.js";
 import { isRecoveryNamespace,hasManagedSubmissionHeaders } from "../lib/recovery/transmission-fence.js";
 import { publicManagedDocument } from "../lib/recovery/runtime.js";
 import { registerCompanyEnrollmentRoute } from "./company-enrollment.js";
@@ -4630,7 +4631,9 @@ function nfceDanfeContentStream(data: DanfeData) {
     (total, row) => total + 10 + row.descriptionLines.length * 8,
     0
   );
-  const height = Math.max(420, 520 + itemBlockHeight);
+  const recipientLines = nfceRecipientLines(data.destinatarioNome, data.destinatarioDocumento)
+    .flatMap((value) => wrapPdfTextByWidth(value, usableWidth, 8));
+  const height = Math.max(420, 520 + itemBlockHeight + (recipientLines.length - 1) * 11);
   const commands: string[] = [];
   let y = height - 18;
   const text = (x: number, y: number, size: number, value: string, font = "F1") => {
@@ -4752,8 +4755,11 @@ function nfceDanfeContentStream(data: DanfeData) {
     y -= 9;
   });
   y -= 4;
-  centered(y, 8, data.destinatarioNome || "CONSUMIDOR NAO IDENTIFICADO");
-  y -= 13;
+  for (const recipientLine of recipientLines) {
+    centered(y, 8, recipientLine);
+    y -= 11;
+  }
+  y -= 2;
   centered(
     y,
     8,
