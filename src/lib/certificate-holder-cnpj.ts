@@ -5,36 +5,34 @@ import forge from "node-forge";
 export function certificateHolderCnpj(certificatePem: string): string | null {
   const certificate = forge.pki.certificateFromPem(certificatePem);
   const digits = (value: unknown) => {
-    const text = String(value ?? "").replace(/\D/g, "");
+    const text = String(value ?? "").trim();
     return /^\d{14}$/.test(text) ? text : null;
   };
-  const attribute = certificate.subject.attributes.find(a => a.type === "2.16.76.1.3.3");
-  if (attribute) return digits(attribute.value);
+  const holders: Array<string | null> = certificate.subject.attributes
+    .filter(a => a.type === "2.16.76.1.3.3").map(a => digits(a.value));
   const san = certificate.extensions.find(e => e.id === "2.5.29.17");
   if (typeof san?.value === "string") {
     const root = forge.asn1.fromDer(san.value);
-    const find = (node: forge.asn1.Asn1): string | null => {
-      if (!Array.isArray(node.value)) return null;
+    const find = (node: forge.asn1.Asn1): void => {
+      if (!Array.isArray(node.value)) return;
       const oid = node.value.find(child => child.type === forge.asn1.Type.OID && typeof child.value === "string");
       if (oid && typeof oid.value === "string" && forge.asn1.derToOid(oid.value) === "2.16.76.1.3.3") {
         const strings = (child: forge.asn1.Asn1): string[] => typeof child.value === "string"
           ? [child.value] : child.value.flatMap(strings);
-        for (const child of node.value.filter(child => child !== oid)) {
-          for (const value of strings(child)) {
-            const cnpj = digits(value);
-            if (cnpj) return cnpj;
-          }
-        }
+        const values = node.value.filter(child => child !== oid).flatMap(strings);
+        holders.push(values.length === 1 ? digits(values[0]) : null);
+        return;
       }
       for (const child of node.value) {
-        const found = find(child);
-        if (found) return found;
+        find(child);
       }
-      return null;
     };
-    const found = find(root);
-    if (found) return found;
+    find(root);
   }
   const cn = certificate.subject.getField("CN")?.value;
-  return typeof cn === "string" ? cn.match(/:\s*(\d{14})\s*$/)?.[1] ?? null : null;
+  const cnCnpj = typeof cn === "string" ? cn.match(/:\s*(\d{14})\s*$/)?.[1] : undefined;
+  if (cnCnpj) holders.push(cnCnpj);
+  if (holders.includes(null)) return null;
+  const unique = [...new Set(holders)];
+  return unique.length === 1 ? unique[0] : null;
 }

@@ -50,6 +50,7 @@ export const config = {
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "admin",
   stateFile: process.env.STATE_FILE ?? "./storage/mock-state.json",
+  enrollmentTrustFile: process.env.COMPANY_ENROLLMENT_TRUST_FILE ?? "",
   supabaseUrl: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   nfeResponsibleTechnicalCnpj: process.env.NFE_RT_CNPJ ?? "",

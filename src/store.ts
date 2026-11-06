@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { EnrollmentError, type EnrollmentInput, type EnrollmentState } from "./lib/company-enrollment.js";
 
 import type {
   PersistenceChanges,
@@ -309,7 +310,56 @@ export class InMemoryStore {
   private isTokenClientCurrent(token: AccessTokenRecord) {
     if (token.clientId === "admin-panel") return true;
     const client = this.apiClients.find((item) => item.clientId === token.clientId);
-    return Boolean(client?.active && token.clientVersion === client.updatedAt);
+    return Boolean(client?.active && token.clientVersion &&
+      new Date(token.clientVersion).getTime() === new Date(client.updatedAt).getTime());
+  }
+
+  async refreshApiClient(clientId: string) {
+    if (!this.persistence) return;
+    const client = await this.persistence.readApiClient(clientId);
+    this.apiClients = this.apiClients.filter(item => item.clientId !== clientId);
+    if (client) this.apiClients.push(client);
+    // A token issued on another instance must also see its newly enrolled issuers.
+    // Legacy integrations without enrollment permission do not depend on the new table.
+    if (client?.active && client.allowedScopes.includes("empresa-cadastro")) {
+      const missing = client.allowedCnpjs.filter(cnpj => cnpj !== "*" && !this.findIssuerByCnpj(cnpj));
+      for (const requestId of await this.persistence.readClientEnrollmentRequests(clientId, missing)) {
+        await this.lookupCompanyEnrollment(clientId, client.updatedAt, requestId);
+      }
+    }
+  }
+
+  private applyEnrollmentState(state: EnrollmentState) {
+    // Only hydrate committed rows; never call legacy upsert/saveChanges here.
+    const cnpj = state.receipt.cnpj;
+    this.apiClients = this.apiClients.filter(item => item.clientId !== state.client.clientId);
+    this.apiClients.push(state.client);
+    this.issuers = this.issuers.filter(item => item.cnpj !== cnpj).concat(state.issuers);
+    this.certificates = this.certificates.filter(item => item.cnpj !== cnpj).concat(state.certificate);
+    this.writeLocalState();
+    return state.receipt;
+  }
+
+  private async runCompanyEnrollment(clientId: string, clientVersion: string, requestId: string, input: EnrollmentInput | null) {
+    if (!this.persistence) throw new EnrollmentError(503, "enrollment_storage_unavailable", "O cadastro requer a persistência transacional do serviço fiscal.");
+    // Serialize with legacy writes from this process; database locks coordinate other processes.
+    const operation = this.persistQueue.then(async () => {
+      if (this.persistenceError) throw this.persistenceError;
+      const state = await this.persistence!.companyEnrollment(clientId, clientVersion, requestId, input);
+      return state ? this.applyEnrollmentState(state) : null;
+    });
+    this.persistQueue = operation.then(() => undefined, () => undefined);
+    return operation;
+  }
+
+  async enrollCompany(input: EnrollmentInput) {
+    const receipt = await this.runCompanyEnrollment(input.clientId, input.clientVersion, input.requestId, input);
+    if (!receipt) throw new Error("Cadastro sem confirmação.");
+    return receipt;
+  }
+
+  async lookupCompanyEnrollment(clientId: string, clientVersion: string, requestId: string) {
+    return this.runCompanyEnrollment(clientId, clientVersion, requestId, null);
   }
 
   upsertApiClient(input: {
@@ -333,7 +383,7 @@ export class InMemoryStore {
     if (!existing && !input.clientSecret) {
       throw new Error("Informe ou gere um client_secret para a nova integracao.");
     }
-    const timestamp = nowIso();
+    const timestamp = new Date(Math.max(Date.now(), existing ? new Date(existing.updatedAt).getTime() + 1 : 0)).toISOString();
     const record: ApiClient = {
       id: existing?.id ?? `client_${randomUUID().slice(0, 12)}`,
       name: input.name,

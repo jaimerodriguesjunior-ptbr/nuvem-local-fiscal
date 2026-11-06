@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { EnrollmentError, type EnrollmentInput, type EnrollmentState } from "./company-enrollment.js";
 import {excludeAdoptedLegacyDocuments} from './recovery/legacy-writer.js';
 
 import type {
@@ -212,6 +213,42 @@ function wait(milliseconds: number) {
 
 export class SupabasePersistence {
   private readonly client: SupabaseClient;
+
+  async readApiClient(clientId: string): Promise<ApiClient | null> {
+    const { data, error } = await this.client.from("fiscal_api_clients").select("*").eq("client_id", clientId).maybeSingle();
+    if (error) throw new Error("Não foi possível confirmar a integração fiscal.");
+    if (!data) return null;
+    return { id: data.id, name: data.name, clientId: data.client_id, clientSecretHash: data.client_secret_hash,
+      allowedScopes: data.allowed_scopes, allowedEnvironments: data.allowed_environments, allowedCnpjs: data.allowed_cnpjs,
+      active: data.active, createdAt: data.created_at, updatedAt: data.updated_at };
+  }
+
+  async readClientEnrollmentRequests(clientId: string, cnpjs: string[]): Promise<string[]> {
+    if (!cnpjs.length) return [];
+    const { data, error } = await this.client.from("fiscal_company_enrollments").select("request_id")
+      .eq("client_id", clientId).in("cnpj", cnpjs);
+    if (error) throw new Error("Não foi possível carregar os cadastros da integração.");
+    return (data ?? []).map(row => row.request_id as string);
+  }
+
+  async companyEnrollment(clientId: string, clientVersion: string, requestId: string, input: EnrollmentInput | null): Promise<EnrollmentState | null> {
+    const { data, error } = await this.client.rpc("enroll_fiscal_company_v1", {
+      p_client_id: clientId, p_client_version: clientVersion, p_request_id: requestId, p_input: input,
+    });
+    if (error) {
+      const known: Record<string, [number, string]> = {
+        enrollment_not_allowed: [403, "A autorização de cadastro mudou. Renove a autenticação da integração."],
+        enrollment_request_conflict: [409, "Esta solicitação já foi concluída com outros dados. Consulte o cadastro existente."],
+        company_already_exists: [409, "CNPJ já cadastrado. Use a atualização da empresa ou solicite sua vinculação à integração."],
+        invalid_enrollment: [400, "Dados de cadastro inválidos."],
+      };
+      const match = known[error.message];
+      if (match) throw new EnrollmentError(match[0], error.message, match[1]);
+      throw new EnrollmentError(503, "enrollment_unconfirmed", "Não foi possível confirmar o cadastro. Consulte a mesma solicitação antes de repetir.");
+    }
+    return data as EnrollmentState | null;
+  }
+
 
   constructor(url: string, serviceRoleKey: string) {
     this.client = createClient(url, serviceRoleKey, {

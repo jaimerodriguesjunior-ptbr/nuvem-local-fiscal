@@ -22,6 +22,8 @@ export async function registerOAuthRoutes(app: FastifyInstance) {
       });
     }
 
+    try { await app.store.refreshApiClient(clientId); }
+    catch { return reply.code(503).send({ error: "temporarily_unavailable", error_description: "Não foi possível confirmar as credenciais agora." }); }
     const client = app.store.findClient(clientId, clientSecret);
     if (!client) {
       return reply.code(401).send({

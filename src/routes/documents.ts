@@ -64,6 +64,7 @@ type AuthenticatedRequest = FastifyRequest & {
     scopes: string[];
     environments: Environment[];
     allowedCnpjs: string[];
+    clientVersion?: string;
   };
 };
 
@@ -346,7 +347,8 @@ async function ensureBearer(request: FastifyRequest, reply: FastifyReply) {
     clientId: tokenRecord.clientId,
     scopes: tokenRecord.scopes,
     environments: tokenRecord.environments,
-    allowedCnpjs: tokenRecord.allowedCnpjs
+    allowedCnpjs: tokenRecord.allowedCnpjs,
+    clientVersion: tokenRecord.clientVersion
   };
 }
 

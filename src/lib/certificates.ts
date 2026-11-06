@@ -80,9 +80,15 @@ export function parsePfx(pfx: Buffer, password: string): ParsedCertificate {
     ];
     const certBags =
       p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
-    const privateKey = keyBags.find((bag) => bag.key)?.key;
+    const privateKeys = keyBags.flatMap((bag) => bag.key ? [bag.key] : []);
     const certificates = certBags.flatMap((bag) => (bag.cert ? [bag.cert] : []));
-    const certificate = certificates[0];
+    const matches = privateKeys.flatMap(key => certificates.filter(cert => {
+      const publicKey = cert.publicKey as forge.pki.rsa.PublicKey;
+      return publicKey.n?.equals(key.n) && publicKey.e?.equals(key.e);
+    }).map(cert => ({ key, cert })));
+    const uniqueMatches = [...new Map(matches.map(pair => [forge.pki.certificateToPem(pair.cert), pair])).values()];
+    if (uniqueMatches.length !== 1) throw new Error("O PFX deve conter exatamente um certificado correspondente à chave privada.");
+    const { key: privateKey, cert: certificate } = uniqueMatches[0];
 
     if (!privateKey || !certificate) {
       throw new Error("O PFX nao contem chave privada e certificado utilizaveis.");
@@ -103,7 +109,8 @@ export function parsePfx(pfx: Buffer, password: string): ParsedCertificate {
     return {
       privateKeyPem: forge.pki.privateKeyToPem(privateKey),
       certificatePem: forge.pki.certificateToPem(certificate),
-      certificateChainPem: certificates.map((item) => forge.pki.certificateToPem(item)).join(""),
+      certificateChainPem: [certificate, ...certificates.filter(item => item !== certificate)]
+        .map((item) => forge.pki.certificateToPem(item)).join(""),
       subject,
       serialNumber: certificate.serialNumber,
       validFrom: certificate.validity.notBefore.toISOString(),
