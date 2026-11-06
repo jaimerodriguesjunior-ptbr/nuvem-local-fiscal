@@ -33,7 +33,7 @@ function cnpjValid(value: string) {
 }
 
 export function prepareEnrollment(body: unknown, clientId: string, clientVersion: string,
-  allowedEnvironments: Environment[], encryptionKey: string, trustPem: string): EnrollmentInput {
+  allowedEnvironments: Environment[], encryptionKey: string, trustPem: string, intermediatesPem = ""): EnrollmentInput {
   const input = object(body), data = object(input.empresa);
   const requestId = String(input.request_id ?? "");
   const externalCompanyId = String(input.externalCompanyId ?? "").trim();
@@ -63,20 +63,27 @@ export function prepareEnrollment(body: unknown, clientId: string, clientVersion
   try {
     parsed = parsePfx(Buffer.from(base64 as string, "base64"), input.password as string);
     const pemBlocks = parsed.certificateChainPem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
-    const certificates = pemBlocks.map(pem => forge.pki.certificateFromPem(pem));
-    const chain = [certificates[0]];
-    // Build by issuer/signature; a root inside the PFX is never automatically trusted.
-    while (chain.length <= certificates.length) {
-      const tail = chain[chain.length - 1];
-      if (tail.isIssuer(tail)) break;
-      const parent = certificates.find(c => !chain.includes(c) && tail.isIssuer(c) && c.verify(tail));
-      if (!parent) break;
-      chain.push(parent);
-    }
+    const extraBlocks = intermediatesPem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
+    const certificates = [...pemBlocks, ...extraBlocks].map(pem => forge.pki.certificateFromPem(pem));
+    if (certificates.length > 1000) throw new Error("Certificate candidate limit exceeded");
     const roots = trustPem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
     if (!roots.length) throw new Error("No configured trust anchors");
-    forge.pki.verifyCertificateChain(forge.pki.createCaStore(roots), chain);
-    const leaf = chain[0];
+    // Intermediates are path candidates, never additional trust anchors. A PFX
+    // containing only the leaf can use the operator's verified offline CA set.
+    const caStore = forge.pki.createCaStore(roots);
+    let attempts = 0;
+    const trustedPath = (chain: forge.pki.Certificate[]): boolean => {
+      if (++attempts > 128 || chain.length > 12) return false;
+      try { forge.pki.verifyCertificateChain(caStore, chain); return true; } catch { /* try an intermediate */ }
+      const tail = chain[chain.length - 1];
+      for (const parent of certificates) {
+        if (chain.includes(parent) || !tail.isIssuer(parent)) continue;
+        try { if (parent.verify(tail) && trustedPath([...chain, parent])) return true; } catch { /* different key or unsupported signature */ }
+      }
+      return false;
+    };
+    const leaf = certificates[0];
+    if (!trustedPath([leaf])) throw new Error("No path to a configured root");
     if ((leaf.getExtension("basicConstraints") as { cA?: boolean } | null)?.cA) throw new Error("CA certificate");
     const usage = leaf.getExtension("keyUsage") as { digitalSignature?: boolean } | null;
     if (!usage?.digitalSignature) throw new Error("Signing key usage required");

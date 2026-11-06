@@ -28,7 +28,8 @@ export async function registerCompanyEnrollmentRoute(app: FastifyInstance) {
     try {
       const token = tokenFor(request);
       const input = prepareEnrollment(request.body, token.clientId, token.clientVersion ?? "", token.environments,
-        config.certificateEncryptionKey, readEnrollmentTrust(config.enrollmentTrustFile));
+        config.certificateEncryptionKey, readEnrollmentTrust(config.enrollmentTrustFile),
+        readEnrollmentTrust(config.enrollmentIntermediatesFile));
       const result = await app.store.enrollCompany(input);
       return reply.code(201).send(result);
     } catch (error) { return failure(error, reply); }

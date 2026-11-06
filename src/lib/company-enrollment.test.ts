@@ -67,6 +67,24 @@ test("selects leaf matching private key even when CA comes first in PFX", () => 
   assert.equal(prepare(body(data.base64)).company.cnpj,cnpj);
 });
 
+test("completes a leaf-only PFX with offline intermediates without trusting them as roots", () => {
+  const intermediateKeys=forge.pki.rsa.generateKeyPair(2048);
+  const intermediate=forge.pki.createCertificate(); intermediate.publicKey=intermediateKeys.publicKey;
+  intermediate.serialNumber="03"; intermediate.validity.notBefore=root.validity.notBefore; intermediate.validity.notAfter=root.validity.notAfter;
+  intermediate.setSubject([{name:"commonName",value:"Synthetic Intermediate"}]); intermediate.setIssuer(root.subject.attributes);
+  intermediate.setExtensions([{name:"basicConstraints",cA:true},{name:"keyUsage",keyCertSign:true}]);
+  intermediate.sign(rootKeys.privateKey,forge.md.sha256.create());
+  const leaf=forge.pki.certificateFromPem(valid.pem);leaf.setIssuer(intermediate.subject.attributes);
+  leaf.sign(intermediateKeys.privateKey,forge.md.sha256.create());
+  const pfx=forge.pkcs12.toPkcs12Asn1(keys.privateKey,[leaf],password,{algorithm:"3des"});
+  const payload=body(Buffer.from(forge.asn1.toDer(pfx).getBytes(),"binary").toString("base64"));
+  assert.throws(()=>prepare(payload));
+  const invoke=(extra:string)=>prepareEnrollment(payload,"client-test","2026-01-01T00:00:00.000Z",["homologacao","producao"],"synthetic-encryption",trust,extra);
+  assert.equal(invoke(forge.pki.certificateToPem(intermediate)).company.cnpj,cnpj);
+  intermediate.setIssuer(intermediate.subject.attributes);intermediate.sign(intermediateKeys.privateKey,forge.md.sha256.create());
+  assert.throws(()=>invoke(forge.pki.certificateToPem(intermediate)));
+});
+
 test("rejects ambiguous CNPJ attributes and reads ICP-Brasil SAN", () => {
   const cert = forge.pki.certificateFromPem(valid.pem);
   cert.setSubject([{ name:"commonName",value:`Synthetic:98765432000198` },{type:"2.16.76.1.3.3",value:cnpj}]);

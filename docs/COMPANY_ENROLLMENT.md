@@ -23,6 +23,10 @@ com a rota legada de substituição do certificado. Não registrar o corpo HTTP.
   instalado pelo operador a partir de fonte oficial verificada. Sem essa
   configuração o cadastro novo retorna 503, preservando os fluxos legados.
   Nunca instalar a CA sintética dos testes no servidor.
+- `COMPANY_ENROLLMENT_INTERMEDIATES_FILE` fornece candidatos públicos para
+  completar PFX exportados apenas com o certificado do titular. Esses candidatos
+  não viram âncoras de confiança: a cadeia ainda precisa chegar a uma raiz
+  explicitamente configurada. O pacote oficial do ITI deve ter SHA-512 conferido.
 - A implementação atual usa o suporte RSA do parser existente e não consulta
   revogação online (OCSP/CRL). Não equivale a uma validação jurídica completa da
   ICP-Brasil. Não faz download de certificados/URLs fornecidos pelo solicitante.
