@@ -682,7 +682,12 @@ export class InMemoryStore {
       payloadOriginal: input.payloadOriginal,
       payloadNormalizado: input.payloadNormalizado,
       nfceConfigEncrypted: input.nfceConfigEncrypted ?? null,
-      xml: `<mock tipo="${input.tipoDocumento}" id="${id}" numero="${numero}" serie="${serie}" />`,
+      // A production NFC-e has no fiscal XML before preparation. A placeholder
+      // here is treated as existing fiscal evidence by the first-send guard.
+      // Do not normalize old records: their evidence must remain intact.
+      xml: input.tipoDocumento === "NFCe" && input.ambiente === "producao" && !authorized
+        ? ""
+        : `<mock tipo="${input.tipoDocumento}" id="${id}" numero="${numero}" serie="${serie}" />`,
       pdfUrl: `/${documentRoutePrefix(input.tipoDocumento)}/${id}/pdf`,
       createdAt: nowIso(),
       updatedAt: nowIso()

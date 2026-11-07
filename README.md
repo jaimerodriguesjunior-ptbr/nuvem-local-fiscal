@@ -137,3 +137,12 @@ nao substituem essa VPS.
 Os schemas locais foram obtidos do Portal Nacional da NF-e, pacote `PL_010c`,
 com origem registrada em
 [`schemas/nfe/official-010c/README.md`](schemas/nfe/official-010c/README.md).
+
+## Primeiro envio de NFC-e em producao
+
+Novas NFC-e de producao ainda nao autorizadas comecam sem XML fiscal. O XML
+provisorio do modo mock nao deve preencher esse campo: ele bloqueava a
+preparacao do horario com `NFCE_TIME_REFRESH_UNPROVEN` no fluxo legado.
+A correcao preserva os bloqueios de evidencia fiscal e nao limpa documentos
+antigos. Diagnostico, testes e ajuste da sequencia da loja Center estao em
+[`docs/NFCE_CENTER_FIRST_SEND_20261107.md`](docs/NFCE_CENTER_FIRST_SEND_20261107.md).
