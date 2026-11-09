@@ -16,7 +16,7 @@ import { SupabaseRecoveryRepository } from "./supabase-repository.js";
 import { PostgresRecoveryWakeSource, type RecoveryNotificationConnection } from "./postgres-wake-source.js";
 import { RecoveryWorker } from "./worker.js";
 import { configureTransmissionFence } from "./transmission-fence.js";
-import {RecoveryOutboxWorker,createSyncDelivery} from './outbox.js';
+import {RecoveryOutboxWorker,createSyncDelivery,type SyncEvent} from './outbox.js';
 import {recoveryListenerUrl} from './listen-url.js';
 import {RecoveryGopDrainPump,RecoveryDemandPump,createGopDrain} from './gop-drain.js';
 import {recoveryDatabaseTls} from './database-tls.js';
@@ -27,6 +27,7 @@ import {SupabaseCancellationRepository} from './cancellation-repository.js';
 import {buildSignedCancellationXml,transmitSignedCancellationAtSefaz} from '../sefaz-cancellation.js';
 import {decodeOgScopeIds,validateOgScopes,routeRecoveryDelivery} from './consumer-routing.js';
 import {verifyLegacyPendingSnapshot} from './legacy-pending.js';
+import {createOgAutoScopes,decodeOgAutoTenants,sameOgScope,type OgScopeIdentity} from './og-auto-scopes.js';
 
 export type RecoveryDocumentMetadata = {
   schema: 'recovery-v1'; requestId:string; originId:string; version:number; phase:ManagedDocument['phase'];
@@ -39,6 +40,7 @@ export interface RecoveryRuntime {
   controller: RecoveryController;
   scopes: readonly ManagedScope[];
   ready: boolean;
+  ensureScope?(identity:OgScopeIdentity):Promise<boolean>;
   start():Promise<void>;
   stop():Promise<void>;
   findDocument(id:string):Promise<ManagedPublicDocument|null>;
@@ -59,7 +61,8 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   if (!config.supabaseUrl || !config.supabaseServiceRoleKey || !config.fiscalProductionEnabled) throw new Error('RECOVERY_CONFIG_INCOMPLETE');
   const scopeIds:unknown=JSON.parse(process.env.RECOVERY_V1_SCOPE_IDS ?? '[]');
   const ogScopeIds=decodeOgScopeIds(process.env.RECOVERY_V1_OG_SCOPE_IDS);
-  if(ogScopeIds.length&&process.env.RECOVERY_OG_OBSERVER_ENABLED!=='true')throw Error('RECOVERY_OG_OBSERVER_REQUIRED');
+  const autoTenants=decodeOgAutoTenants(process.env.RECOVERY_OG_AUTO_TENANTS);
+  if((ogScopeIds.length||autoTenants.length)&&process.env.RECOVERY_OG_OBSERVER_ENABLED!=='true')throw Error('RECOVERY_OG_OBSERVER_REQUIRED');
   const databaseUrl=process.env.RECOVERY_V1_DATABASE_URL;
   if (!databaseUrl || !Array.isArray(scopeIds) || scopeIds.length<1 || scopeIds.length>2 ||
       scopeIds.some(id=>typeof id!=='string'||!/^[a-f0-9-]{36}$/i.test(id))) throw new Error('RECOVERY_SCOPE_CONFIG_REQUIRED');
@@ -71,8 +74,23 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
   const client=createClient(config.supabaseUrl,config.supabaseServiceRoleKey,{auth:{persistSession:false,autoRefreshToken:false}});
   const repository=new SupabaseManagedRepository(client);
   const gopDeliver=createSyncDelivery(process.env.RECOVERY_V1_GOP_EVENT_URL??'',process.env.RECOVERY_V1_SYNC_SECRET??'');
-  const ogDeliver=ogScopeIds.length?createSyncDelivery(process.env.RECOVERY_OG_EVENT_URL??'',process.env.RECOVERY_OG_SYNC_SECRET??''):null;
+  const ogDeliver=ogScopeIds.length||autoTenants.length?createSyncDelivery(process.env.RECOVERY_OG_EVENT_URL??'',process.env.RECOVERY_OG_SYNC_SECRET??''):null;
   let ogScopes:ManagedScope[]=[];
+  let gopScopes:ManagedScope[]=[],staticOgScopes:ManagedScope[]=[];
+  const liveScopes:ManagedScope[]=[],liveScopeIds:string[]=[];
+  let autoScopes:ReturnType<typeof createOgAutoScopes>|undefined;
+  const publishScopes=(discovered:ManagedScope[])=>{
+    const byId=new Map<string,ManagedScope>();
+    for(const s of [...staticOgScopes,...discovered]){
+      const old=byId.get(s.id);if(old&&!sameOgScope(old,s))throw Error('RECOVERY_OG_AUTO_IDENTITY_CHANGED');byId.set(s.id,s);
+    }
+    const merged=[...gopScopes,...byId.values()],namespaces=new Set<string>();
+    for(const s of merged){const key=JSON.stringify([s.cnpj,s.environment,s.model,s.series]);
+      if(namespaces.has(key))throw Error('RECOVERY_OG_AUTO_NAMESPACE_CONFLICT');namespaces.add(key);}
+    ogScopes=[...byId.values()];
+    liveScopes.splice(0,liveScopes.length,...merged);liveScopeIds.splice(0,liveScopeIds.length,...merged.map(s=>s.id));
+    configureTransmissionFence(liveScopes);
+  };
   const assertOgFirstSend=(document:DocumentRecord)=>{
     if(ogScopes.some(s=>s.cnpj===document.issuerCnpj&&s.environment===document.ambiente&&s.model===document.tipoDocumento&&s.series===document.serie)&&
       process.env.RECOVERY_OG_FIRST_SEND_ENABLED!=='true')throw Error('RECOVERY_SERVICE_PAUSED');
@@ -138,7 +156,12 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
       accessKey:document.chave!,encryptedCertificateBundle:cert.encryptedBundle,
       encryptionSecret:config.certificateEncryptionKey})).responseXml;
   };
-  const runtime:RecoveryRuntime={controller,scopes:[],get ready(){return started&&Boolean(worker?.ready)&&Boolean(outbox?.ready)&&Boolean(gopDrain?.ready)&&Boolean(cancellationPump?.ready);},
+  const runtime:RecoveryRuntime={controller,scopes:liveScopes,get ready(){return started&&Boolean(worker?.ready)&&Boolean(outbox?.ready)&&Boolean(gopDrain?.ready)&&Boolean(cancellationPump?.ready);},
+    async ensureScope(identity){
+      if(!runtime.ready)return false;
+      if(liveScopes.some(s=>sameOgScope(s,identity)))return true;
+      return autoScopes?autoScopes.ensure(identity):false;
+    },
     async start() {
       const {data,error}=await client.rpc('fiscal_recovery_scopes_v1',{p_scopes:scopeIds});
       if(error || !Array.isArray(data)||data.length!==scopeIds.length) throw new Error('RECOVERY_SCOPE_NOT_READY');
@@ -146,7 +169,7 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
         if (!scopeIds.includes(s.id)||s.cnpj!=='01997929000108'||s.environment!=='producao'||s.storeId!==1||s.series!==2||
           s.organizationId!=='40b34e90-4c9d-4446-b775-770a3e77d6c0'||!['NFe','NFCe'].includes(s.model)||!s.clientId) throw new Error('RECOVERY_PILOT_SCOPE_MISMATCH');
       }
-      const gopScopes=data as ManagedScope[];
+      gopScopes=data as ManagedScope[];
       if(new Set(gopScopes.map(s=>s.clientId)).size!==1)throw new Error('RECOVERY_GOP_CLIENT_MISMATCH');
       if(ogScopeIds.some(id=>(scopeIds as string[]).includes(id)))throw Error('RECOVERY_CONSUMER_SCOPE_OVERLAP');
       if(ogScopeIds.length){
@@ -154,9 +177,15 @@ export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null 
         if(result.error)throw Error('RECOVERY_OG_SCOPE_NOT_READY');
         ogScopes=validateOgScopes(result.data,ogScopeIds,process.env.RECOVERY_OG_CLIENT_ID??'');
       }
-      runtime.scopes=[...gopScopes,...ogScopes];
-      const allScopeIds=[...(scopeIds as string[]),...ogScopeIds];
-      const deliver=routeRecoveryDelivery([{scopes:gopScopes,deliver:gopDeliver},...(ogDeliver?[{scopes:ogScopes,deliver:ogDeliver}]:[])]);
+      staticOgScopes=ogScopes;publishScopes([]);
+      if(autoTenants.length){
+        autoScopes=createOgAutoScopes({tenantIds:autoTenants,clientId:process.env.RECOVERY_OG_CLIENT_ID??'',
+          eventUrl:process.env.RECOVERY_OG_EVENT_URL??'',secret:process.env.RECOVERY_OG_SYNC_SECRET??'',database:client,
+          apply:publishScopes,current:()=>liveScopes});
+        await autoScopes.refresh();
+      }
+      const allScopeIds=liveScopeIds;
+      const deliver=(event:SyncEvent)=>routeRecoveryDelivery([{scopes:gopScopes,deliver:gopDeliver},...(ogDeliver?[{scopes:ogScopes,deliver:ogDeliver}]:[])])(event);
       const legacyOwnership=await client.rpc('fiscal_recovery_legacy_owned_v1',{p_ids:[]});
       if(legacyOwnership.error||!Array.isArray(legacyOwnership.data)||legacyOwnership.data.length!==0)
         throw Error('RECOVERY_LEGACY_SCHEMA_NOT_READY');

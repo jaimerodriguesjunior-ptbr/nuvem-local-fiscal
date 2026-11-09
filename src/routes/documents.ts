@@ -1963,6 +1963,13 @@ async function handleCreateDocument(
 
   const recoverySeries=Number((payloadNormalizado.ide as Record<string,unknown>|undefined)?.serie);
   const managedSubmission=hasManagedSubmissionHeaders(request.headers);
+  if(managedSubmission&&ambiente==='producao'&&!isRecoveryNamespace(issuerCnpj,ambiente,tipoDocumento,recoverySeries)){
+    try{
+      await app.recovery?.ensureScope?.({clientId:(request as AuthenticatedRequest).tokenRecord.clientId,
+        organizationId:String(request.headers['x-recovery-organization-id']??''),storeId:Number(request.headers['x-recovery-store-id']),
+        cnpj:issuerCnpj,environment:ambiente,model:tipoDocumento,series:recoverySeries});
+    }catch{return reply.code(503).send({message:'RECOVERY_SCOPE_SYNCHRONIZATION_UNAVAILABLE'});}
+  }
   if(managedSubmission&&!isRecoveryNamespace(issuerCnpj,ambiente,tipoDocumento,recoverySeries))
     return reply.code(409).send({message:'RECOVERY_SCOPE_NOT_ENABLED'});
   const emitente = payloadNormalizado.emitente as Record<string, unknown> | null;
