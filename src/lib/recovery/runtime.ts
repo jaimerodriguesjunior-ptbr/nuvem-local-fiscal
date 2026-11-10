@@ -10,7 +10,7 @@ import { generateAndSignNfeXml } from "../nfe-xml.js";
 import { validateNfeXml } from "../xsd-validator.js";
 import { authorizeNfeAtSefaz, querySefazDocumentStatus } from "../sefaz-authorization.js";
 import { RecoveryController } from "./controller.js";
-import type { ManagedDocument, ManagedScope } from "./controller-types.js";
+import type { AdministrativeClosure, ManagedDocument, ManagedScope } from "./controller-types.js";
 import { SupabaseManagedRepository,decodeManagedDocument } from "./managed-repository.js";
 import { SupabaseRecoveryRepository } from "./supabase-repository.js";
 import { PostgresRecoveryWakeSource, type RecoveryNotificationConnection } from "./postgres-wake-source.js";
@@ -30,6 +30,7 @@ import {verifyLegacyPendingSnapshot} from './legacy-pending.js';
 import {createOgAutoScopes,decodeOgAutoTenants,sameOgScope,type OgScopeIdentity} from './og-auto-scopes.js';
 
 export type RecoveryDocumentMetadata = {
+  administrativeClosure?: AdministrativeClosure;
   schema: 'recovery-v1'; requestId:string; originId:string; version:number; phase:ManagedDocument['phase'];
   organizationId:string;storeId:number;clientId:string;errorOrigin:ManagedDocument['errorOrigin'];code:string;
   sendState:'not_started_proven'|'possibly_sent';
@@ -53,7 +54,8 @@ export function publicManagedDocument(record:ManagedDocument):ManagedPublicDocum
   return {...record.document,recovery:{schema:'recovery-v1',requestId:record.requestId,originId:record.originId,
     version:record.version,phase:record.phase,organizationId:record.scope.organizationId,storeId:record.scope.storeId,
     clientId:record.scope.clientId,errorOrigin:record.errorOrigin,code:record.code,
-    sendState:record.sendStartedAt||record.provenance?.startsWith('legacy_')?'possibly_sent':'not_started_proven',cancellationIntentId:record.document.cancellationAttemptId??null}};
+    sendState:record.sendStartedAt||record.provenance?.startsWith('legacy_')?'possibly_sent':'not_started_proven',cancellationIntentId:record.document.cancellationAttemptId??null,
+    ...(record.administrativeClosure?{administrativeClosure:record.administrativeClosure}:{})}};
 }
 
 export function createRecoveryRuntime(store:InMemoryStore):RecoveryRuntime|null {

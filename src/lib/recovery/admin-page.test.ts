@@ -84,3 +84,18 @@ test('a legacy note without detailed events remains visible beside managed notes
   assert.ok(html.includes('#3384')); assert.ok(html.includes('#1919'));
   assert.ok(html.includes('Estado salvo · sem eventos detalhados'));
 });
+
+test('administrative closure is shown as info and has its own filter without masquerading as fiscal rejection',()=>{
+  const h=harness();
+  h.run(`const original=state.snapshot.documents[0];original.tipoDocumento='NFe';original.numero=2499;original.status='processamento';original.motivoStatus='539';
+    original.recovery.administrativeClosure={kind:'superseded_number_conflict',closedAt:'2026-11-10T13:00:00Z',successorNumber:2500,successorId:'rv1_successor'};
+    state.snapshot.documentEvents=[{id:'closed',documentId:original.id,eventType:'managed_administratively_closed',level:'info',
+      message:'Acompanhamento encerrado administrativamente; substituída pela NF-e #2500.',payload:{},createdAt:'2026-11-10T13:00:00Z'}];
+    state.listFilters={company:original.issuerCnpj,environment:'producao',status:'processamento'};`);
+  assert.equal(h.run('filterDocuments(state.snapshot.documents).length'),0);
+  h.run(`state.listFilters.status='encerrada_administrativamente';`);
+  assert.equal(h.run('filterDocuments(state.snapshot.documents).length'),1);
+  const docs=h.run('renderDocuments()');assert.ok(docs.includes('Encerrada administrativamente'));assert.ok(docs.includes('Substituída pela NF-e #2500'));
+  const logs=h.run('renderLogs()');assert.ok(logs.includes('#2499'));assert.ok(logs.includes('#2500'));assert.ok(logs.includes('>info<'));
+  h.run(`state.listFilters.status='rejeitado';`);assert.equal(h.run('filterDocuments(state.snapshot.documents).length'),0);
+});

@@ -75,6 +75,10 @@ export function managedAdminEvents(item: AdminManagedItem): DocumentEventRecord[
   add('current', item.updatedAt, 'Situação atual registrada: ' + doc.status + (doc.motivo ? ' · ' + doc.motivo : ''),
     { phase: doc.recovery.phase, code: doc.recovery.code, version: doc.recovery.version, status: doc.status },
     ['erro', 'rejeitado'].includes(doc.status) ? 'error' : doc.status === 'processamento' ? 'warn' : 'info');
+  const closed=doc.recovery.administrativeClosure;
+  if(closed) add('administratively_closed',closed.closedAt,
+    'Acompanhamento encerrado administrativamente; substituída pela NF-e #' + closed.successorNumber + '. Retorno fiscal original preservado.',
+    {successorId:closed.successorId,successorNumber:closed.successorNumber,erpResolvedAt:closed.erpResolvedAt});
   return events;
 }
 

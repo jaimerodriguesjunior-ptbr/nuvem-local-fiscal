@@ -2407,11 +2407,12 @@ const page = String.raw`<!doctype html>
 
     function managedDocumentRow(doc) {
       const company = companyByCnpj(doc.issuerCnpj);
+      const closed = doc.recovery.administrativeClosure;
       return '<article class="document recent-document"><div class="document-summary"><div class="document-head">' +
         '<div class="document-heading"><div class="document-number">#' + escapeHtml(String(doc.numero)) + '</div>' +
         '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
           escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
-        '<div class="document-status-text"><span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+        '<div class="document-status-text"><span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(closed ? 'Encerrada administrativamente' : doc.status) + '</span>' +
           '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span>' + badge('Gerenciada') + '</div>' +
         '<div class="recent-document-actions"><button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
           '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir nota</button></div></div>' +
@@ -2420,6 +2421,9 @@ const page = String.raw`<!doctype html>
           '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
           '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span></div></div></div>' +
         '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
+          (closed ? '<p><strong>Substituída pela NF-e #' + escapeHtml(String(closed.successorNumber)) +
+            '.</strong> Acompanhamento automático encerrado em ' + escapeHtml(formatDate(closed.closedAt, true)) +
+            '. O resultado fiscal e o histórico desta tentativa foram preservados.</p>' : '') +
           '<p>' + escapeHtml(doc.motivoStatus || '') + ' ' + escapeHtml(doc.motivo || '') + '</p>' +
           '<p><strong>Chave:</strong> ' + escapeHtml(doc.chave || 'Ainda não disponível') + '</p>' +
           '<p><strong>Protocolo:</strong> ' + escapeHtml(doc.protocolo || 'Ainda não disponível') + '</p>' +
@@ -2608,7 +2612,9 @@ const page = String.raw`<!doctype html>
       return documents.filter(function(doc) {
         if (filters.company && doc.issuerCnpj !== filters.company) return false;
         if (filters.type && doc.tipoDocumento !== filters.type) return false;
-        if (filters.status && doc.status !== filters.status) return false;
+        const closed = doc.recovery && doc.recovery.administrativeClosure;
+        if (filters.status === 'encerrada_administrativamente') { if (!closed) return false; }
+        else if (filters.status && (closed || doc.status !== filters.status)) return false;
         if (filters.environment && doc.ambiente !== filters.environment) return false;
         const created = new Date(doc.createdAt);
         if (filters.from && created < new Date(filters.from + 'T00:00:00')) return false;
@@ -2632,9 +2638,9 @@ const page = String.raw`<!doctype html>
           '>NFC-e</option><option value="NFSe"' + (filters.type === 'NFSe' ? ' selected' : '') +
           '>NFS-e</option></select></label>' +
         '<label>Status<select onchange="setListFilter(\'status\', this.value)"><option value="">Todos</option>' +
-          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro'].map(function(status) {
+          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro', 'encerrada_administrativamente'].map(function(status) {
             return '<option value="' + status + '"' + (filters.status === status ? ' selected' : '') + '>' +
-              status + '</option>';
+              (status === 'encerrada_administrativamente' ? 'Encerrada administrativamente' : status) + '</option>';
           }).join('') + '</select></label>' +
         '<label>Ambiente<select onchange="setListFilter(\'environment\', this.value)"><option value="">Todos</option>' +
           '<option value="homologacao"' + (filters.environment === 'homologacao' ? ' selected' : '') +
@@ -2663,9 +2669,9 @@ const page = String.raw`<!doctype html>
           '>NFC-e</option><option value="NFSe"' + (filters.type === 'NFSe' ? ' selected' : '') +
           '>NFS-e</option></select></label>' +
         '<label>Status<select onchange="setListFilter(\'status\', this.value)"><option value="">Todos</option>' +
-          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro'].map(function(status) {
+          ['processamento', 'autorizado', 'rejeitado', 'cancelado', 'erro', 'encerrada_administrativamente'].map(function(status) {
             return '<option value="' + status + '"' + (filters.status === status ? ' selected' : '') + '>' +
-              status + '</option>';
+              (status === 'encerrada_administrativamente' ? 'Encerrada administrativamente' : status) + '</option>';
           }).join('') + '</select></label>' +
         '<label>Ambiente<select onchange="setListFilter(\'environment\', this.value)"><option value="">Todos</option>' +
           '<option value="homologacao"' + (filters.environment === 'homologacao' ? ' selected' : '') +

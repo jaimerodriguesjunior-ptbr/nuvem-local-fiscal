@@ -10,6 +10,15 @@ export function decodeManagedDocument(value: unknown): ManagedDocument {
       r.document?.id!==`rv1_${r.requestId}` || r.document.issuerCnpj!==r.scope.cnpj ||
       r.document.ambiente!==r.scope.environment || r.document.tipoDocumento!==r.scope.model ||
       r.document.serie!==r.scope.series) throw new Error('RECOVERY_AGGREGATE_INVALID');
+  const closed=r.administrativeClosure;
+  if(closed && (closed.kind!=='superseded_number_conflict'||
+    !/^rv1_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(closed.successorId)||
+    closed.successorId===r.document.id||!Number.isSafeInteger(closed.successorNumber)||closed.successorNumber<=r.document.numero||
+    !Number.isSafeInteger(closed.erpInvoiceId)||closed.erpInvoiceId<1||
+    !Number.isSafeInteger(closed.erpSuccessorInvoiceId)||closed.erpSuccessorInvoiceId<1||
+    !Number.isFinite(Date.parse(closed.closedAt))||!Number.isFinite(Date.parse(closed.erpResolvedAt)))) {
+    throw new Error('RECOVERY_ADMINISTRATIVE_CLOSURE_INVALID');
+  }
   return r;
 }
 export class SupabaseManagedRepository implements ManagedRepository {

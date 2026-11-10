@@ -4,7 +4,12 @@ import type { RecoveryIdentity } from "./model.js";
 export type ManagedPhase = "accepted" | "prepared" | "send_started" | "pending" | "authorized" |
   "rejected" | "blocked_local" | "manual_review" | "cancel_started" | "cancel_pending" | "cancelled";
 export type ManagedScope = RecoveryIdentity & { id: string };
+export type AdministrativeClosure = {
+  kind: 'superseded_number_conflict'; closedAt: string; successorId: string; successorNumber: number;
+  erpInvoiceId: number; erpSuccessorInvoiceId: number; erpResolvedAt: string;
+};
 export type ManagedDocument = {
+  administrativeClosure?: AdministrativeClosure | null;
   scope: ManagedScope;
   requestId: string;
   originId: string;
