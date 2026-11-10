@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-11-10T02:36:06.236Z",
+  "localOnly": true,
+  "nativePostgres": true,
+  "syntheticRecords": 103,
+  "passed": 8,
+  "checks": [
+    "installation preserves fiscal rows and all existing function bodies/ACLs",
+    "only service_role can execute the new read function",
+    "anonymous/authenticated execution actually denied",
+    "invalid page bounds rejected",
+    "native SQL + compiled reader returns all 103 records across pages while scope is disabled/paused",
+    "native legacy association is displayed once under the managed identity",
+    "admission cutoff excludes later records without a false continuation",
+    "all reads succeeded in a READ ONLY transaction; fiscal rows/outbox unchanged"
+  ]
+}

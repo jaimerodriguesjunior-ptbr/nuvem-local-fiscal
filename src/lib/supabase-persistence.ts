@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { readFiscalHistory } from './fiscal-history-reader.js';
 import { EnrollmentError, type EnrollmentInput, type EnrollmentState } from "./company-enrollment.js";
 import {excludeAdoptedLegacyDocuments} from './recovery/legacy-writer.js';
 
@@ -275,11 +276,8 @@ export class SupabasePersistence {
       this.client.from("fiscal_company_environments").select("*").order("created_at"),
       this.client.from("fiscal_certificates").select("*").order("uploaded_at"),
       this.client.from("fiscal_service_configs").select("*").order("created_at"),
-      this.client.from("fiscal_documents").select("*").order("created_at", { ascending: false }),
-      this.client
-        .from("fiscal_document_events")
-        .select("*")
-        .order("created_at", { ascending: false }),
+      readFiscalHistory<FiscalDocumentRow>(this.client, 'fiscal_documents'),
+      readFiscalHistory<FiscalDocumentEventRow>(this.client, 'fiscal_document_events'),
       this.client
         .from("fiscal_return_cfop_rules")
         .select("*")

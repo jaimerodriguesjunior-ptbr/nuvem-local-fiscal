@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { createAdminHtml } from "../admin-page.js";
 import { config } from "../config.js";
 import { isRecoveryNamespace } from "../lib/recovery/transmission-fence.js";
+import { mergeAdminDocuments } from '../lib/recovery/admin-documents.js';
 import {
   encryptSecretPayload,
   decryptSecretPayload,
@@ -875,17 +876,31 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(401).send(unauthorized());
     }
 
-    const snapshot=app.store.getSnapshot();
     const managed=(request.query as {managed?:string}).managed;
+    if(managed!==undefined && (typeof managed!=='string'||!/^rv1_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(managed))) {
+      return reply.code(400).send({message:'Identificador gerenciado invalido.'});
+    }
+    let snapshot=app.store.getSnapshot();
+    let managedDocuments = { available: true, count: 0 };
+    if (app.adminManagedReader) {
+      try {
+        const items = await app.adminManagedReader.read();
+        snapshot = mergeAdminDocuments(snapshot, items);
+        managedDocuments = { available: true, count: items.length };
+      } catch {
+        // Never turn an unavailable managed read into a misleading empty result.
+        managedDocuments = { available: false, count: 0 };
+      }
+    }
     if(managed!==undefined){
-      if(typeof managed!=='string'||!/^rv1_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(managed))return reply.code(400).send({message:'Identificador gerenciado invalido.'});
-      const record=await app.recovery?.findDocument(managed);
+      const record=snapshot.documents.find(d=>d.id===managed) ?? await app.recovery?.findDocument(managed);
       if(!record)return reply.code(404).send({message:'Documento gerenciado nao encontrado.'});
       snapshot.documents=[...snapshot.documents.filter(d=>d.id!==record.id),app.store.getDocumentSnapshot(record)];
       snapshot.summary.documents=snapshot.documents.length;
     }
     return {
       ...snapshot,
+      managedDocuments,
       runtime: {
         fiscalProductionBlocked: !config.fiscalProductionEnabled
       }

@@ -9,8 +9,10 @@ import { SupabasePersistence } from "./lib/supabase-persistence.js";
 import { InMemoryStore } from "./store.js";
 import { createRecoveryRuntime, type RecoveryRuntime } from "./lib/recovery/runtime.js";
 import {createOgObservationPump} from './lib/recovery/og-observation-pump.js';
+import { createClient } from '@supabase/supabase-js';
+import { SupabaseAdminManagedReader, type AdminManagedReader } from './lib/recovery/admin-documents.js';
 
-export function buildApp(options: {recovery?:RecoveryRuntime|null;ogObservation?:{ready:boolean;start():Promise<void>;stop():Promise<void>}|null} = {}) {
+export function buildApp(options: {recovery?:RecoveryRuntime|null;adminManagedReader?:AdminManagedReader|null;ogObservation?:{ready:boolean;start():Promise<void>;stop():Promise<void>}|null} = {}) {
   // Recovery boot includes verified database sessions and a bounded GOP drain.
   // Keep readiness closed during boot without the legacy 10s hook timeout
   // repeatedly restarting an otherwise healthy recovery composition.
@@ -29,6 +31,11 @@ export function buildApp(options: {recovery?:RecoveryRuntime|null;ogObservation?
   );
 
   app.decorate("store", store);
+  app.decorate('adminManagedReader', options.adminManagedReader === undefined
+    ? config.supabaseUrl && config.supabaseServiceRoleKey
+      ? new SupabaseAdminManagedReader(createClient(config.supabaseUrl, config.supabaseServiceRoleKey,
+        { auth: { persistSession: false, autoRefreshToken: false } })) : null
+    : options.adminManagedReader);
   app.decorate("recovery", options.recovery === undefined ? createRecoveryRuntime(store) : options.recovery);
   app.register(formbody);
   app.addHook("onReady", async () => {
@@ -73,5 +80,6 @@ declare module "fastify" {
   interface FastifyInstance {
     store: InMemoryStore;
     recovery: RecoveryRuntime | null;
+    adminManagedReader: AdminManagedReader | null;
   }
 }

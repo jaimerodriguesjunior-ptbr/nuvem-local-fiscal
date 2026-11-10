@@ -953,12 +953,14 @@ const page = String.raw`<!doctype html>
     }
 
     function documentCanAutoProcess(doc) {
+      if (doc.recovery) return false;
       if (doc.status === 'autorizado' || doc.status === 'cancelado') return false;
       if (doc.ambiente === 'homologacao') return true;
       return doc.ambiente === 'producao' && productionAllowedForAdmin();
     }
 
     function documentCanTransmit(doc) {
+      if (doc.recovery) return false;
       if (!doc.signatureValid || !doc.xsdValid) return false;
       if (doc.ambiente === 'homologacao') return true;
       return doc.ambiente === 'producao' && productionAllowedForAdmin();
@@ -980,7 +982,7 @@ const page = String.raw`<!doctype html>
 
     function logEventGroups(documents) {
       const docsById = new Map(documents.map(function(doc) { return [doc.id, doc]; }));
-      const grouped = new Map();
+      const grouped = new Map(documents.map(function(doc) { return [doc.id, { doc: doc, events: [] }]; }));
 
       (state.snapshot.documentEvents || []).forEach(function(event) {
         const doc = docsById.get(event.documentId);
@@ -998,7 +1000,8 @@ const page = String.raw`<!doctype html>
         });
         return group;
       }).sort(function(a, b) {
-        return new Date(b.events[0].createdAt).getTime() - new Date(a.events[0].createdAt).getTime();
+        return new Date(b.events.length ? b.events[0].createdAt : b.doc.updatedAt).getTime() -
+          new Date(a.events.length ? a.events[0].createdAt : a.doc.updatedAt).getTime();
       });
     }
 
@@ -1013,6 +1016,12 @@ const page = String.raw`<!doctype html>
       const latest = group.events[0];
       const previous = group.events.slice(1);
       const doc = group.doc;
+      if (!latest) {
+        return '<article class="log"><strong>' + formatDate(doc.updatedAt, true) + '</strong>' +
+          '<span>Estado salvo · sem eventos detalhados</span><span>' +
+          escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' · ' + doc.status) + '</span>' +
+          '<button type="button" class="btn ghost" onclick="inspectLog(\'' + escapeHtml(doc.id) + '\')">Inspecionar nota</button></article>';
+      }
       const historyLabel = previous.length
         ? previous.length + ' evento' + (previous.length === 1 ? ' anterior' : 's anteriores')
         : 'Sem eventos anteriores';
@@ -2199,6 +2208,7 @@ const page = String.raw`<!doctype html>
     }
 
     function compactRecentDocumentRowFixed(doc) {
+      if (doc.recovery) return managedDocumentRow(doc);
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
@@ -2245,6 +2255,7 @@ const page = String.raw`<!doctype html>
     }
 
     function documentRow(doc) {
+      if (doc.recovery) return managedDocumentRow(doc);
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
@@ -2394,14 +2405,37 @@ const page = String.raw`<!doctype html>
         '</div></article>';
     }
 
-    function compactDocumentsTabRowFixed(doc) {
-      if(doc.recovery){
-        return '<article class="document recent-document"><div class="document-summary"><strong>' + escapeHtml(doc.tipoDocumento) + ' #' + doc.numero + '</strong>' +
-          '<p>Status: ' + escapeHtml(doc.status) + ' · Série ' + doc.serie + ' · ' + escapeHtml(doc.ambiente) + '</p>' +
+    function managedDocumentRow(doc) {
+      const company = companyByCnpj(doc.issuerCnpj);
+      return '<article class="document recent-document"><div class="document-summary"><div class="document-head">' +
+        '<div class="document-heading"><div class="document-number">#' + escapeHtml(String(doc.numero)) + '</div>' +
+        '<div class="document-title">' + escapeHtml(doc.tipoDocumento) + ' · ' +
+          escapeHtml(company ? company.nomeFantasia : formatCnpj(doc.issuerCnpj)) + '</div></div>' +
+        '<div class="document-status-text"><span class="document-status-item"><strong>Status:</strong> ' + escapeHtml(doc.status) + '</span>' +
+          '<span class="document-status-item"><strong>Ambiente:</strong> ' + escapeHtml(doc.ambiente) + '</span>' + badge('Gerenciada') + '</div>' +
+        '<div class="recent-document-actions"><button type="button" class="btn secondary" data-doc-toggle="' + escapeHtml(doc.id) +
+          '" onclick="toggleDocument(\'' + escapeHtml(doc.id) + '\')">Abrir nota</button></div></div>' +
+        '<div class="document-line"><div class="document-meta">' +
+          '<span class="document-meta-item"><strong>Série:</strong> ' + escapeHtml(String(doc.serie)) + '</span>' +
+          '<span class="document-meta-item"><strong>Data:</strong> ' + escapeHtml(formatDate(doc.createdAt, true)) + '</span>' +
+          '<span class="document-meta-item"><strong>ID:</strong> ' + escapeHtml(doc.id) + '</span></div></div></div>' +
+        '<div class="document-body" id="doc-' + escapeHtml(doc.id) + '" hidden>' +
           '<p>' + escapeHtml(doc.motivoStatus || '') + ' ' + escapeHtml(doc.motivo || '') + '</p>' +
-          '<p class="small">Emissão gerenciada pela integração. Consulta e retomada devem ser feitas no sistema de origem.</p>' +
-          '<p class="small">ID: ' + escapeHtml(doc.id) + '</p></div></article>';
-      }
+          '<p><strong>Chave:</strong> ' + escapeHtml(doc.chave || 'Ainda não disponível') + '</p>' +
+          '<p><strong>Protocolo:</strong> ' + escapeHtml(doc.protocolo || 'Ainda não disponível') + '</p>' +
+          '<p class="small">Acompanhamento gerenciado pela integração. Solicitações de consulta e retomada são feitas no sistema de origem.</p>' +
+          '<div class="log-list">' + eventsFor(doc.id).map(function(event) { return renderLogEvent(event, doc); }).join('') + '</div>' +
+          '<div class="actions"><button type="button" class="btn ghost" onclick="inspectLog(\'' + escapeHtml(doc.id) +
+          '\')">Inspecionar nota</button></div></div></article>';
+    }
+
+    function managedReadNotice() {
+      return state.snapshot.managedDocuments && !state.snapshot.managedDocuments.available
+        ? '<div class="empty" role="alert">Não foi possível carregar as notas gerenciadas. A lista e as contagens estão incompletas. Atualize o painel para tentar novamente.</div>' : '';
+    }
+
+    function compactDocumentsTabRowFixed(doc) {
+      if (doc.recovery) return managedDocumentRow(doc);
       const cert = certificateFor(doc.issuerCnpj);
       const company = companyByCnpj(doc.issuerCnpj);
       const hasCertificate = Boolean(cert);
@@ -2552,14 +2586,9 @@ const page = String.raw`<!doctype html>
         'Uma leitura técnica do que entrou, do que foi validado e da última resposta conhecida da SEFAZ.'
       ) +
       renderListFiltersFixed() +
-      '<div class="log-list">' + (eventRows || (docs.length ? docs.map(function(doc) {
-        const event = doc.sefazResponseXml ? 'Resposta SEFAZ' :
-          doc.xmlSigned ? 'XML assinado' : 'Documento recebido';
-        return '<article class="log"><strong>' + formatDate(doc.updatedAt, true) + '</strong>' +
-          '<span>' + escapeHtml(event) + '</span><span>' +
-          escapeHtml(doc.tipoDocumento + ' #' + doc.numero + ' · ' + doc.id) + '</span>' +
-          '<button type="button" class="btn ghost" onclick="inspectLog(\'' + doc.id + '\')">Inspecionar</button></article>';
-      }).join('') : '<div class="empty">Nenhum evento fiscal registrado.</div>')) + '</div>' +
+      (docs.some(function(doc) { return Boolean(doc.recovery); })
+        ? '<p class="small">Nas notas gerenciadas, exibimos os marcos persistidos e a situação atual. O histórico completo das etapas intermediárias pode não estar disponível.</p>' : '') +
+      '<div class="log-list">' + (eventRows || '<div class="empty">Nenhum evento fiscal registrado.</div>') + '</div>' +
       renderInutilizations() +
       '<section class="section-head"><div><h2>Ferramenta manual</h2><p>Útil apenas para diagnóstico local; o fluxo normal começa no sistema emissor.</p></div></section>' +
       '<section class="surface"><form id="documentForm"><div class="two-col">' +
@@ -2781,6 +2810,7 @@ const page = String.raw`<!doctype html>
       if (!doc) return;
       setResponse({
         id: doc.id,
+        acompanhamento: doc.recovery || null,
         status: doc.status,
         motivo_status: doc.motivoStatus,
         motivo: doc.motivo,
@@ -2852,7 +2882,7 @@ const page = String.raw`<!doctype html>
       if (state.page === 'documents') html = renderDocuments();
       if (state.page === 'returns') html = renderReturns();
       if (state.page === 'logs') html = renderLogs();
-      document.getElementById('app').innerHTML = html;
+      document.getElementById('app').innerHTML = managedReadNotice() + html;
       updateNav();
       bindForms();
     }

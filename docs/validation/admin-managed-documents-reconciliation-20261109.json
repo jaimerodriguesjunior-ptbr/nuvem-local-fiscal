@@ -1,0 +1,173 @@
+{
+  "checkedAt": "2026-11-10T02:35:05.097Z",
+  "remoteReadsOnly": true,
+  "appliedSql": false,
+  "deployed": false,
+  "method": "ERP inventory + existing individual managed GET RPC + actual client filter function; new list RPC tested only in local PostgreSQL",
+  "period": {
+    "from": "2026-11-01",
+    "to": "2026-11-30"
+  },
+  "legacyGlobalCounts": {
+    "fiscal_documents": 1504,
+    "fiscal_document_events": 5869
+  },
+  "productionOutputRecordsInErp": 41,
+  "productionOutputRecordsWithProvider": 38,
+  "matchedLegacyDocuments": 8,
+  "matchedManagedDocuments": 30,
+  "distinctCombinedIds": 38,
+  "statusDifferences": [
+    {
+      "invoiceId": 39,
+      "storeId": 7,
+      "number": 2499,
+      "type": "NFe",
+      "erpStatus": "rejected",
+      "centralStatus": "processamento",
+      "centralPhase": "pending",
+      "centralCode": "539"
+    }
+  ],
+  "fullHistoryRead": {
+    "documents": 1504,
+    "events": 5869,
+    "durationMs": 7573,
+    "distinctDocuments": 1504,
+    "distinctEvents": 5869
+  },
+  "byStore": [
+    {
+      "storeId": 2,
+      "name": "Loja Teste",
+      "productionNotesInMonth": 0,
+      "numbers": []
+    },
+    {
+      "storeId": 4,
+      "name": "Ótica Globo - Loja 5",
+      "productionNotesInMonth": 1,
+      "numbers": [
+        {
+          "type": "NFCe",
+          "number": 1919,
+          "status": "autorizado"
+        }
+      ]
+    },
+    {
+      "storeId": 5,
+      "name": "Ótica Globo - Loja 2",
+      "productionNotesInMonth": 0,
+      "numbers": []
+    },
+    {
+      "storeId": 7,
+      "name": "Ótica Globo - Loja 1",
+      "productionNotesInMonth": 19,
+      "numbers": [
+        {
+          "type": "NFe",
+          "number": 2502,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3388,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3389,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3390,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3391,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3392,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3393,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3394,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3395,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3396,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3397,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFe",
+          "number": 2503,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3398,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3399,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3400,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3401,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3402,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3403,
+          "status": "autorizado"
+        },
+        {
+          "type": "NFCe",
+          "number": 3404,
+          "status": "autorizado"
+        }
+      ]
+    },
+    {
+      "storeId": 9,
+      "name": "Ótica Globo - Loja 6",
+      "productionNotesInMonth": 0,
+      "numbers": []
+    }
+  ]
+}
