@@ -860,7 +860,7 @@ test('tpNF entrada e finalidade devolucao sem opt-in conservam serializacao exis
   delete p.operacao;
   const result = generateAndSignNfeXml(p, opened.privateKeyPem, opened.certificatePem, undefined, returnCsrt);
   assert.match(result.unsignedXml, /<ICMSSN900><vBC>/);
-  assert.match(result.unsignedXml, /<DFeReferenciado><nItem>/);
+  assert.match(result.unsignedXml, /<DFeReferenciado><chaveAcesso>/);
 });
 
 test('garantia Luxottica ordena impostos apos JSONB sem alterar outras notas', () => {
@@ -1207,4 +1207,37 @@ test("serializa valores monetarios convencionais com duas casas decimais", () =>
   const xmlValidation = validateNfeXml(result.signedXml);
   assert.deepEqual(xmlValidation.errors, []);
   assert.equal(xmlValidation.valid, true);
+});
+
+
+test("ordena ICMSSN900 persistido em JSONB sem alterar valores ou chave", () => {
+  const parsed = parsePfx(createTestPfx("icmssn900"), "icmssn900");
+  for (const [st, rate] of [[false, 12], [true, 12], [false, 19.5], [false, 19.5123]] as const) {
+    const inf = { ...structuredClone(buildRtcInfNFe(55, 9300)), ide: { ...buildRtcInfNFe(55, 9300).ide, cNF: "12345678" } };
+    const tax = { orig: 0, CSOSN: "900", modBC: 3, vBC: 10, pICMS: rate, vICMS: 1.2,
+      ...(st ? { modBCST: 4, pMVAST: "10.00", pRedBCST: "0.00", vBCST: "11.00", pICMSST: "12.00", vICMSST: "0.12", vBCFCPST: "11.00", pFCPST: "2.00", vFCPST: "0.22" } : {}),
+      pCredSN: "0.00", vCredICMSSN: "0.00" };
+    inf.det[0].imposto.ICMS = { ICMSSN900: tax } as never;
+    inf.total.ICMSTot.vBC = 10; inf.total.ICMSTot.vICMS = 1.2;
+    const payload = { infNFe: inf, metadados: { operacao: "warranty_shipment" } };
+    const original = JSON.stringify(payload);
+    const first = generateAndSignNfeXml(payload, parsed.privateKeyPem, parsed.certificatePem);
+    const scrambled = structuredClone(payload);
+    const reversed = Object.fromEntries(Object.entries(tax).reverse());
+    scrambled.infNFe.det[0].imposto.ICMS = { ICMSSN900: reversed } as never;
+    const result = generateAndSignNfeXml(scrambled, parsed.privateKeyPem, parsed.certificatePem);
+    assert.equal(result.signatureValid, true);
+    assert.ok(result.unsignedXml.includes(`<pICMS>${rate === 19.5 ? "19.50" : rate}</pICMS>`));
+    assert.equal(result.accessKey, first.accessKey);
+    assert.equal(result.unsignedXml, first.unsignedXml);
+    assert.equal(JSON.stringify(payload), original);
+    assert.deepEqual(scrambled.infNFe.det[0].imposto.ICMS, { ICMSSN900: reversed });
+    const validation = validateNfeXml(result.signedXml);
+    assert.deepEqual(validation.errors, []);
+    assert.equal(validation.valid, true);
+    const invalid = structuredClone(scrambled);
+    (invalid.infNFe.det[0].imposto.ICMS as any).ICMSSN900.invalidField = "keep";
+    const bad = generateAndSignNfeXml(invalid, parsed.privateKeyPem, parsed.certificatePem);
+    assert.equal(validateNfeXml(bad.signedXml).valid, false);
+  }
 });

@@ -784,6 +784,31 @@ function orderLuxotticaReturnGroups(infNFe: JsonObject) {
   }
 }
 
+// Repair only explicitly identified warranty shipments. Keep other client flows unchanged.
+function prepareWarrantyShipmentGroups(payload: JsonObject, infNFe: JsonObject) {
+  const meta = payload.metadados;
+  const ide = infNFe.ide as JsonObject;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta) ||
+      (meta as JsonObject).operacao !== "warranty_shipment" ||
+      Number(ide.mod) !== 55 || Number(ide.tpNF) !== 1 || Number(ide.finNFe) !== 1 ||
+      !Array.isArray(infNFe.det)) return;
+  const order = ["orig", "CSOSN", "modBC", "vBC", "pRedBC", "pICMS", "vICMS", "modBCST", "pMVAST", "pRedBCST", "vBCST", "pICMSST", "vICMSST", "vBCFCPST", "pFCPST", "vFCPST", "pCredSN", "vCredICMSSN"];
+  for (const detail of infNFe.det as JsonObject[]) {
+    const tax = detail?.imposto as Record<string, JsonObject> | undefined;
+    const value = tax?.ICMS?.ICMSSN900;
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const fields = value as JsonObject;
+    // Keep unknown fields so XSD still rejects unsupported content.
+    const ordered = Object.fromEntries([
+      ...order.filter(key => Object.hasOwn(fields, key)).map(key => [key, fields[key]]),
+      ...Object.entries(fields).filter(([key]) => !order.includes(key))
+    ]);
+    // Add a missing decimal place without rounding rates with four places.
+    if (/^\d+\.\d$/.test(String(ordered.pICMS))) ordered.pICMS = String(ordered.pICMS) + "0";
+    tax!.ICMS.ICMSSN900 = ordered;
+  }
+}
+
 export function generateAndSignNfeXml(
   payload: JsonObject,
   privateKeyPem: string,
@@ -805,6 +830,7 @@ export function generateAndSignNfeXml(
     throw new Error("O payload precisa conter infNFe.ide e infNFe.emit.");
   }
 
+  prepareWarrantyShipmentGroups(payload, infNFe);
   applyHomologationRequiredText(infNFe);
   // Managed issuance reads JSONB before preparing XML. Property insertion order
   // is not a fiscal contract. Keep this repair scoped to explicit sales returns;
