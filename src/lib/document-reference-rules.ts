@@ -155,7 +155,26 @@ export function validateDocumentReferences(payload: JsonObject): DocumentReferen
 
   const finality = text(ide.finNFe);
   const references = asArray(ide.NFref);
-  if (REFERENCED_FINALITIES.has(finality) && references.length === 0 && !(requestsSalesReturnEntry(payload) && validSalesReturnEntry(payload))) {
+  const details = asArray(infNFe.det);
+  const itemReferences = details.map((detail) => asObject(detail)?.DFeReferenciado);
+  const isItemReferencedReturn = finality === "4" && itemReferences.some((reference) => reference != null);
+  if (isItemReferencedReturn) {
+    if (references.length > 0) {
+      pushIssue(issues, "mixed_document_references", "infNFe.ide.NFref", "Use somente referências por item nesta devolução.");
+    }
+    itemReferences.forEach((value, index) => {
+      const reference = asObject(value);
+      const path = `infNFe.det[${index}].DFeReferenciado`;
+      if (!hasAccessKey(reference?.chaveAcesso)) {
+        pushIssue(issues, "invalid_item_reference", `${path}.chaveAcesso`, "Informe a chave de acesso da NF-e de origem.");
+      }
+      const itemNumber = text(reference?.nItem);
+      if (!/^[1-9][0-9]{0,2}$/.test(itemNumber) || Number(itemNumber) > 990) {
+        pushIssue(issues, "invalid_item_reference", `${path}.nItem`, "Informe o número do item da NF-e de origem (1 a 990).");
+      }
+    });
+  }
+  if (REFERENCED_FINALITIES.has(finality) && references.length === 0 && !isItemReferencedReturn && !(requestsSalesReturnEntry(payload) && validSalesReturnEntry(payload))) {
     pushIssue(
       issues,
       "missing_document_reference",

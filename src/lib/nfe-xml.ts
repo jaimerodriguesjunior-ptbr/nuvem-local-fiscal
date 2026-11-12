@@ -151,7 +151,8 @@ const elementOrder: Record<string, string[]> = {
     "xPais",
     "fone"
   ],
-  det: ["prod", "imposto", "impostoDevol", "infAdProd", "obsItem"],
+  det: ["prod", "imposto", "impostoDevol", "infAdProd", "obsItem", "vItem", "DFeReferenciado"],
+  DFeReferenciado: ["chaveAcesso", "nItem"],
   prod: [
     "cProd",
     "cEAN",
