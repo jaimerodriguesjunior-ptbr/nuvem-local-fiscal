@@ -4628,184 +4628,100 @@ function drawCode128C(
 }
 
 function nfceDanfeContentStream(data: DanfeData) {
-  const width = 280;
-  const margin = 12;
+  // PDF points: 72 pt/in, 25.4 mm/in. Keep 4 mm margins on an 80 mm roll.
+  const width = 80 * 72 / 25.4;
+  const margin = 4 * 72 / 25.4;
   const right = width - margin;
-  const usableWidth = right - margin;
-  const itemRows = data.itens.slice(0, 60).map((item) => ({
-    item,
-    descriptionLines: wrapPdfTextByWidth(item.descricao, 79, 7).slice(0, 5)
-  }));
-  const itemBlockHeight = itemRows.reduce(
-    (total, row) => total + 10 + row.descriptionLines.length * 8,
-    0
-  );
-  const recipientLines = nfceRecipientLines(data.destinatarioNome, data.destinatarioDocumento)
-    .flatMap((value) => wrapPdfTextByWidth(value, usableWidth, 8));
-  const height = Math.max(420, 520 + itemBlockHeight + (recipientLines.length - 1) * 11);
-  const commands: string[] = [];
-  let y = height - 18;
-  const text = (x: number, y: number, size: number, value: string, font = "F1") => {
-    commands.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdf(value)}) Tj ET`);
-  };
-  const textWidth = (value: string, size: number, font = "F1") =>
-    estimatePdfTextWidth(value, size, font === "F2");
-  const centered = (yPos: number, size: number, value: string, font = "F1") => {
-    const approxWidth = textWidth(value, size, font);
-    text(Math.max(margin, (width - approxWidth) / 2), yPos, size, value, font);
-  };
-  const line = (x1: number, y1: number, x2: number, y2: number) => {
-    commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
-  };
-  const dashedLine = () => {
-    commands.push("[2 2] 0 d");
-    line(margin, y, right, y);
-    commands.push("[] 0 d");
-    y -= 9;
-  };
-  const hr = () => {
-    line(margin, y, right, y);
+  const usableWidth = width - margin * 2;
+
+  function render(height: number) {
+    const commands: string[] = [];
+    let y = height - 18;
+    const text = (x: number, size: number, value: string, font = "F1") => {
+      commands.push(`BT /${font} ${size} Tf ${formatPdfNumber(x)} ${formatPdfNumber(y)} Td (${escapePdf(value)}) Tj ET`);
+    };
+    // Leave room for the approximation used by the built-in font metrics.
+    const lines = (value: string, maxWidth: number, size: number, font = "F1") =>
+      wrapPdfTextByWidth(value, maxWidth / 1.1, size, font);
+    const centered = (value: string, size = 8, font = "F1") => {
+      for (const line of lines(value, usableWidth, size, font)) {
+        text(Math.max(margin, (width - estimatePdfTextWidth(line, size, font === "F2")) / 2), size, line, font);
+        y -= size + 3;
+      }
+    };
+    const separator = () => {
+      y -= 2;
+      commands.push(`[2 2] 0 d ${formatPdfNumber(margin)} ${formatPdfNumber(y)} m ${formatPdfNumber(right)} ${formatPdfNumber(y)} l S [] 0 d`);
+      y -= 12;
+    };
+    const pair = (label: string, value: string, size = 8, font = "F1") => {
+      const leftLines = lines(label, usableWidth * 0.55 - 5, size, font);
+      const rightLines = lines(value, usableWidth * 0.45, size, font);
+      for (let row = 0; row < Math.max(leftLines.length, rightLines.length); row++) {
+        if (leftLines[row]) text(margin, size, leftLines[row], font);
+        if (rightLines[row]) text(Math.max(margin + usableWidth * 0.55, right - estimatePdfTextWidth(rightLines[row], size, font === "F2")), size, rightLines[row], font);
+        y -= size + 3;
+      }
+    };
+
+    centered(data.emitenteNome || data.emitenteFantasia, 10, "F2");
+    centered(data.emitenteEndereco, 7);
+    centered(`CNPJ: ${formatCnpj(data.emitenteCnpj)} IE: ${data.emitenteIe || "-"}`, 7);
+    if (data.emitenteFone) centered(`Fone: ${data.emitenteFone}`, 7);
+    separator();
+    centered("DANFE NFC-e - Documento Auxiliar da", 8, "F2");
+    centered("Nota Fiscal de Consumidor Eletronica", 8, "F2");
+    if (data.ambiente === "HOMOLOGACAO") centered("HOMOLOGACAO - SEM VALOR FISCAL", 8, "F2");
+    if (data.status === "CANCELADO") {
+      centered("NFC-e CANCELADA", 10, "F2");
+      centered("Documento mantido apenas para consulta", 7);
+    }
+    separator();
+    text(margin, 7, "CODIGO / DESCRICAO", "F2");
     y -= 10;
-  };
-  const rightText = (
-    xRight: number,
-    yPos: number,
-    size: number,
-    value: string,
-    font = "F1",
-    minX = margin
-  ) => {
-    const approxWidth = textWidth(value, size, font);
-    text(Math.max(minX, xRight - approxWidth), yPos, size, value, font);
-  };
-
-  centered(y, 11, data.emitenteNome || data.emitenteFantasia, "F2");
-  y -= 10;
-  wrapText(data.emitenteEndereco, 52).slice(0, 2).forEach((value) => {
-    centered(y, 7, value);
-    y -= 8;
-  });
-  centered(y, 7, `CNPJ: ${formatCnpj(data.emitenteCnpj)} IE: ${data.emitenteIe || "-"}`);
-  y -= 8;
-  if (data.emitenteFone) {
-    centered(y, 7, `Fone: ${data.emitenteFone}`);
-    y -= 8;
-  }
-  dashedLine();
-
-  centered(y, 10, "DANFE NFC-e - Documento Auxiliar da", "F2");
-  y -= 10;
-  centered(y, 10, "Nota Fiscal de Consumidor Eletronica", "F2");
-  y -= 10;
-  if (data.ambiente === "HOMOLOGACAO") {
-    centered(y, 8, "HOMOLOGACAO - SEM VALOR FISCAL");
-    y -= 9;
-  }
-  if (data.status === "CANCELADO") {
-    centered(y, 11, "NFC-e CANCELADA", "F2");
-    y -= 11;
-    centered(y, 7, "Documento mantido apenas para consulta", "F2");
-    y -= 9;
-  }
-  dashedLine();
-
-  text(margin, y, 7, "COD", "F2");
-  text(46, y, 7, "DESCRICAO", "F2");
-  rightText(158, y, 7, "QTDE", "F2", 135);
-  text(162, y, 7, "UN", "F2");
-  rightText(219, y, 7, "VL UNIT", "F2", 180);
-  rightText(right - 1, y, 8, "VL TOTAL", "F2", 224);
-  y -= 9;
-
-  for (const { item, descriptionLines } of itemRows) {
-    const rowTop = y;
-    text(margin, y, 7, item.codigo.slice(0, 6));
-    descriptionLines.forEach((value) => {
-      text(46, y, 7, value);
-      y -= 8;
-    });
-    rightText(158, rowTop, 7, formatQuantity(item.quantidade), "F1", 135);
-    text(162, rowTop, 7, (item.unidade || "UN").slice(0, 3));
-    rightText(219, rowTop, 7, formatMoney(item.valorUnitario), "F1", 180);
-    rightText(right - 1, rowTop, 7, formatMoney(item.valorTotal));
-    y -= 2;
-  }
-  if (data.itens.length > 60) {
-    text(margin, y, 7, `Mais ${data.itens.length - 60} item(ns) no XML.`);
+    pair("QTD UN x VL UNIT", "VL TOTAL", 7, "F2");
+    for (const item of data.itens) {
+      for (const line of lines(`${item.codigo} ${item.descricao}`, usableWidth, 8)) {
+        text(margin, 8, line);
+        y -= 11;
+      }
+      pair(`${formatQuantity(item.quantidade)} ${item.unidade || "UN"} x ${formatMoney(item.valorUnitario)}`, formatMoney(item.valorTotal));
+      y -= 3;
+    }
+    separator();
+    pair("Qtd. Total de Itens", String(data.itens.length));
+    pair("Valor a Pagar R$", formatMoney(data.valorTotal), 10, "F2");
+    separator();
+    pair("FORMA PAGAMENTO", "VALOR PAGO R$", 7, "F2");
+    pair(data.formaPagamento || "-", formatMoney(data.valorPago || data.valorTotal));
+    pair("Troco R$", "0,00");
+    separator();
+    centered("Consulte pela Chave de Acesso em", 8, "F2");
+    centered(data.consultaUrl || "www.fazenda.pr.gov.br/nfce/consulta", 7);
+    centered(formatAccessKey(data.chave), 8);
+    y -= 4;
+    for (const recipientLine of nfceRecipientLines(data.destinatarioNome, data.destinatarioDocumento)) centered(recipientLine, 8);
+    centered(`NFCe n. ${data.numero.padStart(9, "0")} Serie ${data.serie.padStart(3, "0")}`, 8, "F2");
+    centered(`Emissao: ${formatShortDateTime(data.emitidaEm) || "-"}`, 8);
+    centered("Via Consumidor", 8);
+    centered(`Protocolo de Autorizacao: ${data.protocolo || "-"}`, 7);
+    centered(`Data de Autorizacao: ${formatAuthorizationDate(data.recebidoEm)}`, 7);
+    y -= 4;
+    const qrSize = 145;
+    y -= qrSize;
+    drawQrCode(commands, data.qrCodeUrl || data.chave, (width - qrSize) / 2, y, qrSize);
     y -= 12;
+    centered("Consulta via QR Code", 7);
+    separator();
+    centered("Tributos Totais Incidentes (Lei Federal 12.741/2012): R$ ----", 7);
+    y -= 4;
+    centered("Mente Binaria - Solucoes Digitais", 6);
+    return { content: commands.join("\n"), bottom: y };
   }
-  dashedLine();
 
-  text(margin, y, 8, "Qtd. Total de Itens");
-  rightText(right, y, 8, String(data.itens.length));
-  y -= 12;
-  text(margin, y, 12, "Valor a Pagar R$", "F2");
-  rightText(right, y, 12, formatMoney(data.valorTotal), "F2");
-  y -= 13;
-  dashedLine();
-
-  text(margin, y, 7, "FORMA PAGAMENTO");
-  rightText(right - 3, y, 5.5, "VALOR PAGO R$", "F2", 205);
-  y -= 9;
-  text(margin, y, 8, data.formaPagamento || "-");
-  rightText(right, y, 8, formatMoney(data.valorPago || data.valorTotal));
-  y -= 10;
-  text(margin, y, 8, "Troco R$");
-  rightText(right, y, 8, "0,00");
-  y -= 16;
-  dashedLine();
-
-  centered(y, 9, "Consulte pela Chave de Acesso em", "F2");
-  y -= 11;
-  centered(y, 8, data.consultaUrl || "www.fazenda.pr.gov.br/nfce/consulta");
-  y -= 11;
-  wrapText(formatAccessKey(data.chave), 42).forEach((value) => {
-    centered(y, 8, value);
-    y -= 9;
-  });
-  y -= 4;
-  for (const recipientLine of recipientLines) {
-    centered(y, 8, recipientLine);
-    y -= 11;
-  }
-  y -= 2;
-  centered(
-    y,
-    8,
-    `NFCe n. ${data.numero.padStart(9, "0")} Serie ${data.serie.padStart(3, "0")}`,
-    "F2"
-  );
-  y -= 10;
-  centered(y, 8, `Emissao: ${formatShortDateTime(data.emitidaEm) || "-"}`);
-  y -= 10;
-  centered(y, 8, "Via Consumidor");
-  y -= 10;
-  centered(y, 7, `Protocolo de Autorizacao: ${data.protocolo || "-"}`);
-  y -= 9;
-  centered(y, 7, `Data de Autorizacao: ${formatAuthorizationDate(data.recebidoEm)}`);
-  y -= 12;
-
-  const qrSize = 145;
-  const qrX = (width - qrSize) / 2;
-  y -= qrSize;
-  drawQrCode(commands, data.qrCodeUrl || data.chave, qrX, y, qrSize);
-  y -= 12;
-  centered(y, 6.5, "Consulta via QR Code");
-  y -= 10;
-  dashedLine();
-  wrapText("Tributos Totais Incidentes (Lei Federal 12.741/2012): R$ ----", 58)
-    .forEach((value) => {
-      text(margin, y, 7, value);
-      y -= 8;
-    });
-  y -= 12;
-  centered(y, 6, "Mente Binaria - Solucoes Digitais");
-
-  return {
-    content: commands.join("\n"),
-    width: Math.max(width, usableWidth),
-    height
-  };
+  // Measure every wrapped line and item; long receipts must not lose their footer.
+  const height = Math.ceil(-render(0).bottom + 12);
+  return { content: render(height).content, width, height };
 }
 
 function drawQrCode(commands: string[], value: string, x: number, y: number, size: number) {
