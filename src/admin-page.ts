@@ -864,6 +864,41 @@ const page = String.raw`<!doctype html>
       });
     }
 
+    function certificateExpiryStatus(certificate, now) {
+      if (!certificate || !certificate.validUntil) return 'unknown';
+      const expiry = new Date(certificate.validUntil);
+      if (!Number.isFinite(expiry.getTime())) return 'unknown';
+      if (expiry.getTime() <= now.getTime()) return 'expired';
+      // Subtrai dois meses de calendário, preservando o horário e limitando o dia ao mês de destino.
+      const start = new Date(expiry.getTime());
+      const day = start.getUTCDate();
+      start.setUTCDate(1);
+      start.setUTCMonth(start.getUTCMonth() - 2);
+      const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
+      start.setUTCDate(Math.min(day, lastDay));
+      return now.getTime() >= start.getTime() ? 'expiring' : 'valid';
+    }
+
+    function renderCertificateAlerts(companies) {
+      const now = new Date();
+      const alerts = state.snapshot.certificates.filter(function(cert) {
+        const status = certificateExpiryStatus(cert, now);
+        return cert.active && (status === 'expired' || status === 'expiring');
+      }).sort(function(a, b) { return new Date(a.validUntil) - new Date(b.validUntil); });
+      if (!alerts.length) return '';
+      return '<section class="surface" aria-label="Avisos de certificados"><h2>Certificados que precisam de atenção</h2>' +
+        '<p>Vencidos ou com vencimento nos próximos dois meses.</p>' + alerts.map(function(cert) {
+          const company = companies.find(function(item) { return item.cnpj === cert.cnpj; });
+          const expired = certificateExpiryStatus(cert, now) === 'expired';
+          const name = company ? (company.nomeFantasia || company.razaoSocial || formatCnpj(cert.cnpj)) : formatCnpj(cert.cnpj);
+          return '<div class="company"><div><strong>' + escapeHtml(name) + '</strong><div class="company-meta">' +
+            badge(expired ? 'Vencido' : 'Vence em breve', expired ? 'bad' : 'warn') +
+            '<span>' + escapeHtml(formatCnpj(cert.cnpj)) + ' · ' + (expired ? 'Venceu em ' : 'Vence em ') +
+            escapeHtml(formatDate(cert.validUntil, false)) + '</span></div></div>' +
+            (company ? '<button type="button" class="btn secondary" onclick="openCompanyCertificate(\'' + escapeHtml(company.cnpj) + '\')">Ver certificado</button>' : '') + '</div>';
+        }).join('') + '</section>';
+    }
+
     function serviceConfigFor(cnpj, ambiente, serviceType) {
       return state.snapshot.serviceConfigs.find(function(serviceConfig) {
         return serviceConfig.cnpj === cnpj &&
@@ -1165,6 +1200,7 @@ const page = String.raw`<!doctype html>
         'Operação fiscal, sem ruído.',
         'Empresas, certificados e documentos em uma visão única. Homologação e produção ficam organizadas dentro de cada CNPJ.'
       ) +
+      renderCertificateAlerts(companies) +
       metrics(companies) +
       '<section class="section-head"><div><h2>Empresas</h2><p>Cadastro único por CNPJ, com ambientes separados internamente.</p></div>' +
         '<button type="button" class="btn ghost" onclick="navigate(\'companies\')">Ver todas</button></section>' +
@@ -2741,6 +2777,14 @@ const page = String.raw`<!doctype html>
     function openCompany(cnpj) {
       state.companyCnpj = cnpj;
       state.companyTab = 'dados';
+      state.page = 'company';
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openCompanyCertificate(cnpj) {
+      state.companyCnpj = cnpj;
+      state.companyTab = 'certificado';
       state.page = 'company';
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
